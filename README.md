@@ -1,5 +1,7 @@
 # VRoid Character MCP
 
+**English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
+
 A local MCP server that drives **one disposable copy of VRoid Studio** through
 the application's own managed API. It exposes 86 tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
@@ -9,6 +11,34 @@ Status: **0.4.1 development**. The tool layer is closed and verified end to end
 on a clean lab; the character art (formal v22 assembly, shoes, sitting skirt) is
 a separate line of work. See [SCOPE.md](SCOPE.md) for what 0.4.x includes and
 what it deliberately does not.
+
+## In action
+
+These are native screenshots from development validation on **2026-10-19**,
+not generated mockups. The outfit and makeup are separate work-in-progress
+candidates, not a single final avatar. [Image sources and scope](assets/showcase/README.md).
+
+| Dress-up assembly | Native walking preview frame |
+|:---:|:---:|
+| ![Native full-outfit front view](assets/showcase/outfit-front.png) | ![The same outfit during a native walk preview](assets/showcase/outfit-walk.png) |
+
+The clothing comes from an external modeling and rigging workflow. MCP imports,
+adjusts, reviews, saves and exports it; seated-skirt intersections remain unresolved.
+
+| Before eyebrow and under-eye painting | After painting, saved and reopened |
+|:---:|:---:|
+| ![Before local makeup painting](assets/showcase/makeup-before.png) | ![Eyebrow tint and under-eye shading after a cold reopen](assets/showcase/makeup-after.png) |
+
+The makeup example preserves the eyebrow shape and adds bounded 2D shading below
+the eyes. Native layer pixels, Undo/Redo and save/reopen were checked.
+
+| Left index fingernail | Right thumbnail |
+|:---:|:---:|
+| ![Blue fingernail localization test](assets/showcase/nail-index.png) | ![Orange thumbnail localization test](assets/showcase/nail-thumb.png) |
+
+These diagnostic colours demonstrate hand-nail masks and RGB texture import;
+they are not a finished nail-art design. More detail, including a closed-eye
+check, is in the [Chinese walkthrough](README.zh-CN.md#效果展示).
 
 ## What it is not
 
@@ -38,7 +68,7 @@ yourself.
 - Windows.
 - VRoid Studio **2.14.0** (Unity 6000.0.62f1). Other builds are rejected: the
   native bindings are version-specific.
-- Python 3.10+ and Node.js (Node is only used for the JavaScript checks).
+- Python 3.10+, Git, Node.js and npm (for the Frida bridge dependency and JavaScript checks).
 
 ## Install
 
@@ -89,7 +119,7 @@ refuse to run while a Dress-up assembly is open.
 ## Verify a checkout
 
 ~~~powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manifest
 ~~~
 
 This pins `TEMP`/`TMP` into `work\temp`, runs the unit tests, the tool-schema
@@ -120,15 +150,14 @@ own report is not the evidence.
   colour (`colors/Hair/All`) changes 24.6%. Only global colour is supported.
 - **M00** has not received the coverage F00 has.
 - **Rear-skirt collision is paused and unresolved**; it is not assumed away.
-- Godot import, physics and AnotherMe integration are outside this repository's
-  tool layer.
+- Godot import, materials and physics require separate engine-side validation.
 
 ## Licensing and provenance
 
 This repository began as a fork of `Karylcode/VRoid-MCP`, which is public but
 carries **no licence**: `license: null` on GitHub and no licence file in the
 baseline commit. Public visibility is not a grant, so the inherited
-implementation is being replaced rather than relicensed.
+implementation has been replaced in this development line rather than relicensed.
 
 - [LICENSE](LICENSE) covers the original code in this repository.
 - [LICENSING.md](LICENSING.md) states the scope and what is still excluded.

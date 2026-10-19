@@ -32,6 +32,7 @@ dist/
 *.glb
 *.gltf
 *.png
+!/assets/showcase/*.png
 *.jpg
 *.jpeg
 *.webp
@@ -56,12 +57,14 @@ pipeline/lab-codex/
 # Documents stay local by request; the project-level ones are tracked
 *.md
 !/README.md
+!/README.zh-CN.md
 !/README.zh-TW.md
 !/SCOPE.md
 !/CHANGELOG.md
 !/REWRITE.md
 !/LICENSING.md
 !/tools/TOOLS.md
+!/assets/showcase/README.md
 *.pdf
 *.docx
 *.html

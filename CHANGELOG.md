@@ -177,7 +177,7 @@ release; see `SCOPE.md`.
 - Rear-skirt collision stays paused and unresolved; it is not silently
   assumed away.
 - M00 has not received the coverage F00 has.
-- Godot import, physics and AnotherMe integration are outside this release.
+- Godot import, materials and physics require separate engine-side validation.
 
 ## 0.3.2 and earlier
 

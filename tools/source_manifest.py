@@ -38,7 +38,7 @@ SKIP_NAMES = {'expected-tools.json', 'TOOLS.md'}
 def _candidates() -> list[pathlib.Path]:
     files: list[pathlib.Path] = []
     for name in ('launch.py', 'prepare_lab.py', 'pyproject.toml', 'package.json', 'SCOPE.md',
-                 'CHANGELOG.md', 'README.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
+                 'CHANGELOG.md', 'README.md', 'README.zh-CN.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
                  'LICENSING.md', 'UPSTREAM.json'):
         path = PROJECT / name
         if path.is_file():

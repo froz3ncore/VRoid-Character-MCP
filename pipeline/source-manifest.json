@@ -1,25 +1,25 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 288,
- "total_bytes": 1736826,
+ "file_count": 289,
+ "total_bytes": 1749936,
  "tool_count": 86,
  "toolset_hash": "sha256:69101bb60cc1f53ba6a94e44a8787996b3b31fa908ffe9be59ee76744f4b8517",
  "files": [
   {
    "path": "CHANGELOG.md",
-   "bytes": 10371,
-   "sha256": "7b9134369cb0e2a9ddde3de0c4f8d67a44fd3f1398619b80e7ea944d20ebbede"
+   "bytes": 10374,
+   "sha256": "b61d866bcd0895b151869c909ff40ad406f893abbe47963fbdb7665c55b2894e"
   },
   {
    "path": "LICENSE",
-   "bytes": 1628,
-   "sha256": "8d8311aac7e6a5d4a10319c03d62af96dff487dc03b8b7fbdf68cd2c09688f30"
+   "bytes": 1104,
+   "sha256": "12c03a9509a0a0d169569e1df58bdb986ea49953b577bc07e888402b88600c8a"
   },
   {
    "path": "LICENSING.md",
-   "bytes": 2308,
-   "sha256": "190957bb9b3e44c05dda92eea230b8a605a595b0f337d3f6f1ca537efcd394ed"
+   "bytes": 2574,
+   "sha256": "f457e71e6b107aa77dcd0d4ba9a49532bea1cfc6be8cc491f749f70d92d2b2b7"
   },
   {
    "path": "NOTICE",
@@ -28,18 +28,23 @@
   },
   {
    "path": "README.md",
-   "bytes": 7455,
-   "sha256": "7b0329515454552fd8711a26f273c15fbfb5442d97e613f9ada3272221d1dbbc"
+   "bytes": 9067,
+   "sha256": "8035d2cb11ba60baf47776f3307cd2abb1734e8fdb4518caec8da9fb0fc0a835"
+  },
+  {
+   "path": "README.zh-CN.md",
+   "bytes": 10980,
+   "sha256": "920c859f0834387729ec8e4dc4794fe40d7f7a1704cde6833a1c197898044e9d"
   },
   {
    "path": "README.zh-TW.md",
-   "bytes": 5229,
-   "sha256": "28e425d739d813d43e6d07e010338f79ba3abf9c28fdd4680c6c816ca3d034e5"
+   "bytes": 5963,
+   "sha256": "b85eea5c9f529ac77b7a27fdc2b6f00a8a956ded24447490e9c5fcf35b0e1d5e"
   },
   {
    "path": "SCOPE.md",
-   "bytes": 6240,
-   "sha256": "97bf86094d7e5a9a7144f2feee2b3a6a5980f6aa1a7c9425ce3f4cf755d4cb60"
+   "bytes": 6260,
+   "sha256": "da7438d5fbdd68a50295ba153d31cf74786c5367eb8a468e2f16f8bcd1ff5e84"
   },
   {
    "path": "UPSTREAM.json",
@@ -1228,8 +1233,8 @@
   },
   {
    "path": "tools/source_manifest.py",
-   "bytes": 5849,
-   "sha256": "913bc43e61a58fb758f3f43e8951fca1d05ffaa5f914322f9ab1d0e0980a6b34"
+   "bytes": 5868,
+   "sha256": "47f76f0fb70a95844bfbc88fbdd4d46666e6ed6ffca4ae47fb5f3b4086f0b5d4"
   },
   {
    "path": "tools/tool_manifest.py",

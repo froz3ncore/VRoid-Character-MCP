@@ -1,11 +1,23 @@
 # VRoid Character MCP
 
+[English](README.md) · [简体中文](README.zh-CN.md) · **繁體中文**
+
 本地 MCP 伺服器：只驅動**一份可丟棄的 VRoid Studio 副本**，透過應用程式自己的
 managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **86 個工具**。
 不使用滑鼠自動化、OCR 或螢幕抓取。
 
 狀態：**0.4.1 開發版**。工具層已收口並在乾淨 lab 上端到端驗證；角色美術
 （正式 v22 裝配、鞋、坐姿裙擺）是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
+
+## 效果展示
+
+以下為 2026-10-19 開發驗證中的原生截圖。服裝與妝容是不同驗證場景的候選，尚未合併為最終角色；坐姿裙擺與穿插問題仍保留。
+
+| 服裝裝配 | 局部妝容：保存重開 |
+|:---:|:---:|
+| ![原生換裝中的整套服裝正面預覽](assets/showcase/outfit-front.png) | ![眉色與眼下陰影高光繪製後的原生臉部近景](assets/showcase/makeup-after.png) |
+
+完整的妝容前後對照、閉眼檢查與手指美甲近景見 [簡體中文圖文說明](README.zh-CN.md#效果展示)，來源與展示範圍見 [截圖說明](assets/showcase/README.md)。
 
 ## 不是什麼
 
@@ -28,7 +40,7 @@ managed 方法；不會附加到你原本開著的 VRoid。
 
 - Windows。
 - VRoid Studio **2.14.0**（Unity 6000.0.62f1）；其他版本會被拒絕，原生綁定與版本相關。
-- Python 3.10+、Node.js（僅用於 JavaScript 檢查）。
+- Python 3.10+、Git、Node.js 與 npm（用於 Frida bridge 依賴與 JavaScript 檢查）。
 
 ## 安裝
 
@@ -72,7 +84,7 @@ npm install
 ## 驗證
 
 ~~~powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manifest
 ~~~
 
 會把 `TEMP`/`TMP` 固定到 `work\temp`，跑單元測試、工具 schema smoke、JavaScript
@@ -90,7 +102,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1
   全域 `colors/Hair/All` 則有 24.6% 變化，因此只支援全域發色。
 - **M00** 沒有 F00 的等價覆蓋。
 - **後裙碰撞暫停且未解決**，不會當作不存在。
-- Godot 匯入、物理與 AnotherMe 整合不在本倉庫的工具層範圍。
+- Godot 匯入、材質與物理需要另做引擎端驗證。
 
 ## 授權與來源
 

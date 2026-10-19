@@ -43,5 +43,8 @@ existing MIT licences and attribution in the five directories listed in
 statement. Dependencies (`frida`, `mcp`, `frida-il2cpp-bridge`) retain their own
 licences.
 
-Development assets - character models, textures, Blender sources and acceptance
-images - stay local and are excluded from this repository.
+Character models, texture source assets, Blender sources and full acceptance
+archives stay local. The selected native screenshots under `assets/showcase/`
+are included as visual documentation; see that directory's README and
+SOURCES.json for their origins. They are excluded from the code's MIT grant
+and do not convey a licence to the characters, clothing or VRoid Studio.

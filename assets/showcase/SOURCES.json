@@ -1,0 +1,66 @@
+{
+  "schema": "vroid-showcase-sources-v1",
+  "published_date": "2026-10-20",
+  "capture_date": "2026-10-19",
+  "image_edits": false,
+  "source_paths": "Relative to the development workspace, not repository download paths",
+  "scope": "Native development screenshots of separate work-in-progress candidates; excluded from the code MIT grant. See README.md.",
+  "images": [
+    {
+      "file": "outfit-front.png",
+      "source_workspace_relative": "projects/whale-maid/accessory-refinement-v02/hem-align-native-review-v22/problem-poses-front.png",
+      "record_workspace_relative": "projects/whale-maid/accessory-refinement-v02/hem-align-native-review-v22/visual-review.json",
+      "sha256": "025e157ef135ace63dabc4d1d0f497fdb259dcefc216160a6a5cda215e819574",
+      "bytes": 312168,
+      "caption": "Native front view of the hem-align-v22 outfit candidate"
+    },
+    {
+      "file": "outfit-walk.png",
+      "source_workspace_relative": "projects/whale-maid/accessory-refinement-v02/hem-align-native-review-v22/walk-front/frame-08.png",
+      "record_workspace_relative": "projects/whale-maid/accessory-refinement-v02/hem-align-native-review-v22/walk-front-completed.json",
+      "sha256": "8fe9eaf5d156c0c8e1880983542be096bcac69248ff093d66c59dcfcd37417bb",
+      "bytes": 178189,
+      "caption": "Frame 8 from the native front walking preview"
+    },
+    {
+      "file": "makeup-before.png",
+      "source_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/evidence/before-open.png",
+      "record_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/final_delivery.json",
+      "sha256": "b8c71147d1d66975e29fd4901f946557b9b0e61eac927959e514a0c7116ae3d2",
+      "bytes": 574385,
+      "caption": "Before the v04 eyebrow and under-eye painting"
+    },
+    {
+      "file": "makeup-after.png",
+      "source_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/evidence/cold-open.png",
+      "record_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/final_delivery.json",
+      "sha256": "05d0f531d9b11f30e459dc91217227206658b7c94ae6ee91f4019d5b2ea69895",
+      "bytes": 577966,
+      "caption": "After painting, saved and reopened in a fresh process"
+    },
+    {
+      "file": "makeup-closed.png",
+      "source_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/evidence/cold-closed.png",
+      "record_workspace_relative": "projects/whale-maid/cosmetics-texture-tools-v04/final_delivery.json",
+      "sha256": "1e37e938bc067de8cffee63f8b2144b877a1396d012bf40feb0ab4faf8f680d0",
+      "bytes": 524801,
+      "caption": "Temporary closed-eye capture of the reopened makeup candidate"
+    },
+    {
+      "file": "nail-index.png",
+      "source_workspace_relative": "projects/whale-maid/diagnostics/nail-visibility-v01/L_Index.png",
+      "record_workspace_relative": "projects/whale-maid/diagnostics/nail-visibility-v01/L_Index.json",
+      "sha256": "24152e239574b2b091f86b820a05be6103e8578922689edfe2ccbdc159698003",
+      "bytes": 45793,
+      "caption": "Left index fingernail blue localization test"
+    },
+    {
+      "file": "nail-thumb.png",
+      "source_workspace_relative": "projects/whale-maid/diagnostics/nail-visibility-v01/R_Thumb.png",
+      "record_workspace_relative": "projects/whale-maid/diagnostics/nail-visibility-v01/R_Thumb.json",
+      "sha256": "3e47ce08bfda06fcf6883857f329404e9c95e63c24db035027bc80677517c791",
+      "bytes": 45658,
+      "caption": "Right thumbnail orange localization test"
+    }
+  ]
+}
