@@ -1,0 +1,139 @@
+{
+  "schema": "vroid-upstream-provenance-v1",
+  "source_repository": "https://github.com/Karylcode/VRoid-MCP",
+  "baseline_commit": "9b264d3ad3a33bea2e18e91a0476e395246a6be6",
+  "permission_status": "unconfirmed",
+  "note": "Historical ancestry inventory only; not a license grant or proof that later files are independently authored. See LICENSING.md.",
+  "tracked_paths": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "git_blob": "8db3f98dcfab6d3e0075f4de316e7a59556fa525"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "git_blob": "a44f7c2d71af7ff2cf76fa00a9e54e10d329a5bd"
+    },
+    {
+      "path": "README.zh-TW.md",
+      "mode": "100644",
+      "git_blob": "be46cd921d537f3c2cf0d6fcf72d9ca4b87dadac"
+    },
+    {
+      "path": "agent/bootstrap.js",
+      "mode": "100644",
+      "git_blob": "b25fe14a1623bcb7931a465b28374587fd47a05c"
+    },
+    {
+      "path": "agent/isolate.js",
+      "mode": "100644",
+      "git_blob": "8fb24a83cc73b291eaa0c5334eba93e1882cfd56"
+    },
+    {
+      "path": "agent/operations.js",
+      "mode": "100644",
+      "git_blob": "c1cdc469d843a0f93e7d455f1174cea0b7c88c68"
+    },
+    {
+      "path": "agent/parameters.js",
+      "mode": "100644",
+      "git_blob": "43cb7030afe9d61e5ece8942f663d250623ab08d"
+    },
+    {
+      "path": "launch.py",
+      "mode": "100644",
+      "git_blob": "70c6c2818a308535340924c9a8f49a2a99c8d3f7"
+    },
+    {
+      "path": "package-lock.json",
+      "mode": "100644",
+      "git_blob": "33095400e13c2fa5bf71c5c0de68c8292950a19c"
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "git_blob": "08caa5673d952ed8854097d5c059df1847d6164e"
+    },
+    {
+      "path": "prepare_lab.py",
+      "mode": "100644",
+      "git_blob": "3a42d4ccd58b708baffbcad75cb6c380de046185"
+    },
+    {
+      "path": "pyproject.toml",
+      "mode": "100644",
+      "git_blob": "a0670d4799ae7d24da1d89adbd3c5105c1a5b982"
+    },
+    {
+      "path": "requirements.txt",
+      "mode": "100644",
+      "git_blob": "1da89bf3f2fca3372ff708126d05ebff29470765"
+    },
+    {
+      "path": "tests/extension_acceptance.py",
+      "mode": "100644",
+      "git_blob": "32ff162d701d46e84e7ae75613d74df2b4ecd4c6"
+    },
+    {
+      "path": "tests/live_acceptance.py",
+      "mode": "100644",
+      "git_blob": "508b89a8b595197b89b3f2e0ceea4b8b8d62fc6a"
+    },
+    {
+      "path": "tests/parameter_acceptance.py",
+      "mode": "100644",
+      "git_blob": "10617f66b031fe4c72d547af64ccb135f4258443"
+    },
+    {
+      "path": "tests/parameter_extras.py",
+      "mode": "100644",
+      "git_blob": "80999d4fb5cf016855b648bf5b614e7244b2f47f"
+    },
+    {
+      "path": "tests/recovery_acceptance.py",
+      "mode": "100644",
+      "git_blob": "6374787962218f9d80ab531b2e89b38b3640902d"
+    },
+    {
+      "path": "tests/reopen_acceptance.py",
+      "mode": "100644",
+      "git_blob": "01e91d8882803b6ea4a4f4c1fa32a932b37ae61c"
+    },
+    {
+      "path": "tests/review_acceptance.py",
+      "mode": "100644",
+      "git_blob": "3c22009d770009353a866d2c4166f8b03d05728a"
+    },
+    {
+      "path": "tests/stdio_acceptance.py",
+      "mode": "100644",
+      "git_blob": "388f56eb72f708e22d41f5bc87ae477fc483a47f"
+    },
+    {
+      "path": "tests/test_review_policy.py",
+      "mode": "100644",
+      "git_blob": "677189c15d4835a4e8cabf5ccacc99c19cb9bca7"
+    },
+    {
+      "path": "tests/test_save_policy.py",
+      "mode": "100644",
+      "git_blob": "b4bd254eb771c65b0f62747bf562eb7a702b8aa2"
+    },
+    {
+      "path": "vroid_mcp/__init__.py",
+      "mode": "100644",
+      "git_blob": "fff19bd5efa3f96f5654ff5db0e8df7d7ec15bcf"
+    },
+    {
+      "path": "vroid_mcp/runtime.py",
+      "mode": "100644",
+      "git_blob": "ecc6c9b5af4441fd35d581140f19e8cbf572769d"
+    },
+    {
+      "path": "vroid_mcp/server.py",
+      "mode": "100644",
+      "git_blob": "e32f2b9f7112bf5f7ed7d5f8d4eb62a8733f49fb"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+Native color accessor identity and mixed aggregate reporting adapted from brainrom/vroid-studio-mcp.
+Copyright (c) 2026 Ilya Chelyadin and vroid-studio-mcp contributors.
+License: MIT (see LICENSE).
+Source: https://github.com/brainrom/vroid-studio-mcp
+Commit: a6b0719d01fa6cac9a857956907243d9916390b2
+Originals: plugin/VroidStudioMcp/Editor/Colors.cs and Editor/Parameters.cs
+
+The local implementation reads exact group/key bindings and actual per-key RGBA values.
+Mixed state and aliases are independent of translated display names. Existing write IDs are retained;
+overlapping batch writes are rejected and settled native binding readback verifies color effects.

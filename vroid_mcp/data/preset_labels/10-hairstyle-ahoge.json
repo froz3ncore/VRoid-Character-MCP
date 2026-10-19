@@ -1,0 +1,36 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Hairstyle",
+    "category": "Ahoge",
+    "generated": "2026-10-04T11:36:32.9250340Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Hair/N00/Ahoge/525/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/524/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Long Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/523/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Single Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/522/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Long Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/521/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/520/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Single Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/519/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Single Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/518/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/517/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Loop Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/516/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Loop Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/515/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Upright Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/514/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Straight Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/513/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/512/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Loop Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/511/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Single Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/510/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/509/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/508/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Thin Curved Twin Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/507/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Long Curved Twin Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/506/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Single Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/505/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Long Thin Looping Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/504/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Short Curved Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/503/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Small Single Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/501/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Single Curled Ahoge",
+    "pixiv/VRoid/Hair/N00/Ahoge/500/TransferableGroupType.N00.Level1.HairAhoge.transferablegroup": "Short Curved Ahoge"
+  }
+}

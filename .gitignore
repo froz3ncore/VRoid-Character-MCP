@@ -1,0 +1,69 @@
+# Python environments and caches
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Node dependencies for the Frida bridge
+node_modules/
+
+# A lab is a disposable copy of the VRoid installation
+lab/
+app/
+profile/
+environments/
+saves/
+runs/
+reviews/
+test-evidence/
+blocked-outside-workspace/
+
+# Build output
+build/
+dist/
+
+# Model, image and render artifacts
+*.vroid
+*.xroid
+*.xwear
+*.vrm
+*.blend
+*.blend1
+*.glb
+*.gltf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.dll
+*.exe
+*.log
+
+# Local configuration
+.env
+.env.*
+*.local.json
+
+# Vendored source snapshots and per-run evidence kept outside the repository
+pipeline/projects/
+pipeline/downloads/
+pipeline/evidence/
+pipeline/work/
+pipeline/runtimes/
+pipeline/lab-test/
+pipeline/lab-codex/
+
+# Documents stay local by request; the project-level ones are tracked
+*.md
+!/README.md
+!/README.zh-TW.md
+!/SCOPE.md
+!/CHANGELOG.md
+!/REWRITE.md
+!/LICENSING.md
+!/tools/TOOLS.md
+*.pdf
+*.docx
+*.html
+docs/
+文檔/

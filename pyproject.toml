@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vroid-character-mcp"
+version = "0.4.1.dev0"
+description = "MCP server for native VRoid Studio character parameters, textures and Dress-up assembly"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "frida==17.16.0",
+    "mcp==1.30.0",
+]
+
+[project.scripts]
+vroid-character-mcp = "vroid_mcp.server:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["vroid_mcp"]
+
+[tool.setuptools.package-data]
+vroid_mcp = [
+    "data/*/LICENSE",
+    "data/*/NOTICE",
+    "data/preset_labels/*.json",
+    "data/parameter_labels/*.json",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"

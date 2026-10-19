@@ -1,0 +1,105 @@
+{
+  "scope": "Local cosmetics painting v03. Independent integration/verification source; do not overwrite concurrent hair work or the shared global source manifest.",
+  "files": [
+    {
+      "path": "VRoid-MCP/agent/textures.js",
+      "bytes": 32189,
+      "sha256": "e2db52579cb48d9abf7e22f2d5f172cf0eeb9a44a312e559d669e64467c3c2a1"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_tools.py",
+      "bytes": 6315,
+      "sha256": "da161b664bf51f0d2c4f743b0c50f08d49009302f86da93b622b1c485002a07e"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_targets.py",
+      "bytes": 5818,
+      "sha256": "c3a148801acb543f012140890aaa86d39b89ad015b18c51d52b1c63178c36b59"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_mapping.py",
+      "bytes": 10879,
+      "sha256": "85e9bc72a25dbb731c089fba23808426ce3493b616f1753d80b8d3cc194bc6fc"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_input.py",
+      "bytes": 1335,
+      "sha256": "565fe631e9ffa7fd431787bec9c6e2e430a2b40abecb0ebb79b934db666556ff"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/bounded_paint.py",
+      "bytes": 9567,
+      "sha256": "c26c19043ac01edfad3c17d8c7b098387a28526b2d14a37cbb598575064ac1e5"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/makeup_tools.py",
+      "bytes": 11528,
+      "sha256": "0959acb71ecb59051ad913dd5fb902f747aa582d15c4490d69121eff0a49b5f4"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/server.py",
+      "bytes": 46295,
+      "sha256": "eeab63e99c5440f17bd81854f5d38eeb565410f86fb47e1870e7e31985293e59"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/runtime.py",
+      "bytes": 57392,
+      "sha256": "b065351b3d7b7313be4ad3bb40cb7005372bc6e1c7a910fc799de3ac0f7f3031"
+    },
+    {
+      "path": "VRoid-MCP/tests/test_bounded_paint.py",
+      "bytes": 5473,
+      "sha256": "7b5a7c15c0aa9e314177f255fde355a281a388ded9a77dc78e255725cfc15c2a"
+    },
+    {
+      "path": "VRoid-MCP/tests/test_makeup_tools.py",
+      "bytes": 5652,
+      "sha256": "bc7243c7cebc20c7902e2bacdc75712334fbb853b197dabd36aff16d89d17c8c"
+    },
+    {
+      "path": "VRoid-MCP/tests/makeup_eye_pose_test.js",
+      "bytes": 1791,
+      "sha256": "4b7f9e1a82f7a79132b7ad651b928dc0e0c510cd56ff926a9fb866298e546cdf"
+    },
+    {
+      "path": "tools/clean_native_clothing.py",
+      "bytes": 7517,
+      "sha256": "6f3f3e035e5a04d7a1267fcca4898cac5298aa245c7c803ab9a56c105e0efbcf"
+    },
+    {
+      "path": "tools/probe_local_makeup_regions.py",
+      "bytes": 2653,
+      "sha256": "35732897efc86989ad83b746eb5bb4d6097aad17ad957923c799591ac7d40730"
+    },
+    {
+      "path": "tools/accept_local_makeup_tools.py",
+      "bytes": 10180,
+      "sha256": "2bb3b6661899a9f73ca15f394e99695f8eb9af858dc792b3f22a0dcf6b7a4977"
+    },
+    {
+      "path": "tools/review_local_makeup_close.py",
+      "bytes": 2401,
+      "sha256": "1314931277d2f21a2f18ac64832d3b4f74eeffda2261b7463bb954ea34e1b39c"
+    },
+    {
+      "path": "tools/probe_makeup_eye_shapes.py",
+      "bytes": 1060,
+      "sha256": "2bc9d8b9eb0d78734ff9ed806eff8bf404f74ceafb8e5b67a4ed0439e8ec3345"
+    },
+    {
+      "path": "tools/verify_local_makeup_write_boundary.py",
+      "bytes": 2583,
+      "sha256": "b31f0e957983f955834acba1147be193eb72a6a845ff66765cde70eb34e90469"
+    },
+    {
+      "path": "tools/check_local_makeup_pixels.py",
+      "bytes": 1958,
+      "sha256": "030570d34fff2f1cd3d58873c92647e7c5251c0a4a81b5f4d70c53e85abafa10"
+    },
+    {
+      "path": "tools/finalize_local_makeup_tools.py",
+      "bytes": 20381,
+      "sha256": "3d8da1df0bda0094a453117424422d8f976141957618d282c6a7bcdf3b6c0d47"
+    }
+  ]
+}

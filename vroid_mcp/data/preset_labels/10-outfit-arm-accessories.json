@@ -1,0 +1,27 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Outfit",
+    "category": "Arm Accessories",
+    "generated": "2026-10-04T09:48:47.0566699Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/116/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "White Wristband with Black Clasp",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/115/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Brown Clover Wristband",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/114/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Colorful Arm and Finger Bandages",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/113/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Finger Rings",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/112/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Chain Bracelet",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/111/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Wrist Cuff",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/110/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "White Bandage Wraps",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/109/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Ruffled Rose Cuffs",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/108/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Silver Dangle Bracelet",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/107/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Long Gloves",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/106/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Pink Heart Bracelet",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/105/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Fingered Gloves",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/104/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Light Blue Gloves Black Cuff",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/103/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Gloves with Gold Trim",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/102/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "White Ruffled Wristbands",
+    "pixiv/VRoid/Clothing/AccessoryArm/N00/101/TransferableGroupType.N00.Level1.ArmAccessory.transferablegroup": "Black Cuffed Gloves"
+  }
+}

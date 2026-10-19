@@ -1,0 +1,21 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Face",
+    "category": "Scleras",
+    "generated": "2026-10-04T10:34:44.1238860Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Face/EyeWhite/N00/Default/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/110/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/109/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/108/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Soft Pink Gradient",
+    "pixiv/VRoid/Face/EyeWhite/N00/107/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/106/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/105/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/104/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/103/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White",
+    "pixiv/VRoid/Face/EyeWhite/N00/102/TransferableGroupType.N00.Level3.EyeWhite.transferablegroup": "Plain White"
+  }
+}

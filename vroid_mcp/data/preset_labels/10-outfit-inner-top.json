@@ -1,0 +1,18 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Outfit",
+    "category": "Inner Top",
+    "generated": "2026-10-04T09:49:14.7932950Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Clothing/InnerTop/N00/006/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Triangle Bra Top",
+    "pixiv/VRoid/Clothing/InnerTop/N00/005/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Bandeau Top",
+    "pixiv/VRoid/Clothing/InnerTop/N00/004/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Sweetheart Crop Top",
+    "pixiv/VRoid/Clothing/InnerTop/N00/003/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Tank Top",
+    "pixiv/VRoid/Clothing/InnerTop/N00/002/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Bralette Red Straps",
+    "pixiv/VRoid/Clothing/InnerTop/N00/001/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Strapless Top",
+    "pixiv/VRoid/Clothing/InnerTop/N00/Preset_F/TransferableGroupType.N00.Level1.InnerTop.transferablegroup": "Black Puff Sleeve Top"
+  }
+}

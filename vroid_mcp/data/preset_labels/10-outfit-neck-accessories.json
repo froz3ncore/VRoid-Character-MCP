@@ -1,0 +1,29 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Outfit",
+    "category": "Neck Accessories",
+    "generated": "2026-10-04T09:47:32.6095756Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/121/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "White Star Necklace",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/120/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Gold Dangle Choker",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/119/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Beaded Flower Necklace",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/118/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Black Horned Strap Collar",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/117/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Black Bow Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/116/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Striped Necktie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/115/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Striped Neck Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/114/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Striped Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/113/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Teal Ribbon Bow Long Tails",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/112/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Ribbon Bow",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/111/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Striped teal bow tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/110/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Striped Bow Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/109/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Plaid Bow Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/108/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Plaid Bow Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/107/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Blue Striped Necktie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/106/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Blue Striped Bow Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/105/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Diamond Pattern Tie",
+    "pixiv/VRoid/Clothing/AccessoryNeck/N00/104/TransferableGroupType.N00.Level1.NeckAccessory.transferablegroup": "Pink Patterned Bow Tie"
+  }
+}

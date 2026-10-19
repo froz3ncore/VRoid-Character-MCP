@@ -1,0 +1,8 @@
+# Runtime dependencies, pinned to the versions this project is validated with.
+# frida      - attaches to the disposable VRoid copy
+# mcp        - stdio server transport
+frida==17.16.0
+mcp==1.30.0
+
+# Development only
+pytest>=8

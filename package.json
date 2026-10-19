@@ -1,0 +1,9 @@
+{
+  "name": "vroid-character-mcp-agent",
+  "version": "0.4.1-dev.0",
+  "private": true,
+  "description": "Frida agent bundle for the VRoid Character MCP server",
+  "dependencies": {
+    "frida-il2cpp-bridge": "0.14.0"
+  }
+}

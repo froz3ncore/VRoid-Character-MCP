@@ -1,0 +1,7 @@
+Parameter-name corrections and binding-key extraction adapted from brainrom/vroid-studio-mcp.
+Copyright (c) 2026 Ilya Chelyadin and vroid-studio-mcp contributors.
+License: MIT (see LICENSE).
+Source: https://github.com/brainrom/vroid-studio-mcp
+Commit: a6b0719d01fa6cac9a857956907243d9916390b2
+data/i18n/en.json is copied verbatim; corrections are exact native message-key matches, not translations guessed from labels.
+Binding extraction is adapted to the verified VRoid 2.14.0 field layouts.

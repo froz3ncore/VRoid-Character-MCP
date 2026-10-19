@@ -1,0 +1,41 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Hairstyle",
+    "category": "Back",
+    "generated": "2026-10-04T11:22:46.9144186Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Hair/N00/Back/326/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/325/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Sleek Back",
+    "pixiv/VRoid/Hair/N00/Back/324/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/322/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Straight Bob",
+    "pixiv/VRoid/Hair/N00/Back/153/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/152/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Layered Back",
+    "pixiv/VRoid/Hair/N00/Back/151/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Straight Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/150/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/149/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Wavy Back",
+    "pixiv/VRoid/Hair/N00/Back/148/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/147/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Medium Double Braids Back",
+    "pixiv/VRoid/Hair/N00/Back/146/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Shoulder Length Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/145/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Medium Straight Back",
+    "pixiv/VRoid/Hair/N00/Back/144/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Straight Back",
+    "pixiv/VRoid/Hair/N00/Back/143/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Straight Back",
+    "pixiv/VRoid/Hair/N00/Back/142/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Spiky Back",
+    "pixiv/VRoid/Hair/N00/Back/141/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Straight Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/140/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Braided Back",
+    "pixiv/VRoid/Hair/N00/Back/139/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Medium Layered Wavy Back",
+    "pixiv/VRoid/Hair/N00/Back/138/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/137/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/136/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Straight Bob",
+    "pixiv/VRoid/Hair/N00/Back/135/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Spiky Back",
+    "pixiv/VRoid/Hair/N00/Back/134/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Spiky Back",
+    "pixiv/VRoid/Hair/N00/Back/133/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Wavy Back",
+    "pixiv/VRoid/Hair/N00/Back/132/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Straight Back",
+    "pixiv/VRoid/Hair/N00/Back/112/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back",
+    "pixiv/VRoid/Hair/N00/Back/110/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Medium Twin Braids",
+    "pixiv/VRoid/Hair/N00/Back/103/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Long Straight Brown Back",
+    "pixiv/VRoid/Hair/N00/Back/101/TransferableGroupType.N00.Level1.HairBack.transferablegroup": "Short Bob Back"
+  }
+}

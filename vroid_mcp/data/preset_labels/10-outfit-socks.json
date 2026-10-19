@@ -1,0 +1,43 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Outfit",
+    "category": "Socks",
+    "generated": "2026-10-04T09:51:30.6070053Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Clothing/Socks/N00/117/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Blue Trimmed White Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/116/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Lace-Top Thigh Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/115/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Pink Cuffed Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/114/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Gray Socks Black Band",
+    "pixiv/VRoid/Clothing/Socks/N00/113/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Spade Thigh-High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/112/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Gray Striped Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/111/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Sheer Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/110/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Bare Legs",
+    "pixiv/VRoid/Clothing/Socks/N00/109/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Gold-Banded Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/108/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Thigh-High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/107/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Gold Star Stockings",
+    "pixiv/VRoid/Clothing/Socks/N00/106/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Lace Trim Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/105/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Knee-High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/104/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Dark Brown Tights",
+    "pixiv/VRoid/Clothing/Socks/N00/103/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Mismatched Black Lace Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/102/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Frilly Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/101/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Ribbed Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/100/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Gray Knee-High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/014/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Over Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/013/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Striped Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/012/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Striped Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/011/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Striped Knee Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/010/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Striped Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/009/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Mid-Calf Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/008/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Mid-Calf Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/007/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Calf Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/006/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Thigh High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/005/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Thigh-High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/004/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Thigh High Socks",
+    "pixiv/VRoid/Clothing/Socks/N00/003/TransferableGroupType.N00.Level1.Socks.transferablegroup": "White Sheer Tights",
+    "pixiv/VRoid/Clothing/Socks/N00/002/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Opaque Tights",
+    "pixiv/VRoid/Clothing/Socks/N00/001/TransferableGroupType.N00.Level1.Socks.transferablegroup": "Black Tights"
+  }
+}

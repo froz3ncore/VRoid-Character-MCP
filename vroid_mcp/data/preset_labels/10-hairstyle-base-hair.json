@@ -1,0 +1,13 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Hairstyle",
+    "category": "Base Hair",
+    "generated": "2026-10-04T11:44:31.8371055Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Hair/N00/Base/001/TransferableGroupType.N00.Level1.BaseHair.transferablegroup": "Short Base No Fringe",
+    "pixiv/VRoid/Hair/N00/Base/Default/TransferableGroupType.N00.Level1.BaseHair.transferablegroup": "Short Base with Fringe"
+  }
+}

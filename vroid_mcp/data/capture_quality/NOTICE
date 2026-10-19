@@ -1,0 +1,11 @@
+Screenshot antialiasing descriptor setup and supersampling pixel budget adapted from brainrom/vroid-studio-mcp.
+Copyright (c) 2026 Ilya Chelyadin and vroid-studio-mcp contributors.
+License: MIT (see LICENSE).
+Source: https://github.com/brainrom/vroid-studio-mcp
+Commit: a6b0719d01fa6cac9a857956907243d9916390b2
+Original: plugin/VroidStudioMcp/Runtime/RenderQuality.cs
+
+Adapted for the allowlisted VRoid Studio 2.14.0 / Unity 6000.0.62f1 native IL2CPP build.
+Scoped capture resources replace permanent preview hooks. Native descriptor fields,
+sample readback, GPU resolve/downsampling and camera restoration are implemented locally.
+Global anisotropic filtering, texture limits and recurring camera modification are not copied.

@@ -1,0 +1,924 @@
+{
+  "date": "2026-10-15",
+  "scope": "Source only; restore this layout alongside the VRoid-MCP checkout",
+  "files": [
+    {
+      "path": "blender-addons/vroid_xwear_direct/__init__.py",
+      "bytes": 24999,
+      "sha256": "ca308a37d8f293d1550ca456a3d041118b55d178f826e940c4cb01b675541299",
+      "git_lf_sha256": "ca308a37d8f293d1550ca456a3d041118b55d178f826e940c4cb01b675541299"
+    },
+    {
+      "path": "blender-addons/vroid_xwear_direct/fit.py",
+      "bytes": 22174,
+      "sha256": "6b9c439d64c534bc87e9a28e021a104c607db3aeef5a028ce182c306c6bc9524",
+      "git_lf_sha256": "6b9c439d64c534bc87e9a28e021a104c607db3aeef5a028ce182c306c6bc9524"
+    },
+    {
+      "path": "blender-addons/vroid_xwear_direct/skirt_contact.py",
+      "bytes": 3699,
+      "sha256": "354386762278649959225d1d42b76e574f7ead07d320b139a52eb40fd1333246",
+      "git_lf_sha256": "354386762278649959225d1d42b76e574f7ead07d320b139a52eb40fd1333246"
+    },
+    {
+      "path": "blender-addons/vroid_xwear_direct/sleeve_gather.py",
+      "bytes": 9415,
+      "sha256": "07c9421de82abcbadd678fcdf0abe0bdcacf36d648aa8ca645f5da600d8b1894",
+      "git_lf_sha256": "07c9421de82abcbadd678fcdf0abe0bdcacf36d648aa8ca645f5da600d8b1894"
+    },
+    {
+      "path": "tools/accept_body_occlusion.py",
+      "bytes": 3880,
+      "sha256": "bc4b3361cc61eea46e9c3bec81011c889b1f273f01940f745c3afc3a45e44e16",
+      "git_lf_sha256": "bc4b3361cc61eea46e9c3bec81011c889b1f273f01940f745c3afc3a45e44e16"
+    },
+    {
+      "path": "tools/accept_compact_motion.py",
+      "bytes": 1790,
+      "sha256": "54c8f8412e08017438c5eb718115efe66475d840c9e98b33084640cc1d716158",
+      "git_lf_sha256": "54c8f8412e08017438c5eb718115efe66475d840c9e98b33084640cc1d716158"
+    },
+    {
+      "path": "tools/accept_hidden_native_heel.py",
+      "bytes": 8587,
+      "sha256": "6eed6bde7afb040f13935c057330a7243efd6daeb44b7c9c81865c8895a15253",
+      "git_lf_sha256": "6eed6bde7afb040f13935c057330a7243efd6daeb44b7c9c81865c8895a15253"
+    },
+    {
+      "path": "tools/accept_named_wear_motions.py",
+      "bytes": 4320,
+      "sha256": "0be40edea9412535f60da15b08a2723e4f9339c5e269135a76e835f5334a3e80",
+      "git_lf_sha256": "0be40edea9412535f60da15b08a2723e4f9339c5e269135a76e835f5334a3e80"
+    },
+    {
+      "path": "tools/accept_native_vrm_export.py",
+      "bytes": 3529,
+      "sha256": "65f0c24a40fe0077677d94a3817549a4d82f2faeb4172b8354a7a8559cd58ad9",
+      "git_lf_sha256": "65f0c24a40fe0077677d94a3817549a4d82f2faeb4172b8354a7a8559cd58ad9"
+    },
+    {
+      "path": "tools/accept_native_wear_motion.py",
+      "bytes": 3484,
+      "sha256": "bb6b4e3b75404f64a0652c8584ed8c45c160d60cf9e4ecca70abe50feaca414b",
+      "git_lf_sha256": "bb6b4e3b75404f64a0652c8584ed8c45c160d60cf9e4ecca70abe50feaca414b"
+    },
+    {
+      "path": "tools/accept_refined_native_wear.py",
+      "bytes": 11116,
+      "sha256": "554f64b858a73bbb1d7012f7fe4fb8d44bbf041ffb32f932b6e49ee968e79554",
+      "git_lf_sha256": "554f64b858a73bbb1d7012f7fe4fb8d44bbf041ffb32f932b6e49ee968e79554"
+    },
+    {
+      "path": "tools/accept_wear_fit_context.py",
+      "bytes": 3650,
+      "sha256": "4ddfa308d904d8876d2682245a62716ad197c7352ef3208c0e04169ed4cc8d5b",
+      "git_lf_sha256": "4ddfa308d904d8876d2682245a62716ad197c7352ef3208c0e04169ed4cc8d5b"
+    },
+    {
+      "path": "tools/add_accessory_volume.py",
+      "bytes": 6563,
+      "sha256": "02c85207b2b43e03fa49b15aa1b9f7b9935a04b7eeb78b5ea3efbfdca3303c34",
+      "git_lf_sha256": "02c85207b2b43e03fa49b15aa1b9f7b9935a04b7eeb78b5ea3efbfdca3303c34"
+    },
+    {
+      "path": "tools/align_outfit_heel_height.py",
+      "bytes": 7665,
+      "sha256": "2508a1a2c776db22ea84698470b3032911c1d18f4366b5eda7f18d5709c06905",
+      "git_lf_sha256": "2508a1a2c776db22ea84698470b3032911c1d18f4366b5eda7f18d5709c06905"
+    },
+    {
+      "path": "tools/analyze_chest_skirt.py",
+      "bytes": 4583,
+      "sha256": "70c0222344906e76bda1582c76a9bba806cb23b77f38042aab762bc696b98f29",
+      "git_lf_sha256": "70c0222344906e76bda1582c76a9bba806cb23b77f38042aab762bc696b98f29"
+    },
+    {
+      "path": "tools/analyze_height_registration.py",
+      "bytes": 4020,
+      "sha256": "25f3f1d9b4e63605aebb526bf302b69c09d852df8fa3d46ed6cf2a4f95cc4f8d",
+      "git_lf_sha256": "25f3f1d9b4e63605aebb526bf302b69c09d852df8fa3d46ed6cf2a4f95cc4f8d"
+    },
+    {
+      "path": "tools/analyze_rear_contact.py",
+      "bytes": 3882,
+      "sha256": "fd1ea74016f1ce92e46ab0328ccb7f8595de958e4618fe8ecd58e0860e9719cd",
+      "git_lf_sha256": "fd1ea74016f1ce92e46ab0328ccb7f8595de958e4618fe8ecd58e0860e9719cd"
+    },
+    {
+      "path": "tools/analyze_shoe_pose_consistency.py",
+      "bytes": 2951,
+      "sha256": "4ef713f73ade85a31cc07b9e8bd9179ef2a2b1b92ef7a211c234d43a260c825b",
+      "git_lf_sha256": "4ef713f73ade85a31cc07b9e8bd9179ef2a2b1b92ef7a211c234d43a260c825b"
+    },
+    {
+      "path": "tools/archive_rear_skirt_trial.py",
+      "bytes": 6113,
+      "sha256": "98cb924499371583655857069d10c66d334c214449dc321ed9ad148c484f736e",
+      "git_lf_sha256": "98cb924499371583655857069d10c66d334c214449dc321ed9ad148c484f736e"
+    },
+    {
+      "path": "tools/audit_tripo_shoe_extraction.py",
+      "bytes": 5502,
+      "sha256": "b6e15ac83714152fc55e57ea1ef2c362f70de0bb718f08cdb6be482a87cf5167",
+      "git_lf_sha256": "b6e15ac83714152fc55e57ea1ef2c362f70de0bb718f08cdb6be482a87cf5167"
+    },
+    {
+      "path": "tools/blender_cloth_springs.py",
+      "bytes": 22611,
+      "sha256": "23aadccfac5fc1b90a24777786b84859c7dfde2b9f6807b6fe100a84214572fc",
+      "git_lf_sha256": "23aadccfac5fc1b90a24777786b84859c7dfde2b9f6807b6fe100a84214572fc"
+    },
+    {
+      "path": "tools/build_chest_skirt_copy.py",
+      "bytes": 10230,
+      "sha256": "04abcfacf72fd83406cd9d9b0884d4922aeeb62b296049c5a98f06863bda3909",
+      "git_lf_sha256": "04abcfacf72fd83406cd9d9b0884d4922aeeb62b296049c5a98f06863bda3909"
+    },
+    {
+      "path": "tools/build_rear_calf_copy.py",
+      "bytes": 4329,
+      "sha256": "3c48345bf3c3b8d307b56452b1480ade8d76c330c55e605156f8bbbd35b007b4",
+      "git_lf_sha256": "3c48345bf3c3b8d307b56452b1480ade8d76c330c55e605156f8bbbd35b007b4"
+    },
+    {
+      "path": "tools/build_rear_contact_copy.py",
+      "bytes": 1799,
+      "sha256": "4dde787c5eb8b2356b2a582940d28ac193681cfae0f20a2f66a3cb9c89d9de50",
+      "git_lf_sha256": "4dde787c5eb8b2356b2a582940d28ac193681cfae0f20a2f66a3cb9c89d9de50"
+    },
+    {
+      "path": "tools/build_rear_dense_copy.py",
+      "bytes": 6485,
+      "sha256": "e61cbb97b66fe4d724c6d34444cb0dbde25c225315250da2fe265703189db71a",
+      "git_lf_sha256": "e61cbb97b66fe4d724c6d34444cb0dbde25c225315250da2fe265703189db71a"
+    },
+    {
+      "path": "tools/build_rear_parent_copy.py",
+      "bytes": 7904,
+      "sha256": "e6cbe4812ffa326dcb53ceeb4a89d04c2b9cec7111bdcdeec4afb024cbd91f5f",
+      "git_lf_sha256": "e6cbe4812ffa326dcb53ceeb4a89d04c2b9cec7111bdcdeec4afb024cbd91f5f"
+    },
+    {
+      "path": "tools/build_rear_support_copy.py",
+      "bytes": 4242,
+      "sha256": "d2969d570d36fa71b23693bafaa35f10750ff19b05d82cbe2e05cc88714d9c51",
+      "git_lf_sha256": "d2969d570d36fa71b23693bafaa35f10750ff19b05d82cbe2e05cc88714d9c51"
+    },
+    {
+      "path": "tools/build_recovery_clearance_copy.py",
+      "bytes": 10377,
+      "sha256": "a922e5b641da91ea92633f1f38c6a5a5c3c2345ae3d60b147414a73b563328b5",
+      "git_lf_sha256": "a922e5b641da91ea92633f1f38c6a5a5c3c2345ae3d60b147414a73b563328b5"
+    },
+    {
+      "path": "tools/build_sleeve_gather_copy.py",
+      "bytes": 1759,
+      "sha256": "8510d6ec9cb93c774c655105fa42042cf58dd450bf567fa1c993d8515de4bed0",
+      "git_lf_sha256": "8510d6ec9cb93c774c655105fa42042cf58dd450bf567fa1c993d8515de4bed0"
+    },
+    {
+      "path": "tools/build_stockings_and_heel_copy.py",
+      "bytes": 8924,
+      "sha256": "431739fefe9ec5a4b7fa30c4088534e3ec25fcd8068d46c55a1488cc0a122514",
+      "git_lf_sha256": "431739fefe9ec5a4b7fa30c4088534e3ec25fcd8068d46c55a1488cc0a122514"
+    },
+    {
+      "path": "tools/build_toein_gait_animation.py",
+      "bytes": 9590,
+      "sha256": "85945d92c1fccd113bc464f3135cd3fbdf5af16e03e5642e8d7d1a34ea868d86",
+      "git_lf_sha256": "85945d92c1fccd113bc464f3135cd3fbdf5af16e03e5642e8d7d1a34ea868d86"
+    },
+    {
+      "path": "tools/build_whale_accessory_copy.py",
+      "bytes": 16608,
+      "sha256": "23170a952d7413dfc8441c47ed07da685448487429a9b1e7e2ff9363df7d7eb5",
+      "git_lf_sha256": "23170a952d7413dfc8441c47ed07da685448487429a9b1e7e2ff9363df7d7eb5"
+    },
+    {
+      "path": "tools/capture_accessory_wear.py",
+      "bytes": 7233,
+      "sha256": "3edbd39740e4ad63c4133ab13147b1bbd37eb018d9a1b1f486eae09e3e37925d",
+      "git_lf_sha256": "3edbd39740e4ad63c4133ab13147b1bbd37eb018d9a1b1f486eae09e3e37925d"
+    },
+    {
+      "path": "tools/capture_native_base_fit.py",
+      "bytes": 1812,
+      "sha256": "7af6cd38f415083a9423a0047c8843adc0137bc27770af4e49dea456e959c024",
+      "git_lf_sha256": "7af6cd38f415083a9423a0047c8843adc0137bc27770af4e49dea456e959c024"
+    },
+    {
+      "path": "tools/capture_native_gait_rig.py",
+      "bytes": 3544,
+      "sha256": "de31a208b8068a0365f7639588ac5d145be72bf58ea83f7a08158a98817c6f55",
+      "git_lf_sha256": "de31a208b8068a0365f7639588ac5d145be72bf58ea83f7a08158a98817c6f55"
+    },
+    {
+      "path": "tools/capture_native_wear_fit.py",
+      "bytes": 1969,
+      "sha256": "e922d5f7f04dab3bb9f629c647977a54940a633daf9c5629db3e02ff5e7598ed",
+      "git_lf_sha256": "e922d5f7f04dab3bb9f629c647977a54940a633daf9c5629db3e02ff5e7598ed"
+    },
+    {
+      "path": "tools/capture_outfit_problem_poses.py",
+      "bytes": 6205,
+      "sha256": "78b0408d1a843c5cd99a4fe27a68f87e6649e7c5e635bfdab829145bce17a025",
+      "git_lf_sha256": "78b0408d1a843c5cd99a4fe27a68f87e6649e7c5e635bfdab829145bce17a025"
+    },
+    {
+      "path": "tools/capture_pose_fit_reference.py",
+      "bytes": 4557,
+      "sha256": "1ac6ca7a198db3ca74449e57d48a3ab1eae61197a209129149a31b2ed88927b8",
+      "git_lf_sha256": "1ac6ca7a198db3ca74449e57d48a3ab1eae61197a209129149a31b2ed88927b8"
+    },
+    {
+      "path": "tools/capture_rear_motion_regression.py",
+      "bytes": 7296,
+      "sha256": "a68c23ec1366e9520bfa460cee1132c3d29d7ad3b752f2de0206023f3b5963b3",
+      "git_lf_sha256": "a68c23ec1366e9520bfa460cee1132c3d29d7ad3b752f2de0206023f3b5963b3"
+    },
+    {
+      "path": "tools/check_rear_surface_sign.py",
+      "bytes": 2002,
+      "sha256": "5b3b8dc1b794b895a6dada49e0f0d255f2393105f2e171db1111acd1fb184619",
+      "git_lf_sha256": "5b3b8dc1b794b895a6dada49e0f0d255f2393105f2e171db1111acd1fb184619"
+    },
+    {
+      "path": "tools/clean_native_clothing.py",
+      "bytes": 7517,
+      "sha256": "6f3f3e035e5a04d7a1267fcca4898cac5298aa245c7c803ab9a56c105e0efbcf",
+      "git_lf_sha256": "6f3f3e035e5a04d7a1267fcca4898cac5298aa245c7c803ab9a56c105e0efbcf"
+    },
+    {
+      "path": "tools/compare_rear_support_native.py",
+      "bytes": 6381,
+      "sha256": "06acf2dd679327e5757eed8336537e15e255e2e3f55def29be8659eb6b80d426",
+      "git_lf_sha256": "06acf2dd679327e5757eed8336537e15e255e2e3f55def29be8659eb6b80d426"
+    },
+    {
+      "path": "tools/compare_tripo_shoe_contact.py",
+      "bytes": 2543,
+      "sha256": "22780ad93835a41b15fd08effffc75dd2e665024e414d1d992dc53ce1a5d55d0",
+      "git_lf_sha256": "22780ad93835a41b15fd08effffc75dd2e665024e414d1d992dc53ce1a5d55d0"
+    },
+    {
+      "path": "tools/create_garment_fit_profile.py",
+      "bytes": 1733,
+      "sha256": "29c72f8ff87c7cbf92d51c568ee5ffe357ac67ccefdf52943f9f388c55f7fd71",
+      "git_lf_sha256": "29c72f8ff87c7cbf92d51c568ee5ffe357ac67ccefdf52943f9f388c55f7fd71"
+    },
+    {
+      "path": "tools/create_godot_builtin_check.py",
+      "bytes": 17572,
+      "sha256": "11fedc15b86ab56aff227dba81e29df69c48297c8f099569b6af18cf13fad010",
+      "git_lf_sha256": "11fedc15b86ab56aff227dba81e29df69c48297c8f099569b6af18cf13fad010"
+    },
+    {
+      "path": "tools/create_godot_vrm_check.py",
+      "bytes": 10422,
+      "sha256": "09cfc80f4b8db5b3bb878a956b0ea5bb627e6e08643e401e7c20b14827f1222c",
+      "git_lf_sha256": "09cfc80f4b8db5b3bb878a956b0ea5bb627e6e08643e401e7c20b14827f1222c"
+    },
+    {
+      "path": "tools/create_toein_godot_preview.py",
+      "bytes": 10951,
+      "sha256": "4bdcc1397f688a72bb4e8b9fdddd60613c24d3202641fb5d5aae273bbfd3a728",
+      "git_lf_sha256": "4bdcc1397f688a72bb4e8b9fdddd60613c24d3202641fb5d5aae273bbfd3a728"
+    },
+    {
+      "path": "tools/diagnose_native_pose.py",
+      "bytes": 4724,
+      "sha256": "7ddb2f31e886c73b03a4616009bdc675ba6920ebe2b9ada624cf55807a2accf9",
+      "git_lf_sha256": "7ddb2f31e886c73b03a4616009bdc675ba6920ebe2b9ada624cf55807a2accf9"
+    },
+    {
+      "path": "tools/diagnose_rear_skinning.py",
+      "bytes": 7782,
+      "sha256": "6a9305aa80ef932e19a83e3e024bf75c46273913ba0fd54c5818b12346ba9eb6",
+      "git_lf_sha256": "6a9305aa80ef932e19a83e3e024bf75c46273913ba0fd54c5818b12346ba9eb6"
+    },
+    {
+      "path": "tools/discover_native_shoe_templates.py",
+      "bytes": 2741,
+      "sha256": "4bd31310d7bdb325ba71c7747d0a82feb8dcb38e879bd8ed7fe5e44fd2687475",
+      "git_lf_sha256": "4bd31310d7bdb325ba71c7747d0a82feb8dcb38e879bd8ed7fe5e44fd2687475"
+    },
+    {
+      "path": "tools/discover_wear_animation_controls.py",
+      "bytes": 1327,
+      "sha256": "2fb3adb3f2fba74b71a0084b2c72be2ee2698b1d319b29b60eea62b9303cd9f0",
+      "git_lf_sha256": "2fb3adb3f2fba74b71a0084b2c72be2ee2698b1d319b29b60eea62b9303cd9f0"
+    },
+    {
+      "path": "tools/evaluate_rear_rest_clearance.py",
+      "bytes": 1954,
+      "sha256": "efa6fe31ccfd71f43c18b377fd76585666c83c7ca785b56dd6297e8e2a501c0c",
+      "git_lf_sha256": "efa6fe31ccfd71f43c18b377fd76585666c83c7ca785b56dd6297e8e2a501c0c"
+    },
+    {
+      "path": "tools/evaluate_rear_weight_shift.py",
+      "bytes": 3371,
+      "sha256": "d813aba459fe210240e58c5d40de0ec3f4d2ae9645f45b3478df1c20e7169701",
+      "git_lf_sha256": "d813aba459fe210240e58c5d40de0ec3f4d2ae9645f45b3478df1c20e7169701"
+    },
+    {
+      "path": "tools/export_garment_profile.py",
+      "bytes": 2841,
+      "sha256": "7875b929c845346e5abb22722de06a14b64ea48a2749084ac99d198146308e0a",
+      "git_lf_sha256": "7875b929c845346e5abb22722de06a14b64ea48a2749084ac99d198146308e0a"
+    },
+    {
+      "path": "tools/export_target_xwear.py",
+      "bytes": 2381,
+      "sha256": "d17f9a1606fe052657c5da28aa538f7dd8d414cac480b67e65c16373379a35d4",
+      "git_lf_sha256": "d17f9a1606fe052657c5da28aa538f7dd8d414cac480b67e65c16373379a35d4"
+    },
+    {
+      "path": "tools/finalize_refined_delivery.py",
+      "bytes": 4186,
+      "sha256": "a462ce31d1c79e4ebdd0e8685b76e67409c7de0aa2afc2f52c2dd576d1db87dd",
+      "git_lf_sha256": "a462ce31d1c79e4ebdd0e8685b76e67409c7de0aa2afc2f52c2dd576d1db87dd"
+    },
+    {
+      "path": "tools/finish_bow_fabric.py",
+      "bytes": 5689,
+      "sha256": "5b99243143cdb09f93c5d1fabb2af16fe92d5ab42fbc90f5b0a5b3493b2cb6f2",
+      "git_lf_sha256": "5b99243143cdb09f93c5d1fabb2af16fe92d5ab42fbc90f5b0a5b3493b2cb6f2"
+    },
+    {
+      "path": "tools/fit_accessory_mounts.py",
+      "bytes": 8553,
+      "sha256": "a052f996b834fc3f65e72834fa322ebcae15be1fd9aaf08a0c72f0badb3b99b9",
+      "git_lf_sha256": "a052f996b834fc3f65e72834fa322ebcae15be1fd9aaf08a0c72f0badb3b99b9"
+    },
+    {
+      "path": "tools/fit_cloth_to_vroid.py",
+      "bytes": 31424,
+      "sha256": "1edf1527a0b7a39d9bcae2c5e5b7b8e434d41b6f9d11f9071f5c4d7b29fb0c8f",
+      "git_lf_sha256": "1edf1527a0b7a39d9bcae2c5e5b7b8e434d41b6f9d11f9071f5c4d7b29fb0c8f"
+    },
+    {
+      "path": "tools/fit_long_hem_clearance.py",
+      "bytes": 11920,
+      "sha256": "3c35ad6464436ff9fd221b48b5211c292bf552f268166c453e26e5477aa8f32e",
+      "git_lf_sha256": "3c35ad6464436ff9fd221b48b5211c292bf552f268166c453e26e5477aa8f32e"
+    },
+    {
+      "path": "tools/fit_shoe_envelope.py",
+      "bytes": 5539,
+      "sha256": "2b6490947b36d31081d7e5a6d3b6dd2395281d83814d1ee01af385c1884ca3f0",
+      "git_lf_sha256": "2b6490947b36d31081d7e5a6d3b6dd2395281d83814d1ee01af385c1884ca3f0"
+    },
+    {
+      "path": "tools/fit_shoe_heading_copy.py",
+      "bytes": 7796,
+      "sha256": "36fd98a68a7ecfaee9f03d8d5540230059cc4ef135c0b3eb079af8e6e069cd79",
+      "git_lf_sha256": "36fd98a68a7ecfaee9f03d8d5540230059cc4ef135c0b3eb079af8e6e069cd79"
+    },
+    {
+      "path": "tools/fit_tripo_shoe_rigid_copy.py",
+      "bytes": 5848,
+      "sha256": "c387162d30a5ba066328a519b276b97309929f60109f7a158b02f072fd37db4a",
+      "git_lf_sha256": "c387162d30a5ba066328a519b276b97309929f60109f7a158b02f072fd37db4a"
+    },
+    {
+      "path": "tools/garment_fit_cli.py",
+      "bytes": 868,
+      "sha256": "7188e658903da9312a4bf6598ca74b664856a9f5f517cc0f2465b099249456d3",
+      "git_lf_sha256": "7188e658903da9312a4bf6598ca74b664856a9f5f517cc0f2465b099249456d3"
+    },
+    {
+      "path": "tools/inspect_accessory_mounts.py",
+      "bytes": 1635,
+      "sha256": "e0ef1a8cbee7b56a40ae6a803a5b9466257e6ca5e5ea4c3c26f3c079df9ed628",
+      "git_lf_sha256": "e0ef1a8cbee7b56a40ae6a803a5b9466257e6ca5e5ea4c3c26f3c079df9ed628"
+    },
+    {
+      "path": "tools/inspect_footwear_base.py",
+      "bytes": 2020,
+      "sha256": "edbcea08314bb3778220c18d4949a4a7e1c24a3b43d115b888a9c786e78e5cd1",
+      "git_lf_sha256": "edbcea08314bb3778220c18d4949a4a7e1c24a3b43d115b888a9c786e78e5cd1"
+    },
+    {
+      "path": "tools/inspect_native_heel_parts.py",
+      "bytes": 3980,
+      "sha256": "ff27b583fb1f7a014a7a3161372b7105d0fb69e4a5b770cea2a497b3371ce572",
+      "git_lf_sha256": "ff27b583fb1f7a014a7a3161372b7105d0fb69e4a5b770cea2a497b3371ce572"
+    },
+    {
+      "path": "tools/inspect_native_shoe_constraints.py",
+      "bytes": 3286,
+      "sha256": "1bc4fc9251634322889fe78f2567fc7dc6d331c1e1fbc78d052f64984168c381",
+      "git_lf_sha256": "1bc4fc9251634322889fe78f2567fc7dc6d331c1e1fbc78d052f64984168c381"
+    },
+    {
+      "path": "tools/inspect_outfit_binding.py",
+      "bytes": 5504,
+      "sha256": "8703a47580bfe0584813667a62a03b1a0bb6d925ee4b55eefc4082988f801fb7",
+      "git_lf_sha256": "8703a47580bfe0584813667a62a03b1a0bb6d925ee4b55eefc4082988f801fb7"
+    },
+    {
+      "path": "tools/inspect_outfit_source.py",
+      "bytes": 3335,
+      "sha256": "f9a191d58b10428a71586bc53cb8d718fcac4d34e66cb91e07d454306a234296",
+      "git_lf_sha256": "f9a191d58b10428a71586bc53cb8d718fcac4d34e66cb91e07d454306a234296"
+    },
+    {
+      "path": "tools/inspect_source_shoes.py",
+      "bytes": 2043,
+      "sha256": "3d746c9448564d99101f79cbc1486480a10a847e3ab34da1ded6e871d1c08906",
+      "git_lf_sha256": "3d746c9448564d99101f79cbc1486480a10a847e3ab34da1ded6e871d1c08906"
+    },
+    {
+      "path": "tools/inspect_wear_motion.py",
+      "bytes": 1666,
+      "sha256": "10b9997262be38dad8a52a86134515caaecaa53d56e4f574c4837ecc6ba3665c",
+      "git_lf_sha256": "10b9997262be38dad8a52a86134515caaecaa53d56e4f574c4837ecc6ba3665c"
+    },
+    {
+      "path": "tools/inspect_white_bow.py",
+      "bytes": 3489,
+      "sha256": "ee92c7e933e4fb150020c267dcc634968733d7ec2a6cd017ff7200ba70dc9804",
+      "git_lf_sha256": "ee92c7e933e4fb150020c267dcc634968733d7ec2a6cd017ff7200ba70dc9804"
+    },
+    {
+      "path": "tools/make_spring_calibration_variants.py",
+      "bytes": 4461,
+      "sha256": "c85f1edd8848b08247017a225951e1518eb01150ea2b573fad4a4296f9eb6d2c",
+      "git_lf_sha256": "c85f1edd8848b08247017a225951e1518eb01150ea2b573fad4a4296f9eb6d2c"
+    },
+    {
+      "path": "tools/measure_exact_contact.py",
+      "bytes": 25653,
+      "sha256": "9d185971786a1c096b9889548a954099aa344e283624196a20a79dc8a64b8d8d",
+      "git_lf_sha256": "9d185971786a1c096b9889548a954099aa344e283624196a20a79dc8a64b8d8d"
+    },
+    {
+      "path": "tools/measure_native_mount_gap.py",
+      "bytes": 2489,
+      "sha256": "7cc893e7c087d1f976195d3ea68ed5b93e7044d0ac6145652b9db0f38a2d4fb1",
+      "git_lf_sha256": "7cc893e7c087d1f976195d3ea68ed5b93e7044d0ac6145652b9db0f38a2d4fb1"
+    },
+    {
+      "path": "tools/measure_native_stocking_fit.py",
+      "bytes": 5538,
+      "sha256": "1eec9c5c1121450059c67a15f14814de7e79d951bf7c5fc690e9705ba779fe1d",
+      "git_lf_sha256": "1eec9c5c1121450059c67a15f14814de7e79d951bf7c5fc690e9705ba779fe1d"
+    },
+    {
+      "path": "tools/measure_shoe_heading.py",
+      "bytes": 3066,
+      "sha256": "29af67b0f268a7de5d97003a6d4590a4a5850ae604a14ef469698338f434a6ac",
+      "git_lf_sha256": "29af67b0f268a7de5d97003a6d4590a4a5850ae604a14ef469698338f434a6ac"
+    },
+    {
+      "path": "tools/measure_shoe_material_contact.py",
+      "bytes": 2896,
+      "sha256": "620c049eaec51be313b68460c7d07c4fd3ffea5556d0b7ad6cef9ddbe18d1bd9",
+      "git_lf_sha256": "620c049eaec51be313b68460c7d07c4fd3ffea5556d0b7ad6cef9ddbe18d1bd9"
+    },
+    {
+      "path": "tools/measure_shoe_surface_coverage.py",
+      "bytes": 3563,
+      "sha256": "eaed1d15f8b2adcc464258f105722ca396df769e72fd887d989cb7899c8abb34",
+      "git_lf_sha256": "eaed1d15f8b2adcc464258f105722ca396df769e72fd887d989cb7899c8abb34"
+    },
+    {
+      "path": "tools/package_bow_delivery.py",
+      "bytes": 4209,
+      "sha256": "4160b2faa06805e81452c5a0801797ae300f000a4122db940ee8fa88f5613b31",
+      "git_lf_sha256": "4160b2faa06805e81452c5a0801797ae300f000a4122db940ee8fa88f5613b31"
+    },
+    {
+      "path": "tools/package_cloth_preview.py",
+      "bytes": 1764,
+      "sha256": "b7837529e35494d49e91083676ab687a9b6fb2471422ecb912397e93fb198bdd",
+      "git_lf_sha256": "b7837529e35494d49e91083676ab687a9b6fb2471422ecb912397e93fb198bdd"
+    },
+    {
+      "path": "tools/package_native_wear_review.py",
+      "bytes": 3147,
+      "sha256": "eac5e2522f9e0d30e19a73b8a90b516b7b7b71fac15747f2b0ab5af236187cf8",
+      "git_lf_sha256": "eac5e2522f9e0d30e19a73b8a90b516b7b7b71fac15747f2b0ab5af236187cf8"
+    },
+    {
+      "path": "tools/package_target_fit_review.py",
+      "bytes": 1657,
+      "sha256": "2beaa0608aad0de3a9b1d190b11e08130cbb0fd2c78bb69fa9282080ac6521a3",
+      "git_lf_sha256": "2beaa0608aad0de3a9b1d190b11e08130cbb0fd2c78bb69fa9282080ac6521a3"
+    },
+    {
+      "path": "tools/package_xwear_addon.py",
+      "bytes": 831,
+      "sha256": "1f62ee6e1b956d9b2075eb29acafc86f2d5d5082b051a21ab2f3553cc44e3eb7",
+      "git_lf_sha256": "1f62ee6e1b956d9b2075eb29acafc86f2d5d5082b051a21ab2f3553cc44e3eb7"
+    },
+    {
+      "path": "tools/plan_heel_arch_occlusion.py",
+      "bytes": 6222,
+      "sha256": "b2b78f9520c238e95ab0c942f7861f7cb68544f73e887d916306dcbe5d2aea36",
+      "git_lf_sha256": "b2b78f9520c238e95ab0c942f7861f7cb68544f73e887d916306dcbe5d2aea36"
+    },
+    {
+      "path": "tools/plan_shoe_heading_fit.py",
+      "bytes": 5822,
+      "sha256": "ff8d5f238712ad2816ad0a2855fda6160b6afe8081cdeb70c6d4bb75f0951d55",
+      "git_lf_sha256": "ff8d5f238712ad2816ad0a2855fda6160b6afe8081cdeb70c6d4bb75f0951d55"
+    },
+    {
+      "path": "tools/predict_weight_shift.py",
+      "bytes": 11291,
+      "sha256": "186c84c24162b66179e60b9deb47326c7b8539922facfce1173eb853f82df93b",
+      "git_lf_sha256": "186c84c24162b66179e60b9deb47326c7b8539922facfce1173eb853f82df93b"
+    },
+    {
+      "path": "tools/prepare_maryjane_tights_base.py",
+      "bytes": 4391,
+      "sha256": "97b3164a98a53d80ccb2c0cc59c539852cc1c4bd705647a9bf1a0240c1456841",
+      "git_lf_sha256": "97b3164a98a53d80ccb2c0cc59c539852cc1c4bd705647a9bf1a0240c1456841"
+    },
+    {
+      "path": "tools/preview_native_toein_pose.py",
+      "bytes": 5501,
+      "sha256": "6ccab19240cc10ac58be26ea5a9c642616640f3366aad630d31f0d9a720fa76d",
+      "git_lf_sha256": "6ccab19240cc10ac58be26ea5a9c642616640f3366aad630d31f0d9a720fa76d"
+    },
+    {
+      "path": "tools/preview_outfit_toein_pose.py",
+      "bytes": 6512,
+      "sha256": "f27782c47166ec3537ae6d099ddc6e52d91c538917e75a951a9e0312158a00bb",
+      "git_lf_sha256": "f27782c47166ec3537ae6d099ddc6e52d91c538917e75a951a9e0312158a00bb"
+    },
+    {
+      "path": "tools/probe_hair_api_signatures.py",
+      "bytes": 5747,
+      "sha256": "eebe79a3ac458bd6422488218ba786442049431bb6e340d269ab7daa29ab4ae4",
+      "git_lf_sha256": "eebe79a3ac458bd6422488218ba786442049431bb6e340d269ab7daa29ab4ae4"
+    },
+    {
+      "path": "tools/probe_hair_api_signatures_v02.py",
+      "bytes": 3614,
+      "sha256": "8453f1c7a0113863a930e766add4fb6e2b9cf32a76e184408678f8d6a61dbc23",
+      "git_lf_sha256": "8453f1c7a0113863a930e766add4fb6e2b9cf32a76e184408678f8d6a61dbc23"
+    },
+    {
+      "path": "tools/probe_hair_api_surface.py",
+      "bytes": 4634,
+      "sha256": "3310fd2b0d0980bae011e5eb5964950b608948fd3966a2422d4a6edff4baa4eb",
+      "git_lf_sha256": "3310fd2b0d0980bae011e5eb5964950b608948fd3966a2422d4a6edff4baa4eb"
+    },
+    {
+      "path": "tools/probe_hair_capabilities.py",
+      "bytes": 6166,
+      "sha256": "d5a570481701fbe119b7d3c872f56d5139f258daf47f558bb45174bf2c691de2",
+      "git_lf_sha256": "d5a570481701fbe119b7d3c872f56d5139f258daf47f558bb45174bf2c691de2"
+    },
+    {
+      "path": "tools/probe_native_heel_shape.py",
+      "bytes": 3076,
+      "sha256": "d92d062d4c1a4109efa750631fdf162c4a76dd97b4eb50f3f9fb72d9fe1e4354",
+      "git_lf_sha256": "d92d062d4c1a4109efa750631fdf162c4a76dd97b4eb50f3f9fb72d9fe1e4354"
+    },
+    {
+      "path": "tools/probe_native_toein_pose.py",
+      "bytes": 2656,
+      "sha256": "84fb28c03ccf480d89ad96ca138c16d2ceb4529b0346c9999f52bd8450d22e55",
+      "git_lf_sha256": "84fb28c03ccf480d89ad96ca138c16d2ceb4529b0346c9999f52bd8450d22e55"
+    },
+    {
+      "path": "tools/probe_outfit_native_fit.py",
+      "bytes": 2124,
+      "sha256": "edaa11df749ab3629105424fb14e290597bf8d90a41990b84fa7e62739fc3ac9",
+      "git_lf_sha256": "edaa11df749ab3629105424fb14e290597bf8d90a41990b84fa7e62739fc3ac9"
+    },
+    {
+      "path": "tools/probe_rear_skirt_contact.py",
+      "bytes": 4310,
+      "sha256": "a15cc44cd3cf87dda26ff96338e90ec897ae9eba83dc708ef70a62c35c155291",
+      "git_lf_sha256": "a15cc44cd3cf87dda26ff96338e90ec897ae9eba83dc708ef70a62c35c155291"
+    },
+    {
+      "path": "tools/probe_wear_open.py",
+      "bytes": 1759,
+      "sha256": "418480569c5d60dad4a5f7f89be509b6fc8a28683341d83f5be5fb4e4983245f",
+      "git_lf_sha256": "418480569c5d60dad4a5f7f89be509b6fc8a28683341d83f5be5fb4e4983245f"
+    },
+    {
+      "path": "tools/rebase_outfit_to_native.py",
+      "bytes": 10565,
+      "sha256": "edabd189afe16379411f243b3e085c5e0bcbb86bc363bbabbd8757dc00579d9a",
+      "git_lf_sha256": "edabd189afe16379411f243b3e085c5e0bcbb86bc363bbabbd8757dc00579d9a"
+    },
+    {
+      "path": "tools/rebuild_maid_bow.py",
+      "bytes": 6203,
+      "sha256": "56c016224e94f45d11066da5d87f438ca5413f10f72f158911d7bf24d7861ead",
+      "git_lf_sha256": "56c016224e94f45d11066da5d87f438ca5413f10f72f158911d7bf24d7861ead"
+    },
+    {
+      "path": "tools/rebuild_maryjane_shoes.py",
+      "bytes": 16263,
+      "sha256": "789ba935df15454d147ce461e99bea289132253283c80e79203d4f4b96413db3",
+      "git_lf_sha256": "789ba935df15454d147ce461e99bea289132253283c80e79203d4f4b96413db3"
+    },
+    {
+      "path": "tools/refine_native_wear_fit.py",
+      "bytes": 10254,
+      "sha256": "45b3ad0bd2421ddce08e956e89e2f0b527cb6436bbcb5e5d5323605b7f48f32f",
+      "git_lf_sha256": "45b3ad0bd2421ddce08e956e89e2f0b527cb6436bbcb5e5d5323605b7f48f32f"
+    },
+    {
+      "path": "tools/refine_white_bow_copy.py",
+      "bytes": 13907,
+      "sha256": "9ec5b801987b1623e76daa15974ec528ff55c9950625529abf95da73e8cc04b1",
+      "git_lf_sha256": "9ec5b801987b1623e76daa15974ec528ff55c9950625529abf95da73e8cc04b1"
+    },
+    {
+      "path": "tools/render_cloth_spring_preview.py",
+      "bytes": 2191,
+      "sha256": "9af2c9521c006154bfa534640c6ade03cc780368a504fff9ba4df1f00697ad9a",
+      "git_lf_sha256": "9af2c9521c006154bfa534640c6ade03cc780368a504fff9ba4df1f00697ad9a"
+    },
+    {
+      "path": "tools/repair_tripo_shoe_copy.py",
+      "bytes": 8440,
+      "sha256": "0d7d4d2e2699744ea1ec1f271efd8f9411f682f890db64866657a27e2135d8a5",
+      "git_lf_sha256": "0d7d4d2e2699744ea1ec1f271efd8f9411f682f890db64866657a27e2135d8a5"
+    },
+    {
+      "path": "tools/restore_reference_shoes.py",
+      "bytes": 5102,
+      "sha256": "29078ee098061938d5e09eb4f9062545d6cec87f99d6d0aa826fad288f4aa051",
+      "git_lf_sha256": "29078ee098061938d5e09eb4f9062545d6cec87f99d6d0aa826fad288f4aa051"
+    },
+    {
+      "path": "tools/review_final_bow_background.py",
+      "bytes": 970,
+      "sha256": "360db143ad9f970c4fd491fccfc964a11f0b794c96e3e924f27e376c0c038077",
+      "git_lf_sha256": "360db143ad9f970c4fd491fccfc964a11f0b794c96e3e924f27e376c0c038077"
+    },
+    {
+      "path": "tools/review_full_outfit_native.py",
+      "bytes": 8220,
+      "sha256": "fa7f6158ea3df9f040c7985aa38a054507a1a5fe4dbd5f66ceeb5e973aa899e8",
+      "git_lf_sha256": "fa7f6158ea3df9f040c7985aa38a054507a1a5fe4dbd5f66ceeb5e973aa899e8"
+    },
+    {
+      "path": "tools/review_rebuilt_shoes_native.py",
+      "bytes": 11266,
+      "sha256": "9007da10a398b5b54ca003e07132dde76e1f88842960172ea003aaebd49f7b1e",
+      "git_lf_sha256": "9007da10a398b5b54ca003e07132dde76e1f88842960172ea003aaebd49f7b1e"
+    },
+    {
+      "path": "tools/review_target_cloth.py",
+      "bytes": 13041,
+      "sha256": "cfc7d968e17fc0b1a55f612170747f0e583d05f1b1c8d254ffaae8330a9ead53",
+      "git_lf_sha256": "cfc7d968e17fc0b1a55f612170747f0e583d05f1b1c8d254ffaae8330a9ead53"
+    },
+    {
+      "path": "tools/review_white_bow_native.py",
+      "bytes": 7042,
+      "sha256": "9a0fd74cd95c5446d711c80405a593de3bf8fa9a2c18fddb8692bd6afdbcfa92",
+      "git_lf_sha256": "9a0fd74cd95c5446d711c80405a593de3bf8fa9a2c18fddb8692bd6afdbcfa92"
+    },
+    {
+      "path": "tools/save_calibrated_skirt.py",
+      "bytes": 3125,
+      "sha256": "f9b050c9562c496c9a2d870b729fc41975ab3ea4b2ce9aa8b52acfaf53da51ef",
+      "git_lf_sha256": "f9b050c9562c496c9a2d870b729fc41975ab3ea4b2ce9aa8b52acfaf53da51ef"
+    },
+    {
+      "path": "tools/shoe_last_geometry.py",
+      "bytes": 2236,
+      "sha256": "71b1478eedb99279262a5c00bcc7539c018f34b220ea326f7e30ebf311b829b2",
+      "git_lf_sha256": "71b1478eedb99279262a5c00bcc7539c018f34b220ea326f7e30ebf311b829b2"
+    },
+    {
+      "path": "tools/summarize_skirt_calibration.py",
+      "bytes": 3316,
+      "sha256": "7baeb721b1c2fc1a716f748456d5ba5bb7de52ddd816e9640d311eb579216a7c",
+      "git_lf_sha256": "7baeb721b1c2fc1a716f748456d5ba5bb7de52ddd816e9640d311eb579216a7c"
+    },
+    {
+      "path": "tools/sync_pipeline_sources.py",
+      "bytes": 1678,
+      "sha256": "bec2367b34165efff99eaed89b624080c281aca13f23b66eeaf4a71a635833b0",
+      "git_lf_sha256": "bec2367b34165efff99eaed89b624080c281aca13f23b66eeaf4a71a635833b0"
+    },
+    {
+      "path": "tools/test_garment_fit_backend.py",
+      "bytes": 6244,
+      "sha256": "9208b74fc54636e575fc8522c076da2be327a0b0fede11b6bf07524dc951eee1",
+      "git_lf_sha256": "9208b74fc54636e575fc8522c076da2be327a0b0fede11b6bf07524dc951eee1"
+    },
+    {
+      "path": "tools/test_native_high_heel_templates.py",
+      "bytes": 8659,
+      "sha256": "8f0bc921da8adb323f4bb67b20f2a30e2ae29e76ae29d55825bd84214024b529",
+      "git_lf_sha256": "8f0bc921da8adb323f4bb67b20f2a30e2ae29e76ae29d55825bd84214024b529"
+    },
+    {
+      "path": "tools/test_spring_calibration_native.py",
+      "bytes": 3647,
+      "sha256": "eb6abe0dafaede834113ad2b542039bb63af04fc475e393381fa0bde2bbca570",
+      "git_lf_sha256": "eb6abe0dafaede834113ad2b542039bb63af04fc475e393381fa0bde2bbca570"
+    },
+    {
+      "path": "tools/test_toein_gait_math.py",
+      "bytes": 1162,
+      "sha256": "b424d9bec3e97630e4849ac750a30cf224ccec64f797cbe95e473dccebf8395f",
+      "git_lf_sha256": "b424d9bec3e97630e4849ac750a30cf224ccec64f797cbe95e473dccebf8395f"
+    },
+    {
+      "path": "tools/test_xwear_export_blender.py",
+      "bytes": 2166,
+      "sha256": "b6416c224b4110d58060f7f241798041eb70702356796dba90ea6addd828a148",
+      "git_lf_sha256": "b6416c224b4110d58060f7f241798041eb70702356796dba90ea6addd828a148"
+    },
+    {
+      "path": "tools/toein_gait_math.py",
+      "bytes": 10135,
+      "sha256": "693c4a5a815ffb9692d59e8f7c5a5efc10a3096b7401ba1bcd449f48461e584c",
+      "git_lf_sha256": "693c4a5a815ffb9692d59e8f7c5a5efc10a3096b7401ba1bcd449f48461e584c"
+    },
+    {
+      "path": "tools/verify_accessory_volume.py",
+      "bytes": 3398,
+      "sha256": "66cb024e660ed9328ab91974180a4ad67eeb81221ec9b14937e05044536576c1",
+      "git_lf_sha256": "66cb024e660ed9328ab91974180a4ad67eeb81221ec9b14937e05044536576c1"
+    },
+    {
+      "path": "tools/verify_bow_blend.py",
+      "bytes": 457,
+      "sha256": "011dbd0fa70879fc7d951c97d7714fc69ad0b5b141af407c13083ec3972c0bdc",
+      "git_lf_sha256": "011dbd0fa70879fc7d951c97d7714fc69ad0b5b141af407c13083ec3972c0bdc"
+    },
+    {
+      "path": "tools/verify_calibrated_blend.py",
+      "bytes": 1042,
+      "sha256": "f45fb6f1afd203e9ad6e7de0951b7f7861cb4f7dfe999367df08907337c4313c",
+      "git_lf_sha256": "f45fb6f1afd203e9ad6e7de0951b7f7861cb4f7dfe999367df08907337c4313c"
+    },
+    {
+      "path": "tools/verify_cloth_playback.py",
+      "bytes": 868,
+      "sha256": "f29263b4003429016a7147bd10cd07b0949a2b9f16808688f33e0b8d40ee27a3",
+      "git_lf_sha256": "f29263b4003429016a7147bd10cd07b0949a2b9f16808688f33e0b8d40ee27a3"
+    },
+    {
+      "path": "tools/verify_cloth_springs.py",
+      "bytes": 4115,
+      "sha256": "e05d290d7c9cf2c9a81c392c831adbb85e71150a9099032f55760ae1b718a35c",
+      "git_lf_sha256": "e05d290d7c9cf2c9a81c392c831adbb85e71150a9099032f55760ae1b718a35c"
+    },
+    {
+      "path": "tools/verify_fitted_attachments.py",
+      "bytes": 3364,
+      "sha256": "7e88a64b710ef1985750d5c3bdb06da3388da38e62a6de46d339273cab28799f",
+      "git_lf_sha256": "7e88a64b710ef1985750d5c3bdb06da3388da38e62a6de46d339273cab28799f"
+    },
+    {
+      "path": "tools/verify_garment_fit_delivery.py",
+      "bytes": 2538,
+      "sha256": "772ce30ff5651d73b178736deda07f18030982b0d459dfa0bc300f4985a11aff",
+      "git_lf_sha256": "772ce30ff5651d73b178736deda07f18030982b0d459dfa0bc300f4985a11aff"
+    },
+    {
+      "path": "tools/verify_heel_height_source.py",
+      "bytes": 2287,
+      "sha256": "0a7c8935df6578ce18e1a0b5956a097068822ee7cf7c28017c17307f84f31852",
+      "git_lf_sha256": "0a7c8935df6578ce18e1a0b5956a097068822ee7cf7c28017c17307f84f31852"
+    },
+    {
+      "path": "tools/verify_long_hem_clearance.py",
+      "bytes": 3399,
+      "sha256": "af8ce7abc5a55b232059950e016d223bdd317f06a58873fc8a26fb3df6219af2",
+      "git_lf_sha256": "af8ce7abc5a55b232059950e016d223bdd317f06a58873fc8a26fb3df6219af2"
+    },
+    {
+      "path": "tools/verify_native_rebase.py",
+      "bytes": 4144,
+      "sha256": "59cf153608c3cdb5ea6776f8f9dd7534048398849904f82f993f5d2fde8cd0a7",
+      "git_lf_sha256": "59cf153608c3cdb5ea6776f8f9dd7534048398849904f82f993f5d2fde8cd0a7"
+    },
+    {
+      "path": "tools/verify_native_shoe_heading.py",
+      "bytes": 6828,
+      "sha256": "a6e2b59e95ba1419c1abc6965ac28c48cd80f90c6a7b4adc6431b12b2ddf00f8",
+      "git_lf_sha256": "a6e2b59e95ba1419c1abc6965ac28c48cd80f90c6a7b4adc6431b12b2ddf00f8"
+    },
+    {
+      "path": "tools/verify_outfit_toein_pose.py",
+      "bytes": 4923,
+      "sha256": "58fac595cd2021eff0aba8a2f5b5d595be5547ef41ee1eb248d6b6e5299957b4",
+      "git_lf_sha256": "58fac595cd2021eff0aba8a2f5b5d595be5547ef41ee1eb248d6b6e5299957b4"
+    },
+    {
+      "path": "tools/verify_outfit_vrm.py",
+      "bytes": 3362,
+      "sha256": "ae80a596aeb68d7373abe7c653544e7ee9a035e34b8e81096c4e9718fa5ebdc9",
+      "git_lf_sha256": "ae80a596aeb68d7373abe7c653544e7ee9a035e34b8e81096c4e9718fa5ebdc9"
+    },
+    {
+      "path": "tools/verify_rear_contact.py",
+      "bytes": 3399,
+      "sha256": "dd668eb5e2984d6bdaf1ebca7354c49cdf1be9fbb0a59d06714b2045c0482d50",
+      "git_lf_sha256": "dd668eb5e2984d6bdaf1ebca7354c49cdf1be9fbb0a59d06714b2045c0482d50"
+    },
+    {
+      "path": "tools/verify_rear_dense_source.py",
+      "bytes": 4074,
+      "sha256": "4a8de740ee6cc8cf3fa56b4bd92bba635b60a9787f409d555dcb8fe887fbf476",
+      "git_lf_sha256": "4a8de740ee6cc8cf3fa56b4bd92bba635b60a9787f409d555dcb8fe887fbf476"
+    },
+    {
+      "path": "tools/verify_rear_mirror_sources.py",
+      "bytes": 3908,
+      "sha256": "62dbc846ac5eba15ef3b1080192460c91914f5c9ac14e6c419e7535b649ecfc4",
+      "git_lf_sha256": "62dbc846ac5eba15ef3b1080192460c91914f5c9ac14e6c419e7535b649ecfc4"
+    },
+    {
+      "path": "tools/verify_rebuilt_shoes.py",
+      "bytes": 3935,
+      "sha256": "f2517fb999760f207c428cc41f9ce54bcabd6a0f86e94c4d85ea0334555a701c",
+      "git_lf_sha256": "f2517fb999760f207c428cc41f9ce54bcabd6a0f86e94c4d85ea0334555a701c"
+    },
+    {
+      "path": "tools/verify_recovery_clearance_copy.py",
+      "bytes": 6954,
+      "sha256": "6163c7fb7fcda612055d741f80f28bd52290a59a4682fcc10d1ecc446ef4b882",
+      "git_lf_sha256": "6163c7fb7fcda612055d741f80f28bd52290a59a4682fcc10d1ecc446ef4b882"
+    },
+    {
+      "path": "tools/verify_refined_blend.py",
+      "bytes": 371,
+      "sha256": "07d8c618f481a6cc54d554e133ca93158b84abb80fad1fec4407ce464aa4ad87",
+      "git_lf_sha256": "07d8c618f481a6cc54d554e133ca93158b84abb80fad1fec4407ce464aa4ad87"
+    },
+    {
+      "path": "tools/verify_saved_native_heel.py",
+      "bytes": 3767,
+      "sha256": "c8033688f3a156595196ac6b719d7f240ccde59f98ebb769aaf02d27e43b61ff",
+      "git_lf_sha256": "c8033688f3a156595196ac6b719d7f240ccde59f98ebb769aaf02d27e43b61ff"
+    },
+    {
+      "path": "tools/verify_shoe_envelope.py",
+      "bytes": 2507,
+      "sha256": "a53ff9956edaaa7127e59bf854bafbca50ce64f966594f2d10603a7af8ca6a68",
+      "git_lf_sha256": "a53ff9956edaaa7127e59bf854bafbca50ce64f966594f2d10603a7af8ca6a68"
+    },
+    {
+      "path": "tools/verify_sleeve_gather.py",
+      "bytes": 3905,
+      "sha256": "3899551a521e4eaaebb69aafd3d3aedb872966c6dd466d5446dc358e0a4c8f80",
+      "git_lf_sha256": "3899551a521e4eaaebb69aafd3d3aedb872966c6dd466d5446dc358e0a4c8f80"
+    },
+    {
+      "path": "tools/verify_stockings_heel_source.py",
+      "bytes": 4889,
+      "sha256": "25e9a76afd5011d9d76bd91d5204f90d01a1f4478a15ba9e0c437387950d453f",
+      "git_lf_sha256": "25e9a76afd5011d9d76bd91d5204f90d01a1f4478a15ba9e0c437387950d453f"
+    },
+    {
+      "path": "tools/verify_target_fit.py",
+      "bytes": 6543,
+      "sha256": "77fd254acd8a2c777b5e3dbe163e21f3be43d6538e915554cead5fe4b9bb273d",
+      "git_lf_sha256": "77fd254acd8a2c777b5e3dbe163e21f3be43d6538e915554cead5fe4b9bb273d"
+    },
+    {
+      "path": "tools/verify_textured_xwear.py",
+      "bytes": 4867,
+      "sha256": "39aba53d80ddb6553ebda2b2eb90d20a76fb3d0164a170adc69ae2b92e866b46",
+      "git_lf_sha256": "39aba53d80ddb6553ebda2b2eb90d20a76fb3d0164a170adc69ae2b92e866b46"
+    },
+    {
+      "path": "tools/verify_toein_godot_runtime.py",
+      "bytes": 3594,
+      "sha256": "75038764cafd8cf6f926b99a4d132f4bfc1daec5c2c5bf0d482e800cfed48f1d",
+      "git_lf_sha256": "75038764cafd8cf6f926b99a4d132f4bfc1daec5c2c5bf0d482e800cfed48f1d"
+    },
+    {
+      "path": "tools/verify_tripo_shoe_repair.py",
+      "bytes": 7055,
+      "sha256": "3448876c1ea7aa9eab722b20ee290a3721fe5c5df5f48e5d72f2100f006d3cc4",
+      "git_lf_sha256": "3448876c1ea7aa9eab722b20ee290a3721fe5c5df5f48e5d72f2100f006d3cc4"
+    },
+    {
+      "path": "tools/verify_whale_accessory_source.py",
+      "bytes": 3363,
+      "sha256": "2f608dea69ba62b84fd4f160150cea5c4350e665671361d30ea0c154311f46f2",
+      "git_lf_sha256": "2f608dea69ba62b84fd4f160150cea5c4350e665671361d30ea0c154311f46f2"
+    },
+    {
+      "path": "tools/verify_white_bow_native.py",
+      "bytes": 4148,
+      "sha256": "3327b06b6d6c69b616af8a2707fe7153d5676070c5e7bad2e7de46e5002dee05",
+      "git_lf_sha256": "3327b06b6d6c69b616af8a2707fe7153d5676070c5e7bad2e7de46e5002dee05"
+    },
+    {
+      "path": "tools/verify_xwear_texture_pixels.py",
+      "bytes": 1492,
+      "sha256": "fa9f42393503ef0998be25d39e5493ebf83a4b356a8d45b1d41b2ed6eedc0f77",
+      "git_lf_sha256": "fa9f42393503ef0998be25d39e5493ebf83a4b356a8d45b1d41b2ed6eedc0f77"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+Regional camera organization and center/distance ratios adapted from brainrom/vroid-studio-mcp, plugin/VroidStudioMcp/Editor/Camera.cs at a6b0719d01fa6cac9a857956907243d9916390b2 (MIT).
+https://github.com/brainrom/vroid-studio-mcp/blob/a6b0719d01fa6cac9a857956907243d9916390b2/plugin/VroidStudioMcp/Editor/Camera.cs
+Local implementation uses scoped live bounds, temporary cameras, mirrored observer angles, camera readback and per-batch references.

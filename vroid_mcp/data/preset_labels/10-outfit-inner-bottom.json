@@ -1,0 +1,13 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Outfit",
+    "category": "Inner Bottom",
+    "generated": "2026-10-04T09:49:26.1364581Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Clothing/InnerBottom/N00/001/TransferableGroupType.N00.Level1.InnerBottom.transferablegroup": "Maroon and Black Briefs",
+    "pixiv/VRoid/Clothing/InnerBottom/N00/Default/TransferableGroupType.N00.Level1.InnerBottom.transferablegroup": "Black Maroon Briefs"
+  }
+}

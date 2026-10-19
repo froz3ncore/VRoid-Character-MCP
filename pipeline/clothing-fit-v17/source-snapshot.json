@@ -1,0 +1,91 @@
+{
+  "scope": "Clothing-only sources, hash and AST verified. Separate from shared/hair manifests. Restore relative layout before execution.",
+  "files": [
+    {
+      "path": "tools/accept_refined_native_wear.py",
+      "bytes": 11116,
+      "sha256": "554f64b858a73bbb1d7012f7fe4fb8d44bbf041ffb32f932b6e49ee968e79554"
+    },
+    {
+      "path": "tools/align_live_hem_copy.py",
+      "bytes": 3983,
+      "sha256": "5892a7f9997325e57764ad4c1829dd33e93cc2663916486dd6772e5914a81ed7"
+    },
+    {
+      "path": "tools/analyze_chest_skirt.py",
+      "bytes": 4606,
+      "sha256": "11ac2cc27e199170ff3cf9dd7139d6a4f5bc0cec7e7d977f7d5ce911cca685e5"
+    },
+    {
+      "path": "tools/build_chest_skirt_copy.py",
+      "bytes": 12759,
+      "sha256": "41d9675031cb3128180cb34c8bb30ebf82a7e8f9f0a47cfbc28e4e0c279460a1"
+    },
+    {
+      "path": "tools/capture_outfit_problem_poses.py",
+      "bytes": 6714,
+      "sha256": "d8838b95ccbb4fc6e61aebceb8e7f8688ccb71da8ecd13b276df184dc8a5b377"
+    },
+    {
+      "path": "tools/clean_native_clothing.py",
+      "bytes": 7517,
+      "sha256": "6f3f3e035e5a04d7a1267fcca4898cac5298aa245c7c803ab9a56c105e0efbcf"
+    },
+    {
+      "path": "tools/inspect_outfit_binding.py",
+      "bytes": 5504,
+      "sha256": "8703a47580bfe0584813667a62a03b1a0bb6d925ee4b55eefc4082988f801fb7"
+    },
+    {
+      "path": "tools/package_hem_alignment.py",
+      "bytes": 3678,
+      "sha256": "57f120236498b581f28c82acc358d8f50ee5f1a6f1df372c1927b1fa3d0946b8"
+    },
+    {
+      "path": "tools/package_manual_outfit.py",
+      "bytes": 4567,
+      "sha256": "71fac0cf5da5845f5dfdbcda7e56814265e5dc61b163434b889bfa63eaae7aa7"
+    },
+    {
+      "path": "tools/verify_chest_skirt_skin.py",
+      "bytes": 3861,
+      "sha256": "cc7e94032af891bbd33f18f08d56de49389828fb748af2538c423ca35e0681d7"
+    },
+    {
+      "path": "tools/verify_outfit_vrm.py",
+      "bytes": 3440,
+      "sha256": "ca9419c4f8feb21806dc621bef0de4e44ecb833b7730aab309fa3e5d1b92089c"
+    },
+    {
+      "path": "tools/verify_rear_dense_source.py",
+      "bytes": 4074,
+      "sha256": "4a8de740ee6cc8cf3fa56b4bd92bba635b60a9787f409d555dcb8fe887fbf476"
+    },
+    {
+      "path": "tools/verify_rear_mirror_sources.py",
+      "bytes": 3908,
+      "sha256": "62dbc846ac5eba15ef3b1080192460c91914f5c9ac14e6c419e7535b649ecfc4"
+    },
+    {
+      "path": "work/isolate_clothing_server.py",
+      "bytes": 1139,
+      "sha256": "ba92ed4ac75bbf4467526d476020273c74d195b7fb89a6541327cf17b7c0e839"
+    },
+    {
+      "path": "work/prepare_clothing_lab.py",
+      "bytes": 1859,
+      "sha256": "5903e9010968ae7464b85411702f2979306565fcd0327433b05a37fb99997e9e"
+    },
+    {
+      "path": "work/reopen_saved_clothing.py",
+      "bytes": 3012,
+      "sha256": "519e440272bc6eca2b7d0bdaebb61ac43923303d1db2bcfc102ee9242f54ea88"
+    },
+    {
+      "path": "work/run_clothing_acceptance.py",
+      "bytes": 405,
+      "sha256": "e98856d8fd97506fb2d382729cc4c8f5bd18173f47b19c0586f2cee2bea2fefd"
+    }
+  ],
+  "core_unit_suite_rerun_this_round": false
+}

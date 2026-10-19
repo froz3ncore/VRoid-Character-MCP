@@ -1,0 +1,95 @@
+{
+  "scope": "Cosmetics v02 integration and validation source; not a replacement for unrelated hair work. Global snapshot manifest is not modified by this task.",
+  "files": [
+    {
+      "path": "VRoid-MCP/agent/textures.js",
+      "sha256": "e8f6a50821df7c693774798d406be37172e5ac54d42be6092176d0c0146393d7",
+      "bytes": 26333
+    },
+    {
+      "path": "VRoid-MCP/agent/operations.js",
+      "sha256": "d358c4fc2b8c349b9f241f2e9a9f4d275bbee47c53ca98a059d4cc83e6706163",
+      "bytes": 30308
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_tools.py",
+      "sha256": "63b6ff3134c480b1b4a06c5c5a36eb22d3c8fa1e712e891aaaa45001d0a5861c",
+      "bytes": 6205
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_targets.py",
+      "sha256": "6fdd4bca264399b584ce623d21077a93cde1a14822f5ec4002f9ffdb4e07fc50",
+      "bytes": 5620
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_mapping.py",
+      "sha256": "85e9bc72a25dbb731c089fba23808426ce3493b616f1753d80b8d3cc194bc6fc",
+      "bytes": 10879
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_input.py",
+      "sha256": "565fe631e9ffa7fd431787bec9c6e2e430a2b40abecb0ebb79b934db666556ff",
+      "bytes": 1335
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/server.py",
+      "sha256": "eeab63e99c5440f17bd81854f5d38eeb565410f86fb47e1870e7e31985293e59",
+      "bytes": 46295
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/runtime.py",
+      "sha256": "b065351b3d7b7313be4ad3bb40cb7005372bc6e1c7a910fc799de3ac0f7f3031",
+      "bytes": 57392
+    },
+    {
+      "path": "VRoid-MCP/tests/test_texture_input.py",
+      "sha256": "06fe37db62072b46f47678e77375074a916421592d97750cc63fb47a0713c760",
+      "bytes": 2144
+    },
+    {
+      "path": "VRoid-MCP/tests/test_texture_mapping.py",
+      "sha256": "bca90bb13d92b6d69110e00605478c3f7d31effb31148e8f6bccd3992857d89e",
+      "bytes": 6864
+    },
+    {
+      "path": "tools/clean_native_clothing.py",
+      "sha256": "6f3f3e035e5a04d7a1267fcca4898cac5298aa245c7c803ab9a56c105e0efbcf",
+      "bytes": 7517
+    },
+    {
+      "path": "tools/probe_hand_texture_bindings.py",
+      "sha256": "c83c7bacdfbeebbae67e182ffd90d348a681749a62f7e2368b0d3d026f810e02",
+      "bytes": 2273
+    },
+    {
+      "path": "tools/accept_nail_texture_targets.py",
+      "sha256": "710b0ec4f7265e71229882b54b1db2278bdf5ad90a574fcec2497cbf5f5b4142",
+      "bytes": 7733
+    },
+    {
+      "path": "tools/review_nail_texture_sides.py",
+      "sha256": "a66c4c19745e5fef208b89783574b5b476a58619654295d7f559e4b8f004718d",
+      "bytes": 2334
+    },
+    {
+      "path": "tools/verify_nail_native_visibility.py",
+      "sha256": "5f67176345f39936571a3b2570d0fa283842c649288f7aa5089ba4792c0764d2",
+      "bytes": 3683
+    },
+    {
+      "path": "tools/check_nail_surface_ownership.py",
+      "sha256": "6019c7347051c28491b7991deda1035b838db7220b722e149dcd4218c2caf91f",
+      "bytes": 2234
+    },
+    {
+      "path": "tools/check_nail_composite_pixels.py",
+      "sha256": "e540bbaf50e772738f2ef138ec47d8035c85c16f82344f68edfeea004f986caa",
+      "bytes": 1228
+    },
+    {
+      "path": "tools/finalize_nail_texture_targets.py",
+      "sha256": "8303a6fd67cd8c8002bd812234de859d21a7be718dc97fbf358fbcbf70ec3409",
+      "bytes": 14919
+    }
+  ]
+}

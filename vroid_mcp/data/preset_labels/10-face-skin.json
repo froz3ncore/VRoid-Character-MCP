@@ -1,0 +1,23 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Face",
+    "category": "Skin",
+    "generated": "2026-10-04T11:07:57.0814690Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Skin/Face/N00/Default/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/011/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/010/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/009/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/008/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/007/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte Skin",
+    "pixiv/VRoid/Skin/Face/N00/006/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/005/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/004/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/003/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/002/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte",
+    "pixiv/VRoid/Skin/Face/N00/001/TransferableGroupType.N00.Level1.FaceSkin.transferablegroup": "Fair Matte"
+  }
+}

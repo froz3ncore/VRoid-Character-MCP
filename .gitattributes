@@ -1,0 +1,13 @@
+# Content-hashed files must keep their exact bytes on checkout.
+#
+# Several tests pin the SHA-256 of bundled label data, and a Git line-ending
+# conversion would change the bytes a fresh clone sees. Marking them binary
+# keeps the checkout byte-identical to what was committed.
+vroid_mcp/data/** -text
+
+# Generated manifests record hashes; keep them byte-stable as well.
+pipeline/source-manifest.json -text
+pipeline/source-snapshot.json -text
+
+# Shell and PowerShell scripts stay LF so a Linux checkout can run them.
+*.sh text eol=lf

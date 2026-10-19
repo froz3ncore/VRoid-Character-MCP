@@ -1,0 +1,89 @@
+{
+  "scope": "Cosmetics tool integration and validation source pack. Shared global/hair snapshot manifest left unchanged. Do not replace later source files blindly; see preserved before hashes.",
+  "files": [
+    {
+      "path": "VRoid-MCP/agent/textures.js",
+      "bytes": 17067,
+      "sha256": "c114e2131590fd5fb5f838206b1166bb342f0d4cb5d71f02df586a9596b2dbc7",
+      "git_lf_sha256": "072b01668c71413e376f92c526579df012cfa667a0ea40a966c16a2b150691c0"
+    },
+    {
+      "path": "VRoid-MCP/agent/operations.js",
+      "bytes": 30267,
+      "sha256": "3dd493a2e45bccecb92bedad38fca720ffe7814e3681f3beac6cb6eddc69df81",
+      "git_lf_sha256": "0846f481c891088020bfcd8c36fb59fb41105ec4946557460fee3f12d7ea2378"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_tools.py",
+      "bytes": 5549,
+      "sha256": "335bb6ba95be3fe70be3459e023ee9978ea2aaf71265ede1c19c49e468d78e4d",
+      "git_lf_sha256": "0d42478138043660b720be0693051b02db0dfa0bd135bdc340873c6c2228d455"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/texture_input.py",
+      "bytes": 1335,
+      "sha256": "565fe631e9ffa7fd431787bec9c6e2e430a2b40abecb0ebb79b934db666556ff",
+      "git_lf_sha256": "565fe631e9ffa7fd431787bec9c6e2e430a2b40abecb0ebb79b934db666556ff"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/server.py",
+      "bytes": 46295,
+      "sha256": "eeab63e99c5440f17bd81854f5d38eeb565410f86fb47e1870e7e31985293e59",
+      "git_lf_sha256": "4fc65b23202b7b20b3b584382a2a4e0364b41422e1673995709377f790057c08"
+    },
+    {
+      "path": "VRoid-MCP/vroid_mcp/runtime.py",
+      "bytes": 57392,
+      "sha256": "b065351b3d7b7313be4ad3bb40cb7005372bc6e1c7a910fc799de3ac0f7f3031",
+      "git_lf_sha256": "9480e00764ea6805aaea4c801fa1fc97d26b4b31d3af20494b0e7be2c8dd380c"
+    },
+    {
+      "path": "VRoid-MCP/tests/test_texture_input.py",
+      "bytes": 2144,
+      "sha256": "06fe37db62072b46f47678e77375074a916421592d97750cc63fb47a0713c760",
+      "git_lf_sha256": "06fe37db62072b46f47678e77375074a916421592d97750cc63fb47a0713c760"
+    },
+    {
+      "path": "tools/probe_makeup_nail_controls.py",
+      "bytes": 2535,
+      "sha256": "3ae1558efae9567f5846662251db5f77909a79ff809db34f25e894773d919f37",
+      "git_lf_sha256": "3ae1558efae9567f5846662251db5f77909a79ff809db34f25e894773d919f37"
+    },
+    {
+      "path": "tools/probe_cosmetics_texture_api.py",
+      "bytes": 2493,
+      "sha256": "66274b3a560c43e5d01f41dfb6e43001b14ca4fa6b9a2e9acffef85b0dbbf71a",
+      "git_lf_sha256": "66274b3a560c43e5d01f41dfb6e43001b14ca4fa6b9a2e9acffef85b0dbbf71a"
+    },
+    {
+      "path": "tools/inspect_cosmetics_api_batch.py",
+      "bytes": 1424,
+      "sha256": "1066c7feee1ae302992e47a153e1c706b00451274dad0556e54023a8443847bc",
+      "git_lf_sha256": "1066c7feee1ae302992e47a153e1c706b00451274dad0556e54023a8443847bc"
+    },
+    {
+      "path": "tools/accept_cosmetics_texture_read.py",
+      "bytes": 1805,
+      "sha256": "041afabefb6666a21ef846a0265a29f9533122db9976f2bd268eb7a493618271",
+      "git_lf_sha256": "041afabefb6666a21ef846a0265a29f9533122db9976f2bd268eb7a493618271"
+    },
+    {
+      "path": "tools/accept_cosmetics_canvas.py",
+      "bytes": 2356,
+      "sha256": "b66d04981da37fab650cdc399e67d6c80f8ee82391fa76a1d15f0ad5d01cfae7",
+      "git_lf_sha256": "b66d04981da37fab650cdc399e67d6c80f8ee82391fa76a1d15f0ad5d01cfae7"
+    },
+    {
+      "path": "tools/accept_cosmetics_texture_roundtrip.py",
+      "bytes": 5768,
+      "sha256": "7a149b814df88fe0618aec4019ef52240168df82852558310fc573502f858208",
+      "git_lf_sha256": "7a149b814df88fe0618aec4019ef52240168df82852558310fc573502f858208"
+    },
+    {
+      "path": "tools/finalize_cosmetics_texture_tools.py",
+      "bytes": 11898,
+      "sha256": "ba67a7087744f03c659d8063644dacc4e99fc86a365bf720a7f10f8666c5b31f",
+      "git_lf_sha256": "ba67a7087744f03c659d8063644dacc4e99fc86a365bf720a7f10f8666c5b31f"
+    }
+  ]
+}

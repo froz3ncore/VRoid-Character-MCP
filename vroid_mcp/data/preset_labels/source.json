@@ -1,0 +1,146 @@
+{
+  "repository": "https://github.com/brainrom/vroid-studio-mcp",
+  "commit": "a6b0719d01fa6cac9a857956907243d9916390b2",
+  "files": [
+    {
+      "file": "10-face-cheeks.json",
+      "sha256": "50705e68d399fe15afe9d7addf9dda51a6115f5e7d3fbfa91391555fdc1cc0e4"
+    },
+    {
+      "file": "10-face-eye-highlights.json",
+      "sha256": "caa480e3bd105ba36da431df48213dc28da4824827ed0dd7920798a10a4e6cf1"
+    },
+    {
+      "file": "10-face-eyebrows.json",
+      "sha256": "2ded1b03a421fe7b442e84c1bf3ed0c4528d80c5de5662ae25d2112965bafa71"
+    },
+    {
+      "file": "10-face-eyelashes.json",
+      "sha256": "79c55e4711ce6eb38c3f6faeed3f8e306927cfe40353289f6ae7e0bda47b7b1d"
+    },
+    {
+      "file": "10-face-eyelids.json",
+      "sha256": "1218486b41cb47ca54292a2341810c71bc0274bf832351731c7d479d87238b56"
+    },
+    {
+      "file": "10-face-eyeliner.json",
+      "sha256": "15fb5e850fedb085663b631a20900995bff933c4aaf44cfaad4dc2762bd8fb43"
+    },
+    {
+      "file": "10-face-eyes-sets.json",
+      "sha256": "06f610821bb9b76df68079eec711f7adf5cff38232a768d97d645070f907b6d8"
+    },
+    {
+      "file": "10-face-face-paint.json",
+      "sha256": "f03793520711f47ba94e043bd45c6d41493f0afd06afd3c0d7392d0950dc825a"
+    },
+    {
+      "file": "10-face-face-sets.json",
+      "sha256": "f476219b2ae26496d78ccdf6c20e09a59e6f5e9417b33a2acd586304a4d4e923"
+    },
+    {
+      "file": "10-face-irises.json",
+      "sha256": "3944c75114bd211106c38900b47645f3e7cfa79433849b194d3edb8feba347a4"
+    },
+    {
+      "file": "10-face-lips.json",
+      "sha256": "ee7904adbe9abc2b368ebc03ba75c2914155b1dbf8f35a09d08ebd936ca3ff85"
+    },
+    {
+      "file": "10-face-mouth-inside.json",
+      "sha256": "f18ecff857f252f099b28f0aed2cdc38e75534f1ba307893e721cc30426260ee"
+    },
+    {
+      "file": "10-face-mouth.json",
+      "sha256": "83a599034bb55ba4a0b8bc88d45f93b0798dc696f315db9de2d4c1f70619591c"
+    },
+    {
+      "file": "10-face-nose.json",
+      "sha256": "f5a7a7803e417a7691cdf52653ffe63c5e6cfc74637350b1e4aa634faaa2d16a"
+    },
+    {
+      "file": "10-face-scleras.json",
+      "sha256": "193df46898a40ec2204dd31dd946a348c7260dcb441297f4ea14d3f549113d9b"
+    },
+    {
+      "file": "10-face-skin.json",
+      "sha256": "70fa65c17cd7d3473f2c27eba82236d078d0c51f563772e05042c342d5993ca8"
+    },
+    {
+      "file": "10-hairstyle-ahoge.json",
+      "sha256": "914b77fda1c5dcc60f13175cf74a1c1aff43444aa7c35f8bf77f792ecbb6fdf0"
+    },
+    {
+      "file": "10-hairstyle-back.json",
+      "sha256": "ab8a9aa488197a0391730b2dada31f48f9d37016d3d83d6571921016130a3292"
+    },
+    {
+      "file": "10-hairstyle-base-hair.json",
+      "sha256": "cf8c72821a36c61bd3fbc03a08674bc1bfa4149118fad0e2676343b112732d36"
+    },
+    {
+      "file": "10-hairstyle-extensions.json",
+      "sha256": "c630a6d7810d14129c2171d1c4bc6769fee5ee84dd4ff35f32cc08a940eea803"
+    },
+    {
+      "file": "10-hairstyle-extra.json",
+      "sha256": "588887b5c51b91b6e67535fc17d321762e3ddda857cdc4fb14354be41a4d3446"
+    },
+    {
+      "file": "10-hairstyle-front.json",
+      "sha256": "065daf5d2f6385b0c7eb816eafe1baf5a446f6e3e92885fb277f4bd2764bd76a"
+    },
+    {
+      "file": "10-hairstyle-hairstyle-sets.json",
+      "sha256": "090a74e9286a635e3b13034948984693d01c6d56ee8daefd8efc091526778071"
+    },
+    {
+      "file": "10-hairstyle-overall-hair.json",
+      "sha256": "e78cd2c51c4931532e18c496dadba4ba43f522be81091470fd133e0b72fccdb8"
+    },
+    {
+      "file": "10-hairstyle-side.json",
+      "sha256": "6c24d6d1cddc7d1f302e138f292192189b3d72f592b5149466373d8f2f8e4b5a"
+    },
+    {
+      "file": "10-outfit-arm-accessories.json",
+      "sha256": "f7f8ef089b82d8fe3e17b91ae1becaf0854e84cd198021af69d476a836cfa516"
+    },
+    {
+      "file": "10-outfit-bottoms.json",
+      "sha256": "619a8f57b07ba1a10182409241f4ec0acfe99bbbfde0f878a7176cce22458f80"
+    },
+    {
+      "file": "10-outfit-dresses.json",
+      "sha256": "1035f8576ed59d27b90c32cf8633abd5e60c300e55e4f24cefce5c075560c02a"
+    },
+    {
+      "file": "10-outfit-inner-bottom.json",
+      "sha256": "3c61f19eedfbbb7c04969c70a32aabc5ca1d80c27000b801abf953e07bc502fa"
+    },
+    {
+      "file": "10-outfit-inner-top.json",
+      "sha256": "aa9c5475c99d29d9472cec01cffdd752e97b475b072f7d96be7fe028d606cfab"
+    },
+    {
+      "file": "10-outfit-neck-accessories.json",
+      "sha256": "4655aa8397f295b6ee9209d73768776c921391c38d6065400fc4d5f7fa55d970"
+    },
+    {
+      "file": "10-outfit-shoes.json",
+      "sha256": "b24efebdcf553f3a0eacf9e2488a04396f1e420af0633b7f31ce90c3186bf50a"
+    },
+    {
+      "file": "10-outfit-socks.json",
+      "sha256": "492d513b885b66874c618f5559b460f4bde5c6b4d9d02b961511ece450f3b48a"
+    },
+    {
+      "file": "10-outfit-tops.json",
+      "sha256": "7dfb0115fedad56ea7805ab6c469d869abf358af3c2cb9d621bf84050091a2e9"
+    },
+    {
+      "file": "10-outfit-whole-sets.json",
+      "sha256": "59c106d6435d270577263884d3a85c0c992b8d1c89d71b6620d23284361b9c29"
+    }
+  ]
+}

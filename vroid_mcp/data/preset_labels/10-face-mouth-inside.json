@@ -1,0 +1,21 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Face",
+    "category": "Mouth Inside",
+    "generated": "2026-10-04T11:02:39.7087267Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Face/Mouth/N00/Default/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Normal Teeth",
+    "pixiv/VRoid/Face/Mouth/N00/111/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Normal Teeth",
+    "pixiv/VRoid/Face/Mouth/N00/110/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Closed Mouth",
+    "pixiv/VRoid/Face/Mouth/N00/109/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Normal Teeth",
+    "pixiv/VRoid/Face/Mouth/N00/108/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Closed Mouth",
+    "pixiv/VRoid/Face/Mouth/N00/107/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Closed Mouth",
+    "pixiv/VRoid/Face/Mouth/N00/106/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Closed Mouth",
+    "pixiv/VRoid/Face/Mouth/N00/105/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Normal Teeth",
+    "pixiv/VRoid/Face/Mouth/N00/104/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Closed Mouth",
+    "pixiv/VRoid/Face/Mouth/N00/103/TransferableGroupType.N00.Level1.Mouth.transferablegroup": "Normal Teeth"
+  }
+}

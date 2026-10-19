@@ -1,0 +1,36 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Face",
+    "category": "Lips",
+    "generated": "2026-10-04T11:04:14.4328033Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Overlay/Lip/N00/125/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small Subtle",
+    "pixiv/VRoid/Overlay/Lip/N00/124/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small Subtle",
+    "pixiv/VRoid/Overlay/Lip/N00/123/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/122/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin",
+    "pixiv/VRoid/Overlay/Lip/N00/121/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Soft",
+    "pixiv/VRoid/Overlay/Lip/N00/120/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small Subtle",
+    "pixiv/VRoid/Overlay/Lip/N00/119/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/118/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow Faint",
+    "pixiv/VRoid/Overlay/Lip/N00/117/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin",
+    "pixiv/VRoid/Overlay/Lip/N00/116/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/115/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small Soft",
+    "pixiv/VRoid/Overlay/Lip/N00/114/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/113/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small",
+    "pixiv/VRoid/Overlay/Lip/N00/112/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Lips",
+    "pixiv/VRoid/Overlay/Lip/N00/111/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/110/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small Subtle",
+    "pixiv/VRoid/Overlay/Lip/N00/109/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small",
+    "pixiv/VRoid/Overlay/Lip/N00/108/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small",
+    "pixiv/VRoid/Overlay/Lip/N00/107/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/106/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow",
+    "pixiv/VRoid/Overlay/Lip/N00/105/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin",
+    "pixiv/VRoid/Overlay/Lip/N00/104/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Small Thin Lips",
+    "pixiv/VRoid/Overlay/Lip/N00/103/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow Faint",
+    "pixiv/VRoid/Overlay/Lip/N00/102/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Small",
+    "pixiv/VRoid/Overlay/Lip/N00/101/TransferableGroupType.N00.Level1.Lip.transferablegroup": "Thin Narrow Subtle"
+  }
+}

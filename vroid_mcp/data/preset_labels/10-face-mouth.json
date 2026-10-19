@@ -1,0 +1,21 @@
+{
+  "$meta": {
+    "source": "vlm-labeler",
+    "model": "qwen3.8-27b",
+    "section": "Face",
+    "category": "Mouth",
+    "generated": "2026-10-04T11:01:47.5193782Z"
+  },
+  "labels": {
+    "pixiv/VRoid/Overlay/MouthLine/N00/Default/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow straight neutral mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/110/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Small subtle smile",
+    "pixiv/VRoid/Overlay/MouthLine/N00/109/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow subtle smile",
+    "pixiv/VRoid/Overlay/MouthLine/N00/108/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow Straight Neutral Mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/107/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Thin Straight Neutral Mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/106/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow straight neutral mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/105/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow Straight Closed Mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/104/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow Straight Neutral Mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/103/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Short upturned mouth",
+    "pixiv/VRoid/Overlay/MouthLine/N00/102/TransferableGroupType.N00.Level1.MouthLine.transferablegroup": "Narrow flat neutral mouth"
+  }
+}

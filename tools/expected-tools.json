@@ -1,0 +1,888 @@
+{
+ "schema": "vroid-toolset-v1",
+ "tool_count": 86,
+ "toolset_hash": "sha256:69101bb60cc1f53ba6a94e44a8787996b3b31fa908ffe9be59ee76744f4b8517",
+ "tools": {
+  "add_shoe_template": {
+   "parameters": [
+    "expected_model",
+    "template_id"
+   ],
+   "required": [
+    "expected_model",
+    "template_id"
+   ]
+  },
+  "apply_clothing_preset": {
+   "parameters": [
+    "expected_model",
+    "preset_id"
+   ],
+   "required": [
+    "expected_model",
+    "preset_id"
+   ]
+  },
+  "apply_hair_preset": {
+   "parameters": [
+    "expected_model",
+    "preset_id"
+   ],
+   "required": [
+    "expected_model",
+    "preset_id"
+   ]
+  },
+  "apply_preset": {
+   "parameters": [
+    "area",
+    "expected_model",
+    "preset_id"
+   ],
+   "required": [
+    "area",
+    "expected_model",
+    "preset_id"
+   ]
+  },
+  "capture_body_reference": {
+   "parameters": [
+    "expected_model",
+    "label"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "capture_review": {
+   "parameters": [
+    "baseline_id",
+    "expected_model",
+    "label",
+    "quality",
+    "size",
+    "views"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "capture_texture_detail": {
+   "parameters": [
+    "direction",
+    "expected_model",
+    "eye_closure",
+    "radius_m",
+    "size",
+    "target"
+   ],
+   "required": [
+    "direction",
+    "expected_model",
+    "target"
+   ]
+  },
+  "capture_wear_motion": {
+   "parameters": [
+    "expected_wear",
+    "interval_seconds",
+    "quality",
+    "samples",
+    "size",
+    "view"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "capture_wear_reference": {
+   "parameters": [
+    "base_mesh_names",
+    "expected_wear",
+    "include_base_meshes",
+    "item_id",
+    "mesh_names",
+    "preview"
+   ],
+   "required": [
+    "expected_wear",
+    "item_id"
+   ]
+  },
+  "capture_wear_review": {
+   "parameters": [
+    "expected_wear",
+    "quality",
+    "size",
+    "views"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "close_texture_editor": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "duplicate_hair_strand": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "node_id"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "node_id"
+   ]
+  },
+  "edit_accessories": {
+   "parameters": [
+    "action",
+    "expected_model",
+    "instance_id",
+    "template_id"
+   ],
+   "required": [
+    "action",
+    "expected_model"
+   ]
+  },
+  "edit_hair_structure": {
+   "parameters": [
+    "action",
+    "category",
+    "expected_model",
+    "node_id"
+   ],
+   "required": [
+    "action",
+    "category",
+    "expected_model"
+   ]
+  },
+  "export_makeup_region_mask": {
+   "parameters": [
+    "alpha_threshold",
+    "area",
+    "expected_model",
+    "layer_id",
+    "padding_px",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "layer_id",
+    "region_id"
+   ]
+  },
+  "export_nail_uv_map": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "export_renderer_texture": {
+   "parameters": [
+    "expected_model",
+    "material_slot",
+    "mesh_name"
+   ],
+   "required": [
+    "expected_model",
+    "mesh_name"
+   ]
+  },
+  "export_texture_guide": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "export_texture_layer": {
+   "parameters": [
+    "expected_model",
+    "layer_id",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "layer_id",
+    "region_id"
+   ]
+  },
+  "export_texture_surface": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "export_wear_vrm": {
+   "parameters": [
+    "author",
+    "expected_wear",
+    "filename",
+    "title",
+    "version"
+   ],
+   "required": [
+    "author",
+    "expected_wear",
+    "filename",
+    "title"
+   ]
+  },
+  "generate_hair_bones": {
+   "parameters": [
+    "category",
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "get_height": {
+   "parameters": [],
+   "required": []
+  },
+  "get_status": {
+   "parameters": [],
+   "required": []
+  },
+  "get_wear_snapshot": {
+   "parameters": [
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "get_wear_status": {
+   "parameters": [],
+   "required": []
+  },
+  "hold_wear_preview_pose": {
+   "parameters": [
+    "clip_id",
+    "expected_wear",
+    "seconds"
+   ],
+   "required": [
+    "clip_id",
+    "expected_wear",
+    "seconds"
+   ]
+  },
+  "import_texture_layer": {
+   "parameters": [
+    "expected_model",
+    "expected_png_sha256",
+    "filename",
+    "image_id",
+    "layer_name",
+    "opacity",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "expected_png_sha256",
+    "filename",
+    "image_id",
+    "layer_name",
+    "region_id"
+   ]
+  },
+  "import_xwear": {
+   "parameters": [
+    "expected_wear",
+    "filename"
+   ],
+   "required": [
+    "expected_wear",
+    "filename"
+   ]
+  },
+  "inspect_native_api": {
+   "parameters": [
+    "assembly",
+    "class_name",
+    "filter"
+   ],
+   "required": [
+    "class_name"
+   ]
+  },
+  "inspect_texture_canvas": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "inspect_texture_renderers": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "inspect_wear_body_occlusion": {
+   "parameters": [
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "inspect_wear_fit_context": {
+   "parameters": [
+    "expected_wear",
+    "item_id",
+    "mesh_names",
+    "preview",
+    "region",
+    "sample_limit",
+    "target_mesh_name"
+   ],
+   "required": [
+    "expected_wear",
+    "item_id",
+    "mesh_names"
+   ]
+  },
+  "inspect_wear_native_shoes": {
+   "parameters": [
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "list_accessories": {
+   "parameters": [],
+   "required": []
+  },
+  "list_accessory_templates": {
+   "parameters": [],
+   "required": []
+  },
+  "list_body_params": {
+   "parameters": [],
+   "required": []
+  },
+  "list_clothing_params": {
+   "parameters": [],
+   "required": []
+  },
+  "list_clothing_presets": {
+   "parameters": [
+    "category",
+    "limit",
+    "offset"
+   ],
+   "required": []
+  },
+  "list_expressions": {
+   "parameters": [],
+   "required": []
+  },
+  "list_face_params": {
+   "parameters": [],
+   "required": []
+  },
+  "list_hair_bone_groups": {
+   "parameters": [
+    "category"
+   ],
+   "required": []
+  },
+  "list_hair_color_elements": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "node_id"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "node_id"
+   ]
+  },
+  "list_hair_materials": {
+   "parameters": [
+    "category",
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "list_hair_nodes": {
+   "parameters": [
+    "category"
+   ],
+   "required": []
+  },
+  "list_hair_presets": {
+   "parameters": [
+    "category",
+    "limit",
+    "offset"
+   ],
+   "required": []
+  },
+  "list_hair_strand_points": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "node_id"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "node_id"
+   ]
+  },
+  "list_parameters": {
+   "parameters": [
+    "category",
+    "domain",
+    "limit",
+    "offset",
+    "scope"
+   ],
+   "required": [
+    "domain"
+   ]
+  },
+  "list_presets": {
+   "parameters": [
+    "area",
+    "category",
+    "limit",
+    "offset"
+   ],
+   "required": [
+    "area"
+   ]
+  },
+  "list_shoe_templates": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "list_texture_layers": {
+   "parameters": [
+    "expected_model",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "region_id"
+   ]
+  },
+  "list_texture_regions": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "list_wear_preview_clips": {
+   "parameters": [
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "move_hair_strand_point": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "index",
+    "node_id",
+    "normal",
+    "point",
+    "uv"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "index",
+    "node_id",
+    "point"
+   ]
+  },
+  "open_texture_editor": {
+   "parameters": [
+    "bake_colors",
+    "expected_model",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "region_id"
+   ]
+  },
+  "open_wear_project": {
+   "parameters": [
+    "discard_unsaved",
+    "expected_wear",
+    "filename"
+   ],
+   "required": [
+    "expected_wear",
+    "filename"
+   ]
+  },
+  "paint_makeup_marks": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "layer_name",
+    "marks",
+    "mask_id",
+    "opacity"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ]
+  },
+  "pick_texture_uv": {
+   "parameters": [
+    "expected_model",
+    "max_distance",
+    "mesh_name",
+    "ray_direction",
+    "ray_origin"
+   ],
+   "required": [
+    "expected_model",
+    "mesh_name",
+    "ray_direction",
+    "ray_origin"
+   ]
+  },
+  "pose_wear_preview_legs": {
+   "parameters": [
+    "clip_id",
+    "expected_wear",
+    "foot_inward_degrees",
+    "seconds",
+    "upper_leg_inward_degrees"
+   ],
+   "required": [
+    "clip_id",
+    "expected_wear",
+    "seconds"
+   ]
+  },
+  "preview_expression": {
+   "parameters": [
+    "expected_model",
+    "expression"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "preview_makeup_marks": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ]
+  },
+  "preview_presets": {
+   "parameters": [
+    "area",
+    "expected_model",
+    "preset_ids"
+   ],
+   "required": [
+    "area",
+    "expected_model",
+    "preset_ids"
+   ]
+  },
+  "redo": {
+   "parameters": [
+    "expected_model",
+    "steps"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "restart_session": {
+   "parameters": [
+    "discard_unsaved"
+   ],
+   "required": []
+  },
+  "sample_wear_preview_rig": {
+   "parameters": [
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "save_as": {
+   "parameters": [
+    "expected_model",
+    "filename"
+   ],
+   "required": [
+    "expected_model",
+    "filename"
+   ]
+  },
+  "save_wear_project": {
+   "parameters": [
+    "expected_wear",
+    "filename"
+   ],
+   "required": [
+    "expected_wear",
+    "filename"
+   ]
+  },
+  "screenshot": {
+   "parameters": [
+    "expected_model",
+    "quality",
+    "size",
+    "view"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "search_native_classes": {
+   "parameters": [
+    "assembly",
+    "substring"
+   ],
+   "required": [
+    "substring"
+   ]
+  },
+  "select_wear_preview_clip": {
+   "parameters": [
+    "clip_id",
+    "expected_wear"
+   ],
+   "required": [
+    "expected_wear"
+   ]
+  },
+  "set_body_params": {
+   "parameters": [
+    "changes",
+    "expected_model"
+   ],
+   "required": [
+    "changes",
+    "expected_model"
+   ]
+  },
+  "set_clothing_params": {
+   "parameters": [
+    "changes",
+    "expected_model"
+   ],
+   "required": [
+    "changes",
+    "expected_model"
+   ]
+  },
+  "set_face_params": {
+   "parameters": [
+    "changes",
+    "expected_model"
+   ],
+   "required": [
+    "changes",
+    "expected_model"
+   ]
+  },
+  "set_hair_color": {
+   "parameters": [
+    "address",
+    "category",
+    "changes",
+    "expected_model",
+    "node_id"
+   ],
+   "required": [
+    "address",
+    "category",
+    "changes",
+    "expected_model",
+    "node_id"
+   ]
+  },
+  "set_hair_material": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "node_id",
+    "shared_material_id"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "node_id",
+    "shared_material_id"
+   ]
+  },
+  "set_height": {
+   "parameters": [
+    "centimeters",
+    "expected_model",
+    "tolerance_cm"
+   ],
+   "required": [
+    "centimeters",
+    "expected_model"
+   ]
+  },
+  "set_parameters": {
+   "parameters": [
+    "category",
+    "changes",
+    "domain",
+    "expected_model",
+    "scope"
+   ],
+   "required": [
+    "changes",
+    "domain",
+    "expected_model"
+   ]
+  },
+  "set_photo_camera": {
+   "parameters": [
+    "expected_model",
+    "position",
+    "target"
+   ],
+   "required": [
+    "expected_model",
+    "position",
+    "target"
+   ]
+  },
+  "set_preview_mode": {
+   "parameters": [
+    "expected_model",
+    "mode"
+   ],
+   "required": [
+    "expected_model",
+    "mode"
+   ]
+  },
+  "set_texture_layer_state": {
+   "parameters": [
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "opacity",
+    "region_id",
+    "visible"
+   ],
+   "required": [
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "region_id"
+   ]
+  },
+  "set_wear_animation": {
+   "parameters": [
+    "expected_wear",
+    "playing"
+   ],
+   "required": [
+    "expected_wear",
+    "playing"
+   ]
+  },
+  "set_wear_body_occlusion": {
+   "parameters": [
+    "expected_occlusion_token",
+    "expected_wear",
+    "hidden_vertices"
+   ],
+   "required": [
+    "expected_occlusion_token",
+    "expected_wear",
+    "hidden_vertices"
+   ]
+  },
+  "set_wear_fit": {
+   "parameters": [
+    "expected_wear",
+    "fit_y",
+    "fit_z",
+    "item_id"
+   ],
+   "required": [
+    "expected_wear",
+    "fit_y",
+    "fit_z",
+    "item_id"
+   ]
+  },
+  "set_wear_native_shoes_visible": {
+   "parameters": [
+    "expected_visibility_token",
+    "expected_wear",
+    "visible"
+   ],
+   "required": [
+    "expected_visibility_token",
+    "expected_wear",
+    "visible"
+   ]
+  },
+  "undo": {
+   "parameters": [
+    "expected_model",
+    "steps"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  }
+ }
+}

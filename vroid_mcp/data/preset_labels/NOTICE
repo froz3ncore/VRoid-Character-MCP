@@ -1,0 +1,7 @@
+Preset labels and thumbnail-addressing algorithm adapted from brainrom/vroid-studio-mcp.
+Copyright (c) 2026 Ilya Chelyadin and vroid-studio-mcp contributors.
+License: MIT (see LICENSE).
+Source: https://github.com/brainrom/vroid-studio-mcp
+Commit: a6b0719d01fa6cac9a857956907243d9916390b2
+35 data/labels/10-*.json files are copied verbatim; English names are descriptive, not official names or unique identifiers.
+Thumbnail code is adapted for Frida, with bounded PNG conversion and finally cleanup.
