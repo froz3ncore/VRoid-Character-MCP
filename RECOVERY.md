@@ -71,6 +71,24 @@ lab 的 `crash-guard/`，备份失败不会删除。权限不足时保留错误�
 & .\.venv\Scripts\python.exe .\tools\doctor.py --lab "D:\VRoid-Character-Lab"
 ```
 
+## Texture editor to Dress-up / 纹理编辑后进入换装
+
+`WEAR_NEW_PROCESS_REQUIRED` is a conservative process boundary for an unresolved,
+intermittent native crash. Once this MCP process has confirmed texture-editor
+entry, `open_wear_project` is refused before the native transition, even after
+closing the texture editor or loading another model. Reads and saving remain
+available. `get_status.wear_transition_guard` explains the state.
+
+Close the texture editor, save to a **new** `.vroid` if there are changes to keep,
+and close the owning session normally. Start a fresh session without entering the
+texture editor, list its new wear token, and open the confirmed saved file in
+Dress-up. Nothing automatically restarts or discards unsaved work. The public
+sample performs cold texture verification and Dress-up in separate processes.
+
+确认进入过纹理编辑器的同一进程会拒绝直接进入换装，关闭画板或换模型不解除守卫。
+需要保留的修改先另存新文件，正常关闭所属会话，再用新进程、新 wear token 打开
+确认保存的文件。此为隔离规避；原生根因尚未定位，不宣称原生缺陷已修复。
+
 ## Disconnected or uncertain edits / 断连或写入结果不确定
 
 `TEXTURE_EDITOR_REOPEN_REQUIRED` is a known-build sequence guard. After a

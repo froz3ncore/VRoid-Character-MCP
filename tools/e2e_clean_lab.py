@@ -2,7 +2,8 @@
 
 Sequence: prepare a clean lab -> start the server -> load the base model ->
 parameters -> makeup layer -> hair preset -> final live-height calibration ->
-save -> reopen in a new process -> Dress-up import of the supplied outfit -> save the assembly -> export VRM ->
+save -> reopen in a new process for verification -> another process for Dress-up ->
+import the supplied outfit -> save the assembly -> export VRM ->
 parse that VRM independently.
 
 Each step records what the server actually returned. A failure stops the run
@@ -403,6 +404,18 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps,
         facts['cold_review'] = await call('capture_review', {'expected_model': token,
                                     'views': ['body_front', 'body_back', 'face_front'], 'size': 512})
 
+
+async def phase_wear(call, lab: pathlib.Path, facts: dict, steps: Steps,
+                     capture_reviews: bool = False) -> None:
+    # The texture-verification process has exited. Never carry its native
+    # editor state into Dress-up or silently discard an edited in-memory model.
+    source = pathlib.Path(facts['base_model'])
+    if source != lab / 'saves' / facts['base_filename'] or sha256(source) != facts['base_sha256']:
+        raise RuntimeError('Saved base changed before the separate Dress-up process')
+    status = await wait_for_readiness(call, steps)
+    if status.get('wear_transition_guard', {}).get('requires_new_process'):
+        raise RuntimeError('Dress-up phase requires a fresh process without texture-editor entry')
+    facts['wear_process_isolated'] = True
     steps.current = 'open the saved base model in Dress-up'
     wear = await call('get_wear_status')
     assembled = await call('open_wear_project', {'filename': facts.get('base_filename', BASE_FILENAME),
@@ -469,8 +482,10 @@ def main() -> int:
               'code_changes_during_run': False,
               'sequence_note': 'The makeup layer is created before the height change: entering the native '
                                'texture editor immediately after a body height change makes this VRoid build '
-                               'touch an empty Body overlay mesh and the process dies. Every required step is '
-                               'still covered; only the order differs from the narrative.'}
+                               'touch an empty Body overlay mesh and the process dies. Hair precedes final '
+                               'live-height calibration. Cold texture verification and Dress-up use separate '
+                               'processes to avoid an unresolved native transition crash; no in-memory edits '
+                               'are silently discarded.'}
 
     def finish(code: int) -> int:
         report['steps'] = steps.rows
@@ -524,6 +539,9 @@ def main() -> int:
         report['base_sha256'] = facts.get('base_sha256')
         asyncio.run(session(lab, pathlib.Path(facts['base_model']),
                             lambda call: phase_reopen(call, lab, facts, steps, args.capture_reviews)))
+        asyncio.run(session(lab, None,
+                            lambda call: phase_wear(call, lab, facts, steps, args.capture_reviews)))
+        report['wear_process_isolated'] = facts['wear_process_isolated']
         report['height_checkpoints'] = {name: facts[name] for name in
                                        ('height_before_save', 'height_after_save', 'height_cold_reopen')}
         if args.capture_reviews:

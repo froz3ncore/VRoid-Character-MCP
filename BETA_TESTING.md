@@ -73,10 +73,13 @@ in native code while opening Dress-up (`script has been destroyed`). Opening the
 same hash-verified saved model in a fresh process, without texture-editor entry,
 completed XWear assembly, XRoid save and independently parsed VRM export. The
 same-process transition remains unresolved; this run is not a full E2E pass.
+The current workaround refuses that transition after confirmed texture entry;
+the sample and matrix use a separate fresh process for Dress-up/export.
 
 本轮先换发型再校准的三个身高目标均保持；额外同进程链路在纹理核验后进入换装时
 发生原生崩溃。相同哈希底模在新进程中、不进入纹理编辑器时，装配、保存和 VRM
 独立解析通过。原崩溃尚未定位，不把该次完整 E2E 标成通过。
+当前守卫会提前拒绝同进程切换；公开样例与矩阵把换装和导出放在新的独立进程中。
 
 The Windows workflow runs unit tests, MCP input-schema checks, JS behaviour and
 source-manifest verification on clean hosted checkouts. It retains reports on

@@ -34,6 +34,19 @@ async def check(lab, model, report):
         await runtime.parameter_call('open_texture_editor', {'expected_model': token, 'region_id': cheek}, True)
         await runtime.parameter_call('close_texture_editor', {'expected_model': token}, True)
         report['initial_editor_entry'] = True
+        wear = await runtime.wear_status()
+        try:
+            await runtime.open_wear_project(model.name, wear['wear_token'], True)
+        except RuntimeError as error:
+            if 'WEAR_NEW_PROCESS_REQUIRED' not in str(error):
+                raise
+            report['wear_refused_before_native_transition'] = True
+        else:
+            raise AssertionError('Texture-to-wear transition was not refused')
+        health = await runtime.status()
+        if not health['model_ready'] or health['writes_blocked']:
+            raise AssertionError('Wear guard rejection damaged the running session')
+        report['wear_guard'] = health['wear_transition_guard']
         report['routes'] = []
         for route in ('set_body_params', 'set_parameters', 'set_height'):
             body = await runtime.list_params('body')
@@ -49,7 +62,7 @@ async def check(lab, model, report):
                     {'expected_model': token, 'domain': 'body', 'changes': changes}, True)
             else:
                 measured = await runtime.parameter_call('get_height')
-                result = await runtime.set_height(token, measured['centimeters'] - 1)
+                result = await runtime.set_height(token, measured['live_centimeters'] - 1)
             if result.get('ok') is False:
                 raise RuntimeError('Native body write failed: ' + str(result))
             try:
@@ -82,6 +95,18 @@ async def check(lab, model, report):
         await fresh.parameter_call('close_texture_editor', {'expected_model': token}, True)
     finally:
         await asyncio.to_thread(fresh.close)
+    dress_up = Runtime(lab)
+    try:
+        await asyncio.to_thread(dress_up.start)
+        await dress_up.initialize()
+        wear = await dress_up.wear_status()
+        opened = await dress_up.open_wear_project(saved, wear['wear_token'], True)
+        if not opened['active']:
+            raise AssertionError('Fresh process failed to enter Dress-up')
+        report['fresh_wear_pid'] = dress_up.pid
+        report['fresh_wear_entry'] = True
+    finally:
+        await asyncio.to_thread(dress_up.close)
     report['input_unchanged'] = sha(model) == original
     if not report['input_unchanged']:
         raise AssertionError('The input model changed')

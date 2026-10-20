@@ -129,6 +129,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manife
 - **逐束發色不可見**：`Level1BaseHair_*` 色彩通道可讀回，但 640×640 渲染 0 像素變化；
   全域 `colors/Hair/All` 則有 24.6% 變化，因此只支援全域發色。
 - **M00** 沒有 F00 的等價覆蓋。
+- **紋理編輯後進入換裝須新進程**：原生切換崩潰尚未定位，守衛提前拒絕同進程切換；先另存修改，再依 [恢復步驟](RECOVERY.md) 啟動新會話。
 - **後裙碰撞暫停且未解決**，不會當作不存在。
 - Godot 匯入、材質與物理需要另做引擎端驗證。
 

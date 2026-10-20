@@ -192,6 +192,8 @@ own report is not the evidence.
   channels reads back but changes 0 of 640x640 rendered pixels; global hair
   colour (`colors/Hair/All`) changes 24.6%. Only global colour is supported.
 - **M00** has not received the coverage F00 has.
+- **Texture editor to Dress-up requires a new process.** A conservative guard
+  avoids an unresolved native transition crash; save first and follow [RECOVERY.md](RECOVERY.md).
 - **Rear-skirt collision is paused and unresolved**; it is not assumed away.
 - Godot import, materials and physics require separate engine-side validation.
 

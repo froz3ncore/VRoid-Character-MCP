@@ -92,6 +92,8 @@ def main():
                 facts['xwear_name'] = asset.name
                 asyncio.run(e2e.session(lab, Path(facts['base_model']),
                     lambda call: e2e.phase_reopen(call, lab, facts, steps, True)))
+                asyncio.run(e2e.session(lab, None,
+                    lambda call: e2e.phase_wear(call, lab, facts, steps, True)))
                 inspected = e2e.vrm_inspect.inspect(Path(facts['vrm']))
                 if not inspected['ok']:
                     raise RuntimeError('Independent VRM findings: ' + str(inspected['findings']))

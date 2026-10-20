@@ -5,6 +5,10 @@ require the private clothing or character files used in earlier demonstrations.
 The generated Blender source is retained alongside the XWear. It is a test
 fixture, not finished clothing or a visual-fit benchmark.
 
+The workflow uses separate processes for editing/saving, cold texture verification,
+and Dress-up/export. This avoids an unresolved native texture-to-Dress-up crash;
+it does not discard unsaved work or automatically retry an uncertain write.
+
 样例会自行生成一个橙色小配件，并保留 `.blend` 源文件和 XWear，不依赖历史展示中的
 私人角色或服装。这个配件用于检验蒙皮、导入与导出，不代表成品服装或贴合验收。
 

@@ -36,8 +36,11 @@ def test_bad_base_hash_never_enters_native_session(tmp_path,monkeypatch):
     assert not entered and source.read_bytes()==b'untouched'
 
 def test_nested_transport_errors_preserve_the_actual_failure_reason():
-    from exceptiongroup import ExceptionGroup
-    error=ExceptionGroup('transport wrapper',[ExceptionGroup('session wrapper',[ValueError('Recipe mask mismatch')])])
+    try:
+        from builtins import ExceptionGroup as Group
+    except ImportError:  # Python 3.10 needs the transport dependency's backport.
+        from exceptiongroup import ExceptionGroup as Group
+    error=Group('transport wrapper',[Group('session wrapper',[ValueError('Recipe mask mismatch')])])
     assert replay.error_summary(error)=='Recipe mask mismatch'
 
 def test_multiple_entries_for_one_region_are_rejected_before_edits(tmp_path):

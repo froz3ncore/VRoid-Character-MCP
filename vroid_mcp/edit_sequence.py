@@ -12,14 +12,29 @@ REOPEN_REQUIRED = (
     'Nothing entered the texture editor; do not restart with unsaved work.'
 )
 
+WEAR_RESTART_REQUIRED = (
+    'WEAR_NEW_PROCESS_REQUIRED: texture editing was entered in this process. '
+    'This build has an unresolved native crash when later entering Dress-up. '
+    'Close the texture editor and save to a new .vroid if needed, then close '
+    'this session normally and open the saved file in Dress-up from a fresh '
+    'session. Nothing entered Dress-up; unsaved work was not discarded.'
+)
+
 
 def before_call(subject, operation: str, args: dict) -> None:
+    if operation == 'open_wear_project' and getattr(subject, 'texture_editor_entered', False):
+        raise RuntimeError(WEAR_RESTART_REQUIRED)
     if operation == 'open_texture_editor' and args.get('expected_model') in getattr(
             subject, 'body_edited_tokens', set()):
         raise RuntimeError(REOPEN_REQUIRED)
 
 
 def after_call(subject, operation: str, args: dict, result) -> None:
+    if (operation == 'open_texture_editor' and isinstance(result, dict)
+            and result.get('active_screen') == 'VRoid.Studio.TextureEditorScreen.ViewModel'):
+        # Closing the editor or loading another model is not evidence that its
+        # process-wide native objects were reconstructed. Clear only on restart.
+        subject.texture_editor_entered = True
     body_edit = operation == 'set_body_params' or (
         operation == 'set_parameters' and args.get('domain') == 'body')
     if not body_edit or not isinstance(result, dict):
@@ -37,5 +52,13 @@ def status(subject, token: str | None) -> dict:
     blocked = token in getattr(subject, 'body_edited_tokens', set())
     return {'requires_cold_reopen': blocked,
             'reason': 'BODY_EDIT_IN_THIS_SESSION' if blocked else None,
-            'scope': 'MCP-observed body edits only; other tools remain available. '
+            'scope': 'MCP-observed body edits only. '
                      'Cold reopen is required before entering texture editing.'}
+
+
+def wear_status(subject) -> dict:
+    blocked = getattr(subject, 'texture_editor_entered', False)
+    return {'requires_new_process': blocked,
+            'reason': 'TEXTURE_EDITOR_ENTERED_IN_THIS_PROCESS' if blocked else None,
+            'scope': 'Conservative workaround for an unresolved native transition crash; '
+                     'MCP-observed texture entry only. Saving and reading remain available.'}

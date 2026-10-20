@@ -84,6 +84,8 @@ checks face/layer and live-height/scale persistence, imports the
 sample accessory, saves assembly, exports VRM, independently parses it and
 captures native views. Existing app/saves are not replaced. The first failure
 stops the matrix; partial reports are retained. The input XWear hash is checked.
+Cold texture verification and Dress-up/export run in separate processes; the
+native same-process transition remains guarded rather than claimed fixed.
 
 矩阵是“3 个身高目标 × 2 件实际原生上衣”，每组均走保存、冷重开、配件导入和导出。
 它不覆盖 M00、任意体型比例、未知拓扑或复杂外部裙装。旧版所谓约 1.4 cm 重开漂移

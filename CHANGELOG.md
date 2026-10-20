@@ -2,6 +2,13 @@
 
 ## Unreleased — reproducibility and recovery
 
+- Python 3.12 CI fix: exception-group regression uses the built-in type on
+  Python 3.11+ and the existing transport backport on Python 3.10, preserving
+  the nested-error assertion without adding an unnecessary runtime dependency.
+- Conservative texture-to-Dress-up boundary: confirmed texture entry blocks
+  later `open_wear_project` in that process. Saving/reads remain available;
+  the public sample and matrix verify saved textures and perform assembly in
+  separate processes. The intermittent native crash root cause remains open.
 - Corrected the earlier ~1.4 cm "save/reopen height drift" diagnosis: the old
   E2E calibrated before changing hair, then compared different styled models.
   Controlled measurements show the change before save and unchanged live height

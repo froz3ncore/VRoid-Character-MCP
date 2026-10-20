@@ -97,3 +97,46 @@ def test_height_solver_uses_same_guarded_bridge():
         with pytest.raises(RuntimeError, match='TEXTURE_EDITOR_REOPEN_REQUIRED'):
             await r._call('open_texture_editor', {'expected_model': 'm'})
     asyncio.run(exercise())
+
+
+def test_texture_entry_blocks_wear_before_native_call_even_after_close_or_model_change():
+    r, calls = runtime({'open_texture_editor': {
+        'model_token': 'm', 'active_screen': 'VRoid.Studio.TextureEditorScreen.ViewModel'}})
+    async def exercise():
+        await r._call('open_texture_editor', {'expected_model': 'm'})
+        await r._call('close_texture_editor', {'expected_model': 'm'})
+        await r._call('new_model')
+        for discard in (False, True):
+            with pytest.raises(RuntimeError, match='WEAR_NEW_PROCESS_REQUIRED'):
+                await r._call('open_wear_project', {'discard_unsaved': discard})
+        await r._call('save_as', {'expected_model': 'another-model'})
+        await r._call('get_wear_status')
+    asyncio.run(exercise())
+    assert 'open_wear_project' not in calls
+    assert calls[-2:] == ['save_as', 'get_wear_status']
+    assert r.uncertain is False
+    assert edit_sequence.wear_status(r)['requires_new_process']
+
+
+def test_fresh_process_does_not_inherit_texture_to_wear_guard():
+    r, calls = runtime({})
+    asyncio.run(r._call('open_wear_project', {'discard_unsaved': True}))
+    assert calls == ['open_wear_project']
+    assert not edit_sequence.wear_status(r)['requires_new_process']
+
+
+@pytest.mark.parametrize('result', [{}, {'active_screen': 'VRoid.Studio.EditRootScreen.ViewModel'}])
+def test_guard_requires_confirmed_native_texture_entry(result):
+    r, calls = runtime({'open_texture_editor': result})
+    async def exercise():
+        await r._call('open_texture_editor', {'expected_model': 'm'})
+        await r._call('open_wear_project', {'discard_unsaved': True})
+    asyncio.run(exercise())
+    assert calls[-1] == 'open_wear_project'
+
+
+def test_rejected_texture_entry_does_not_claim_native_entry_occurred():
+    r, calls = runtime({'open_texture_editor': ValueError('unknown region')})
+    with pytest.raises(ValueError):
+        asyncio.run(r._call('open_texture_editor', {'expected_model': 'm'}))
+    assert not edit_sequence.wear_status(r)['requires_new_process']

@@ -238,6 +238,7 @@ async def status(subject) -> dict:
             return dict(DISCONNECTED)
         result.update(connected=True, writes_blocked=subject.uncertain, lab=str(subject.lab),
                       crash_guard=subject.crash_guard,
+                      wear_transition_guard=edit_sequence.wear_status(subject),
                       texture_editor_guard=edit_sequence.status(subject, result.get('model_token')))
         return result
 

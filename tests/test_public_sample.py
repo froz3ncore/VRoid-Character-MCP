@@ -59,3 +59,18 @@ def test_mcp_capture_result_wrapper_is_decoded_as_summary_without_embedding_imag
     assert e2e.status_text(result) == {'capture_id': 'example', 'manifest_path': 'review.json'}
     result.structuredContent = {'ok': True, 'native': 'ordinary structured dict'}
     assert e2e.status_text(result)['native'] == 'ordinary structured dict'
+
+
+def test_wear_phase_refuses_changed_saved_source_before_any_native_call(tmp_path):
+    import asyncio
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+    import e2e_clean_lab as e2e
+    source = tmp_path / 'saves/base.vroid'
+    source.parent.mkdir()
+    source.write_bytes(b'changed source')
+    async def forbidden(*args, **kwargs):
+        pytest.fail('No native calls before validating saved source')
+    with pytest.raises(RuntimeError, match='Saved base changed'):
+        asyncio.run(e2e.phase_wear(forbidden, tmp_path, {
+            'base_model': str(source), 'base_filename': source.name, 'base_sha256': '0' * 64}, e2e.Steps()))
