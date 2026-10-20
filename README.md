@@ -183,6 +183,12 @@ own report is not the evidence.
 
 ## Known limitations
 
+Current development validation: **502 Python tests passed / 1 skipped** on
+Python 3.10 and 3.12, six JS suites, a 79.1 s fresh-lab public sample and a
+10-case height/proportion/Tops matrix. All 30 saved/cold rendered views matched
+exact RGBA. These are tool checks; human baseline approval and external-user
+acceptance remain pending. See [regression scope](REGRESSION.md).
+
 - **Calibrate height after styling.** Hair changes the native measured height.
   The earlier ~1.4 cm "reopen drift" compared a pre-hair value with a post-hair
   model; the change had already happened before saving. The solver now uses

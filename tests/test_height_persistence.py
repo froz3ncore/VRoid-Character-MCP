@@ -45,3 +45,15 @@ def test_nonfinite_checkpoint_is_rejected(field):
     reading = {'live_cm': 157.8, 'ui_cm': 157.8, 'scale': -.04, field: float('nan')}
     with pytest.raises(RuntimeError, match='non-finite'):
         e2e.verify_height(reading, target_cm=157.8)
+
+
+@pytest.mark.parametrize('parameters', [[], [{'id': 'body/WholeBody/011', 'value': 0}],
+                                       [{'id': 'body/WholeBody/011', 'value': float('nan')}]])
+def test_proportion_persistence_checks_more_than_height(parameters):
+    with pytest.raises(RuntimeError, match='Body proportion did not persist'):
+        e2e.verify_body_proportions(parameters, [{'id': 'body/WholeBody/011', 'value': -.25}])
+
+
+def test_proportion_persistence_tolerates_native_float_storage():
+    e2e.verify_body_proportions([{'id': 'body/WholeBody/011', 'value': -.25000002}],
+                               [{'id': 'body/WholeBody/011', 'value': -.25}])

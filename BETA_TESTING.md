@@ -88,3 +88,10 @@ Workflow setup follows [GitHub's Python testing documentation](https://docs.gith
 
 CI 是离线代码回归；原生副本、VRoid 保存和截图仍需要独立的本机／外部验收。工作流
 文件存在不等于已经在 GitHub 上执行通过。
+
+The Python 3.12 backport-import failure was reproduced locally and fixed.
+[Run 39386293369](https://github.com/froz3ncore/VRoid-Character-MCP/actions/runs/39386293369)
+passed for the CI/transition fix (`182a0d1`); later commits require their own
+Actions result. Current local 3.10/3.12 checks report 502 passed / 1 skipped.
+The fresh public sample and expanded 10-case native matrix also passed; human
+baseline approval and independent-user acceptance remain pending.

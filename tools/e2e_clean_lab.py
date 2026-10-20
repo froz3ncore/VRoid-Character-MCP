@@ -206,6 +206,15 @@ def verify_height(reading: dict, *, expected: dict | None = None,
             raise RuntimeError('Whole-body scale changed across save/reopen')
 
 
+def verify_body_proportions(parameters: list[dict], expected: list[dict]) -> None:
+    actual = {p['id']: p['value'] for p in parameters}
+    for change in expected:
+        value = actual.get(change['id'])
+        if (not isinstance(value, (int, float)) or not math.isfinite(value)
+                or abs(value - change['value']) > 1e-6):
+            raise RuntimeError('Body proportion did not persist: ' + change['id'])
+
+
 async def phase_edit(call, lab: pathlib.Path, steps: Steps, capture_reviews: bool = False,
                      scenario: dict | None = None) -> dict:
     scenario = scenario or {}
@@ -310,6 +319,19 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps, capture_reviews: boo
     # before calibration: hair changes the native height measurement itself.
     height_before = await call('get_height')
     target = round(float(height_before['live_centimeters']) + scenario.get('height_delta_cm', -2.0), 1)
+    body_changes = scenario.get('body_changes', [])
+    if body_changes:
+        steps.current = 'set body proportions'
+        if any(c['id'] == 'body/WholeBody/002' for c in body_changes):
+            raise ValueError('Body profile must not replace the final height solver scale')
+        changed = await call('set_body_params', {'expected_model': token, 'changes': body_changes})
+        if not changed.get('ok'):
+            raise RuntimeError('Body proportion write failed: ' + str(changed))
+        body_after = (await call('list_body_params'))['parameters']
+        verify_body_proportions(body_after, body_changes)
+        facts['body_proportions'] = body_changes
+        steps.record('set body proportions', {'profile': scenario.get('body_profile'),
+                                              'changes': body_changes})
 
     steps.current = 'hair preset'
     presets = (await call('list_hair_presets', {'limit': 80}))['presets']
@@ -362,6 +384,7 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps,
     token = status['model_token']
     height = await height_checkpoint(call)
     verify_height(height, expected=facts['height_after_save'], target_cm=facts['height_target_cm'])
+    verify_body_proportions((await call('list_body_params'))['parameters'], facts.get('body_proportions', []))
     facts['height_cold_reopen'] = height
     height_drift = height['live_cm'] - facts['height_after_save']['live_cm']
     face_now = await call('list_face_params')

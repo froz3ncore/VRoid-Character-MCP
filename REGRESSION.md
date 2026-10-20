@@ -100,3 +100,14 @@ native same-process transition remains guarded rather than claimed fixed.
 ```
 
 包含旧顺序对照，以及 151.8 / 157.8 / 165.8 cm 三个先换发型再校准的冷重开检查。
+
+Add `--include-proportions` to the matrix command for **10 cases**: the six
+height/top cases plus narrow-shoulder/long-torso and broad-shoulder/long-leg
+profiles at the medium target, each with both Tops. These use four explicitly
+bounded native sliders (shoulder width, torso length, leg length, waist size).
+Every edited proportion is read back and checked after cold reopen within 1e-6;
+height is calibrated last and checked separately. This remains F00 coverage.
+
+矩阵加 `--include-proportions` 可扩展为 10 组：保留原有 6 组，再增加窄肩长躯干和
+宽肩长腿两种比例，各配两件上衣。调整肩宽、躯干长、腿长、腰部大小四个实际原生
+参数，冷重开逐项核对；身高最后独立校准。不等于 M00 或任意体型全覆盖。

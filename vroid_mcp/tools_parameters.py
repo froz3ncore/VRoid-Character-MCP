@@ -173,7 +173,12 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=read)
     async def get_height() -> dict:
-        """Read the native height in centimeters with its label and the live measurement."""
+        """Read the current native height as live_centimeters.
+
+        Use live_centimeters (GetBodyHeight) for calibration and save/reopen
+        comparisons. centimeters and label are cached UI values and may lag;
+        their difference is not evidence of lost saved scale.
+        """
         return await runtime.parameter_call('get_height')
 
     @ready_tool(annotations=edit)

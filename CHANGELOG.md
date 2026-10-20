@@ -2,9 +2,17 @@
 
 ## Unreleased — reproducibility and recovery
 
+- Verified follow-up: 502 Python tests passed / 1 skipped on Python 3.10 and
+  3.12; six JS suites; unchanged 86-tool input contract. A new public sample
+  completed in 79.1 s. The 10-case height/proportion/Tops matrix completed in
+  793.5 s with live height, scale, authored proportions and makeup preserved;
+  independent VRM findings empty. All 30 saved/cold rendered views matched
+  exact RGBA. Human golden-image approval and two independent users remain pending.
 - Python 3.12 CI fix: exception-group regression uses the built-in type on
   Python 3.11+ and the existing transport backport on Python 3.10, preserving
   the nested-error assertion without adding an unnecessary runtime dependency.
+- Optional F00 proportion matrix adds two shoulder/torso/leg/waist profiles with
+  both native Tops (10 total cases), including cold parameter-persistence checks.
 - Conservative texture-to-Dress-up boundary: confirmed texture entry blocks
   later `open_wear_project` in that process. Saving/reads remain available;
   the public sample and matrix verify saved textures and perform assembly in

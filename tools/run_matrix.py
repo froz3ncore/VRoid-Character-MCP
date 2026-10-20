@@ -38,6 +38,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ('lab', 'xwear', 'out'):
         parser.add_argument('--' + key, required=True, type=Path)
+    parser.add_argument('--include-proportions', action='store_true',
+                        help='Also test narrow/long-torso and broad/long-leg F00 profiles at the medium height')
     args = parser.parse_args()
     lab, asset, out = args.lab.resolve(), args.xwear.resolve(), args.out.resolve()
     if not (lab / 'app/VRoidStudio.exe').is_file() or not asset.is_file() or out.exists():
@@ -69,8 +71,22 @@ def main():
         parser.error(str(error))
     out.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
-    report = {'schema': 'vroid-f00-height-tops-matrix-v1', 'lab': str(lab),
+    profiles = [('short', -8.0, []), ('medium', -2.0, []), ('tall', 6.0, [])]
+    if args.include_proportions:
+        profiles += [('narrow-long-torso', -2.0, [
+            {'id': 'body/WholeBody/011', 'value': -.25},
+            {'id': 'body/WholeBody/019', 'value': .2},
+            {'id': 'body/WholeBody/021', 'value': -.2},
+            {'id': 'body/WholeBody/020', 'value': -.2}]),
+            ('broad-long-legs', -2.0, [
+            {'id': 'body/WholeBody/011', 'value': .25},
+            {'id': 'body/WholeBody/019', 'value': -.2},
+            {'id': 'body/WholeBody/021', 'value': .2},
+            {'id': 'body/WholeBody/020', 'value': .2}])]
+    report = {'schema': 'vroid-f00-height-tops-matrix-v2', 'lab': str(lab),
               'xwear_sha256': before, 'cases': [], 'ok': False,
+              'expected_case_count': len(profiles) * 2,
+              'includes_proportions': args.include_proportions,
               'scope': 'F00, 3 height targets x 2 native Tops. Each case runs native edit/save/'
                        'cold reopen/import/sample accessory/assembly save/VRM parse and renders. '
                        'Not M00, arbitrary body topology, complex XWear fit or art adoption.'}
@@ -78,12 +94,13 @@ def main():
         catalog = asyncio.run(e2e.session(lab, None, tops_catalog))
         report['clothing_presets'] = catalog
         run_id = uuid.uuid4().hex[:8]
-        for height, delta in [('short', -8.0), ('medium', -2.0), ('tall', 6.0)]:
+        for height, delta, body_changes in profiles:
             for number, top in enumerate(catalog):
                 case_id = f'{height}-top{number + 1}'
                 print('MATRIX_CASE ' + case_id, flush=True)
                 steps = e2e.Steps()
                 case = {'case_id': case_id, 'height_delta_cm': delta,
+                        'body_profile': height, 'body_changes': body_changes,
                         'clothing_preset_id': top['id'], 'steps': []}
                 report['cases'].append(case)
                 scenario = {**case, 'filename_prefix': f'matrix-{run_id}-{case_id}'}

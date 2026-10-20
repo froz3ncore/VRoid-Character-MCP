@@ -248,7 +248,11 @@ uncertain change.
 - annotations: read-only
 - parameters: none
 
-Read the native height in centimeters with its label and the live measurement.
+Read the current native height as live_centimeters.
+
+Use live_centimeters (GetBodyHeight) for calibration and save/reopen
+comparisons. centimeters and label are cached UI values and may lag;
+their difference is not evidence of lost saved scale.
 
 ### `set_height`
 
