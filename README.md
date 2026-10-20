@@ -100,6 +100,33 @@ Register a stdio server that runs `launch.py` with the lab:
 One lab can be owned by one server at a time. A second server is refused and the
 message names the process that holds the lock.
 
+## Blender, VRM and XWear add-ons
+
+External clothing needs mesh preparation, fitting and skinning before it becomes
+a wearable package. These components have different roles:
+
+| Component | Runs in | Role |
+|---|---|---|
+| [VRM format / VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender) | Blender | Import a reference VRM; edit humanoid mappings, MToon and VRM SpringBone data |
+| [Direct XWear 0.2.0, included here](pipeline/blender-addons/vroid_xwear_direct/) | Blender | Export prepared, skinned garment meshes as a restricted experimental XWear package |
+| [Official XWear Packager](https://vroid.pixiv.help/hc/en-us/articles/38903414455449-How-to-install-the-XWear-Packager) | Unity / VCC | An alternative official route to converting clothing to XWear |
+
+For Blender 4.2+, find **VRM format** under `Preferences → Get Extensions`.
+Package this repository's `vroid_xwear_direct` folder as a ZIP and install it
+through `Preferences → Add-ons → Install from Disk`. After enabling it, use
+`File → Export → Direct XWear — Experimental (.xwear)`.
+
+The flow is: reference VRM + external clothing → Blender fitting/skinning →
+XWear export → VRoid Dress-up → XRoid save / VRM export. The direct writer
+supports a limited opaque-material/rest-skinning/spring subset, not animation,
+morphs, full PBR or transparent materials. The official Unity packager is an
+alternative, not a prerequisite of the direct Blender route.
+
+See the [Blender/XWear setup guide (Simplified Chinese)](BLENDER_SETUP.zh-CN.md)
+for exact packaging commands, export checks and troubleshooting. Add-ons are
+not installed by pip. Ordinary MCP editing or importing an existing XWear does
+not require the entire Blender preparation workflow.
+
 ## Workflow
 
 1. `list_face_params` → keep the returned `model_token` as `expected_model`.

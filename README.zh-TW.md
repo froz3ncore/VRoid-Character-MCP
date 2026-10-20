@@ -67,6 +67,22 @@ npm install
 }
 ~~~
 
+## Blender、VRM 與 XWear 插件
+
+外部衣飾要先整理網格、對位和綁定，再交給 VRoid 換裝。這幾個工具各自負責不同步驟：
+
+| 工具 | 安裝位置 | 用途 |
+|---|---|---|
+| [VRM format / VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender) | Blender | 導入參考 VRM、編輯 Humanoid 映射、MToon 與 VRM SpringBone |
+| [本專案 Direct XWear 0.2.0](pipeline/blender-addons/vroid_xwear_direct/) | Blender | 將已綁定的衣飾匯出成受限的實驗性 `.xwear` |
+| [官方 XWear Packager](https://vroid.pixiv.help/hc/en-us/articles/38903414455449-How-to-install-the-XWear-Packager) | Unity／VCC | 官方 XWear 轉換路線，可按需求選擇 |
+
+Blender 4.2+ 可在 `Preferences → Get Extensions` 安裝 **VRM format**。本專案 Direct XWear 從原始碼打包成 ZIP，再用 `Add-ons → Install from Disk` 安裝；匯出菜單為 `File → Export → Direct XWear — Experimental (.xwear)`。
+
+完整流程：參考 VRM 與外部網格 → Blender 對位／綁定 → 匯出 XWear → VRoid 換裝 → 保存 XRoid／匯出 VRM。直出器不支援完整 PBR、透明材質、morph 或動畫，也不自動修復權重或穿插。
+
+打包、安裝、匯出前檢查及排錯詳見 [Blender／XWear 接入指南（簡中）](BLENDER_SETUP.zh-CN.md)。只用 MCP 編輯角色或導入現成 XWear 時，不需要安裝全部插件。
+
 ## 工作流
 
 1. `list_face_params` 取得 `model_token`，之後作為 `expected_model`。

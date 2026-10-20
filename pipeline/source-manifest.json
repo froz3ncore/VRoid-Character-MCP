@@ -1,11 +1,16 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 289,
- "total_bytes": 1749936,
+ "file_count": 290,
+ "total_bytes": 1764739,
  "tool_count": 86,
  "toolset_hash": "sha256:69101bb60cc1f53ba6a94e44a8787996b3b31fa908ffe9be59ee76744f4b8517",
  "files": [
+  {
+   "path": "BLENDER_SETUP.zh-CN.md",
+   "bytes": 9850,
+   "sha256": "b35d09bf3301826de85e8ba27f45280cf4bd94897b1916682096d41db4549104"
+  },
   {
    "path": "CHANGELOG.md",
    "bytes": 10374,
@@ -28,18 +33,18 @@
   },
   {
    "path": "README.md",
-   "bytes": 9067,
-   "sha256": "8035d2cb11ba60baf47776f3307cd2abb1734e8fdb4518caec8da9fb0fc0a835"
+   "bytes": 10822,
+   "sha256": "890a60561a724c60b64e78d0ca5f09c89877be57deb98333fb675b759b80a15e"
   },
   {
    "path": "README.zh-CN.md",
-   "bytes": 10980,
-   "sha256": "920c859f0834387729ec8e4dc4794fe40d7f7a1704cde6833a1c197898044e9d"
+   "bytes": 12741,
+   "sha256": "87abe60deaa99c022d7e384d88103b045c36ec819c90774613c6a1ce5493c5bc"
   },
   {
    "path": "README.zh-TW.md",
-   "bytes": 5963,
-   "sha256": "b85eea5c9f529ac77b7a27fdc2b6f00a8a956ded24447490e9c5fcf35b0e1d5e"
+   "bytes": 7374,
+   "sha256": "b43c4393f1c7ee5d2bcdd01b3c1cb87ffb5b57f5ec9f5a9f99cbfc987f2d0b18"
   },
   {
    "path": "SCOPE.md",
@@ -1233,8 +1238,8 @@
   },
   {
    "path": "tools/source_manifest.py",
-   "bytes": 5868,
-   "sha256": "47f76f0fb70a95844bfbc88fbdd4d46666e6ed6ffca4ae47fb5f3b4086f0b5d4"
+   "bytes": 5894,
+   "sha256": "9316776c4f8d023780fa6c7dd3790eba56f298db301041c3957bb45599a03833"
   },
   {
    "path": "tools/tool_manifest.py",

@@ -58,6 +58,7 @@ pipeline/lab-codex/
 *.md
 !/README.md
 !/README.zh-CN.md
+!/BLENDER_SETUP.zh-CN.md
 !/README.zh-TW.md
 !/SCOPE.md
 !/CHANGELOG.md

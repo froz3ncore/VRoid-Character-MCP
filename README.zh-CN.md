@@ -125,6 +125,24 @@ npm ci
 
 连接后应能发现 **86 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
+## Blender、VRM 与 XWear 插件
+
+从 Tripo 或其他工具生成的衣饰，需要先整理和绑定，再交给 VRoid 换装。这里会用到不同插件：
+
+| 插件 | 所在软件 | 作用 |
+|---|---|---|
+| [VRM format / VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender) | Blender | 导入参考底模 VRM，保留／编辑 Humanoid 映射、MToon 与 VRM SpringBone 数据 |
+| [本项目 Direct XWear 0.2.0](pipeline/blender-addons/vroid_xwear_direct/) | Blender | 将已绑定衣饰导出为实验性的 `.xwear`；不是自动生成权重或修穿模的工具 |
+| [官方 XWear Packager](https://vroid.pixiv.help/hc/en-us/articles/38903414455449-How-to-install-the-XWear-Packager) | Unity／VCC | 另一条官方 XWear 转换路线，与 Blender 直出器按需选择 |
+
+典型流程为：**参考底模 `.vrm` + 外部衣饰 → Blender 对位、绑定和材质整理 → Direct XWear 导出 `.xwear` → VRoid 换装 → 保存 `.xroid` / 导出 `.vrm`**。
+
+Blender 4.2+ 可在 `Preferences → Get Extensions` 搜索 **VRM format**。本项目的 Direct XWear 需从仓库源码打包，再通过 `Preferences → Add-ons → Install from Disk` 安装，启用后出现在 `File → Export → Direct XWear — Experimental (.xwear)`。
+
+完整的打包命令、安装步骤、导出条件、方向选择与排错见 **[Blender／XWear 接入指南](BLENDER_SETUP.zh-CN.md)**。当前直出器仅支持受限的不透明材质、静止绑定与弹簧数据，不导出完整 PBR、透明材质、morph 或动画。
+
+只使用 MCP 捏脸、妆容或已有 XWear 时，不需要安装全部插件。它们不随 Python 依赖自动安装；后台运行 Blender 时也要确保那个 Blender 环境已启用所需插件。
+
 ## 推荐工作流
 
 ### 调整角色
