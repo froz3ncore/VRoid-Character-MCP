@@ -9,6 +9,9 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 狀態：**0.4.1 開發版**。工具層已收口並在乾淨 lab 上端到端驗證；角色美術
 （正式 v22 裝配、鞋、坐姿裙擺）是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
 
+確認體型參數改變後，會提前拒絕進入貼圖編輯器以避開已知原生崩潰路徑；先另存新檔，
+再冷重開。讀取與保存仍可用，見 [恢復步驟](RECOVERY.md)。
+
 ## 效果展示
 
 以下為 2026-10-19 開發驗證中的原生截圖。服裝與妝容是不同驗證場景的候選，尚未合併為最終角色；坐姿裙擺與穿插問題仍保留。
@@ -26,6 +29,14 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 - 不構成 VRoid Studio、VRM 格式或任何產出角色的授權。見 [LICENSING.md](LICENSING.md)。
 
 ## 運作方式
+
+連接已準備的副本前，用客戶端相同的解譯器執行
+`.venv\Scripts\python.exe tools\doctor.py --lab <副本目錄>`。
+診斷不啟動 VRoid，會檢查依賴、支援構建、非同步環境、副本占用與已知崩潰鍵。
+報告、檢查範圍與恢復步驟見 [安裝診斷與恢復](RECOVERY.md)。
+另有 [可重現最小樣例](PUBLIC_SAMPLE.md)，自行產生測試配件並保留 Blender 原始檔，
+在新副本中驗證保存、冷重開與 VRM 匯出，不依賴私人展示服裝。
+另見 [視覺回歸與覆蓋矩陣](REGRESSION.md) 與 [外部試用驗收](BETA_TESTING.md)。
 
 `prepare_lab.py` 把支援的 VRoid Studio 安裝複製成一個 lab。伺服器只啟動那份副本，
 使用獨立 profile、獨立登錄鍵與自己的 `TEMP`，以 Frida 附加，並在 Unity 主執行緒呼叫
@@ -112,8 +123,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manife
 
 ## 已知限制
 
-- **身高無法精確往返**：`set_height` 在會話內達到目標，重開後本版量到約高 1.4cm；
-  端到端報告會記錄漂移，不隱藏。
+- **身高須在造型完成後校準**：髮型會改變原生測量。此前約 1.4 cm 的「重開漂移」
+  實際發生在儲存前換髮型時，舊驗收比較了不同造型。現用即時 `live_centimeters`
+  校準，儲存與冷重開按 0.05 cm 容差及縮放參數核對；`centimeters` 可能是滯後的介面快取。
 - **逐束發色不可見**：`Level1BaseHair_*` 色彩通道可讀回，但 640×640 渲染 0 像素變化；
   全域 `colors/Hair/All` 則有 24.6% 變化，因此只支援全域發色。
 - **M00** 沒有 F00 的等價覆蓋。

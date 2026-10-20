@@ -129,16 +129,16 @@ globalThis.createParameterApi = H => {
         if (!viewModel || viewModel.handle.isNull()) return;
         for (const selection of seq(viewModel.method('get_ColorSelections').invoke())) {
             for (const sub of seq(selection.method('get_SubColorSelections').invoke())) {
-                const model = sub.field('_model').value;
-                const key = lastSegment(text(model.method('get_TranslationKey').invoke()));
+                const colorModel = sub.field('_model').value;
+                const key = lastSegment(text(colorModel.method('get_TranslationKey').invoke()));
                 out.push(makeParameter(sub, 'Color', prefix + '/' + key, 'color', {
                     category: displayLabel(selection, ''),
-                    editable: model.method('GetIsAvailable').invoke(model().engine),
+                    editable: colorModel.method('GetIsAvailable').invoke(model().engine),
                     min: 0, max: 1,
                     format: 'RGBA floats 0..1; sRGB',
                 }));
                 const entry = out[out.length - 1];
-                entry.colorInfo = colorState.inspect(model);
+                entry.colorInfo = colorState.inspect(colorModel);
                 entry.data.side = { LeftEye: 'left', RightEye: 'right', BothEyes: 'both' }[key] || null;
                 entry.data.side_reference = entry.data.side ? 'native_ui' : null;
             }
@@ -447,7 +447,7 @@ globalThis.createParameterApi = H => {
             validateValue(entry, change.value);
             return { entry, next: change.value };
         });
-        colorState.validateBatch(planned);
+        colorState.validateBatch(planned.map(({ entry }) => ({ e: entry })));
         const affected = [...new Set(planned.flatMap(({ entry }) => entry.data.affected_parameter_ids || []))].sort();
         const applied = [];
         for (const { entry, next } of planned) {

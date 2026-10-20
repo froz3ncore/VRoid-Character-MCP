@@ -29,8 +29,8 @@ sys.path.insert(0, str(PROJECT))
 from vroid_mcp import toolset  # noqa: E402
 from vroid_mcp.server import create_server  # noqa: E402
 
-ROOTS = ['agent', 'tools', 'vroid_mcp', 'tests', 'pipeline/tools', 'pipeline/blender-addons']
-SUFFIXES = {'.py', '.js', '.ps1', '.toml', '.json', '.md'}
+ROOTS = ['agent', 'tools', 'vroid_mcp', 'tests', 'pipeline/tools', 'pipeline/blender-addons', '.github']
+SUFFIXES = {'.py', '.js', '.ps1', '.toml', '.json', '.md', '.yml', '.yaml'}
 SKIP_PARTS = {'__pycache__', 'node_modules', '.venv', 'data', 'pipeline'}
 SKIP_NAMES = {'expected-tools.json', 'TOOLS.md'}
 
@@ -39,7 +39,8 @@ def _candidates() -> list[pathlib.Path]:
     files: list[pathlib.Path] = []
     for name in ('launch.py', 'prepare_lab.py', 'pyproject.toml', 'package.json', 'SCOPE.md',
                  'CHANGELOG.md', 'README.md', 'README.zh-CN.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
-                 'LICENSING.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md'):
+                 'LICENSING.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md', 'RECOVERY.md',
+                 'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md'):
         path = PROJECT / name
         if path.is_file():
             files.append(path)
@@ -124,7 +125,9 @@ def main() -> int:
     data = build()
     target = pathlib.Path(args.out)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+    # This manifest is marked -text in .gitattributes; write literal LF bytes
+    # rather than Windows text-mode CRLF so the hash file stays byte-stable.
+    target.write_bytes((json.dumps(data, indent=1, ensure_ascii=False) + '\n').encode('utf-8'))
     print(f"wrote {target}: {data['file_count']} files, {data['total_bytes']} bytes, "
           f"{data['tool_count']} tools {data['toolset_hash']}")
     return 0

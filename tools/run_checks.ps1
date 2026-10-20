@@ -101,15 +101,49 @@ function Invoke-Logged {
 }
 
 # ---------------------------------------------------------------- environment
+function Read-GitMetadata {
+    param([string[]]$Arguments)
+    $git = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $git) { return $null }
+    $process = New-Object System.Diagnostics.Process
+    try {
+        $info = New-Object System.Diagnostics.ProcessStartInfo
+        $info.FileName = $git.Source
+        $info.UseShellExecute = $false
+        $info.CreateNoWindow = $true
+        $info.RedirectStandardOutput = $true
+        $info.RedirectStandardError = $true
+        # Windows filenames cannot contain quotes; double terminal slashes so
+        # the closing quote remains a delimiter in the Win32 argument parser.
+        $quotedRepo = '"' + ($repo -replace '(\\+)$', '$1$1') + '"'
+        $info.Arguments = '-C ' + $quotedRepo + ' ' + ($Arguments -join ' ')
+        $process.StartInfo = $info
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(5000)) {
+            $process.Kill()
+            return $null
+        }
+        if ($process.ExitCode -ne 0) { return $null }
+        return $stdout.GetAwaiter().GetResult().Trim()
+    }
+    catch { return $null }
+    finally { $process.Dispose() }
+}
+
 $envStarted = Get-Date
+$gitHead = Read-GitMetadata -Arguments @('rev-parse', '--short', 'HEAD')
+$gitBranch = Read-GitMetadata -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')
+$gitState = Read-GitMetadata -Arguments @('status', '--porcelain=v1')
 $envDetail = [ordered]@{
     repo        = $repo
     python      = (& $Python --version 2>&1 | Out-String).Trim()
     temp        = $env:TEMP
     node        = if (Get-Command node -ErrorAction SilentlyContinue) { (& node --version) } else { $null }
-    git_head    = (& git -C $repo rev-parse --short HEAD 2>$null)
-    git_branch  = (& git -C $repo rev-parse --abbrev-ref HEAD 2>$null)
-    git_dirty   = [bool](& git -C $repo status --porcelain=v1 2>$null)
+    git_head    = $gitHead
+    git_branch  = $gitBranch
+    git_dirty   = if ($null -eq $gitState) { $null } else { [bool]$gitState }
     tag         = $Tag
 }
 Add-Result 'environment' 'pass' ((Get-Date) - $envStarted).TotalSeconds $envDetail

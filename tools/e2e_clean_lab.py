@@ -1,8 +1,8 @@
 """End-to-end proof on a brand-new lab, with no manual file edits and no code changes.
 
 Sequence: prepare a clean lab -> start the server -> load the base model ->
-parameters -> makeup layer -> hair preset -> save -> reopen in a new process ->
-Dress-up import of the v22 outfit -> save the assembly -> export VRM ->
+parameters -> makeup layer -> hair preset -> final live-height calibration ->
+save -> reopen in a new process -> Dress-up import of the supplied outfit -> save the assembly -> export VRM ->
 parse that VRM independently.
 
 Each step records what the server actually returned. A failure stops the run
@@ -22,11 +22,13 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import timedelta
 
@@ -50,7 +52,13 @@ VRM_FILENAME = 'e2e-clean-lab.vrm'
 def status_text(result) -> dict:
     if result.isError:
         raise RuntimeError(str(result.content[0].text if result.content else result))
-    return result.structuredContent or json.loads(result.content[0].text)
+    structured = result.structuredContent
+    # FastMCP may wrap a list[TextContent | ImageContent] in {"result": [...]}.
+    # Capture summaries are the first JSON text block, not the wrapper or PNGs.
+    blocks = structured.get('result') if isinstance(structured, dict) else None
+    if isinstance(blocks, list) and blocks and isinstance(blocks[0], dict) and blocks[0].get('type') == 'text':
+        return json.loads(blocks[0]['text'])
+    return structured or json.loads(result.content[0].text)
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -146,11 +154,20 @@ async def wait_for_readiness(call, steps: Steps, attempts: int = 40) -> dict:
     raise RuntimeError(f'native profile never became ready: {last}')
 
 
-async def session(lab: pathlib.Path, model: pathlib.Path | None, body):
-    env = dict(os.environ)
-    scratch = PROJECT.parent / 'work' / 'temp'
+def configure_scratch(lab: pathlib.Path) -> pathlib.Path:
+    # Both the parent transport and the child server need writable temporary
+    # files. Setting only the child's environment leaves stdio_client using a
+    # broken host TEMP, and assuming a writable sibling work/ breaks clones.
+    scratch = lab / 'e2e-temp'
     scratch.mkdir(parents=True, exist_ok=True)
-    env.update(TEMP=str(scratch), TMP=str(scratch))
+    os.environ.update(TEMP=str(scratch), TMP=str(scratch))
+    tempfile.tempdir = None
+    return scratch
+
+
+async def session(lab: pathlib.Path, model: pathlib.Path | None, body):
+    configure_scratch(lab)
+    env = dict(os.environ)
     args = ['-m', 'vroid_mcp.server', '--lab', str(lab)]
     if model is not None:
         args += ['--model', str(model)]
@@ -167,8 +184,37 @@ async def session(lab: pathlib.Path, model: pathlib.Path | None, body):
                 return await body(call)
 
 
-async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
-    facts: dict = {}
+async def height_checkpoint(call) -> dict:
+    height = await call('get_height')
+    body = await call('list_body_params')
+    scale = next(p['value'] for p in body['parameters'] if p['id'] == 'body/WholeBody/002')
+    return {'live_cm': float(height['live_centimeters']),
+            'ui_cm': float(height['centimeters']), 'scale': float(scale)}
+
+
+def verify_height(reading: dict, *, expected: dict | None = None,
+                  target_cm: float | None = None, tolerance_cm: float = .05) -> None:
+    if not all(math.isfinite(reading[key]) for key in ('live_cm', 'ui_cm', 'scale')):
+        raise RuntimeError('Height checkpoint contains a non-finite value')
+    if target_cm is not None and abs(reading['live_cm'] - target_cm) > tolerance_cm:
+        raise RuntimeError(f"Live height {reading['live_cm']} missed target {target_cm} cm")
+    if expected is not None:
+        if abs(reading['live_cm'] - expected['live_cm']) > tolerance_cm:
+            raise RuntimeError('Live height changed across save/reopen')
+        if abs(reading['scale'] - expected['scale']) > 1e-6:
+            raise RuntimeError('Whole-body scale changed across save/reopen')
+
+
+async def phase_edit(call, lab: pathlib.Path, steps: Steps, capture_reviews: bool = False,
+                     scenario: dict | None = None) -> dict:
+    scenario = scenario or {}
+    prefix = scenario.get('filename_prefix')
+    if prefix is not None and (not isinstance(prefix, str) or not prefix
+            or len(prefix) > 48 or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-' for c in prefix)):
+        raise ValueError('Invalid scenario filename prefix')
+    facts: dict = {'base_filename': f'{prefix}-base.vroid' if prefix else BASE_FILENAME,
+                   'assembly_filename': f'{prefix}-assembly.xroid' if prefix else ASSEMBLY_FILENAME,
+                   'vrm_filename': f'{prefix}-avatar.vrm' if prefix else VRM_FILENAME}
     started = time.monotonic()
     steps.current = 'start server and load base model'
     status = await wait_for_readiness(call, steps)
@@ -186,6 +232,13 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
     body = await call('list_body_params')
     steps.record('list parameters', {'face_parameters': len(face.get('parameters') or face.get('entries') or []),
                                      'body_parameters': len(body.get('parameters') or [])})
+    if scenario.get('clothing_preset_id'):
+        steps.current = 'apply scenario clothing preset'
+        selected = await call('apply_clothing_preset', {'expected_model': token,
+                                  'preset_id': scenario['clothing_preset_id']})
+        facts['clothing_preset_id'] = scenario['clothing_preset_id']
+        steps.record('apply scenario clothing preset', {'preset_id': scenario['clothing_preset_id'],
+                                                       'changed': selected.get('changed')})
 
     # The texture editor is opened before any body parameter changes: in this
     # build, entering it right after a height change makes the native texture
@@ -213,6 +266,11 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
     names = [str(layer.get('Name') or layer.get('name')) for layer in layers_after]
     if MAKEUP_LAYER not in names:
         raise RuntimeError('the makeup layer is not in the native layer list after painting: ' + ', '.join(names))
+    authored = next(layer for layer in layers_after
+                    if str(layer.get('Name') or layer.get('name')) == MAKEUP_LAYER)
+    exported_layer = await call('export_texture_layer', {'expected_model': token,
+                                'region_id': cheek['region_id'], 'layer_id': authored['layer_id']})
+    facts['makeup_png_sha256'] = exported_layer['sha256']
     await call('close_texture_editor', {'expected_model': token})
     facts['cheek_layers_before'] = len(layers_before)
     facts['cheek_layers_after'] = len(layers_after)
@@ -223,8 +281,7 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
                                   'layers_before': len(layers_before), 'layers_after': len(layers_after),
                                   'layer_names': names})
 
-    # A face slider is the persistence witness: unlike the whole-body height
-    # scale, a face parameter stores its exact value in the .vroid file.
+    # Check an independent face parameter as well as the height scale.
     steps.current = 'set face parameter'
     face_now = await call('list_face_params')
     candidate = next(
@@ -248,24 +305,10 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
     steps.record('set face parameter', {'id': candidate['id'], 'label': candidate.get('label'),
                                         'before': candidate['value'], 'target': face_target, 'after': actual})
 
-    steps.current = 'set height'
+    # Keep the scenario target relative to the original model, but finish hair
+    # before calibration: hair changes the native height measurement itself.
     height_before = await call('get_height')
-    target = round(float(height_before['centimeters']) - 2.0, 1)
-    await call('set_height', {'expected_model': token, 'centimeters': target})
-    # A body rebuild continues after the call returns; wait for the native
-    # command queue before any later step that reads meshes.
-    for _ in range(60):
-        probe = await call('get_status')
-        if not probe.get('command_busy') and not probe.get('background'):
-            break
-        await asyncio.sleep(0.25)
-    height_after = await call('get_height')
-    if abs(float(height_after['centimeters']) - target) > 0.5:
-        raise RuntimeError(f'height target {target} not reached: {height_after["centimeters"]}')
-    facts['height_cm'] = height_after['centimeters']
-    facts['height_before_cm'] = height_before['centimeters']
-    steps.record('set height', {'before_cm': height_before['centimeters'], 'target_cm': target,
-                                'after_cm': height_after['centimeters']})
+    target = round(float(height_before['live_centimeters']) + scenario.get('height_delta_cm', -2.0), 1)
 
     steps.current = 'hair preset'
     presets = (await call('list_hair_presets', {'limit': 80}))['presets']
@@ -280,32 +323,46 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps) -> dict:
     steps.record('hair preset', {'preset': hairstyle.get('name'), 'changed': applied.get('changed'),
                                  'front_nodes': node_count})
 
+    steps.current = 'set height after styling'
+    calibrated = await call('set_height', {'expected_model': token, 'centimeters': target})
+    facts['height_before_cm'] = height_before['live_centimeters']
+    facts['height_target_cm'] = target
+    facts['height_before_save'] = await height_checkpoint(call)
+    verify_height(facts['height_before_save'], target_cm=target)
+    facts['height_cm'] = facts['height_before_save']['live_cm']
+    steps.record('set height after styling', {'before_cm': facts['height_before_cm'],
+                 'target_cm': target, 'after_cm': facts['height_cm'],
+                 'before_save': facts['height_before_save'], 'solver': calibrated})
+
     steps.current = 'save base model'
-    saved = await call('save_as', {'expected_model': token, 'filename': BASE_FILENAME})
-    base_path = lab / 'saves' / BASE_FILENAME
+    saved = await call('save_as', {'expected_model': token, 'filename': facts['base_filename']})
+    facts['height_after_save'] = await height_checkpoint(call)
+    verify_height(facts['height_after_save'], expected=facts['height_before_save'], target_cm=target)
+    base_path = lab / 'saves' / facts['base_filename']
     if not base_path.is_file():
         raise RuntimeError('save_as reported success but the file is missing')
     facts['base_model'] = str(base_path)
     facts['base_sha256'] = sha256(base_path)
     facts['edit_seconds'] = round(time.monotonic() - started, 1)
     steps.record('save base model', {'path': str(base_path), 'sha256': facts['base_sha256'],
+                                     'height_after_save': facts['height_after_save'],
                                      'detail': {k: saved.get(k) for k in ('hash', 'bytes', 'saved') if k in saved}})
+    if capture_reviews:
+        facts['edit_review'] = await call('capture_review', {'expected_model': token,
+                                    'views': ['body_front', 'body_back', 'face_front'], 'size': 512})
     return facts
 
 
-async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps) -> None:
+async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps,
+                       capture_reviews: bool = False) -> None:
     started = time.monotonic()
     steps.current = 'reopen in a new process'
     status = await wait_for_readiness(call, steps)
     token = status['model_token']
-    height = await call('get_height')
-    height_drift = round(float(height['centimeters']) - float(facts['height_cm']), 3)
-    # The whole-body height scale does not survive save/reopen exactly in this
-    # build (observed ~1.4 cm), so it is recorded as a finding with a generous
-    # bound instead of being asserted to the in-session value. The face slider
-    # below is the exact persistence witness.
-    if abs(height_drift) > 2.0:
-        raise RuntimeError(f"height drifted {height_drift} cm across reopen, beyond the 2 cm bound")
+    height = await height_checkpoint(call)
+    verify_height(height, expected=facts['height_after_save'], target_cm=facts['height_target_cm'])
+    facts['height_cold_reopen'] = height
+    height_drift = height['live_cm'] - facts['height_after_save']['live_cm']
     face_now = await call('list_face_params')
     face_id = facts['face_parameter']['id']
     face_value = next(p['value'] for p in face_now['parameters'] if p['id'] == face_id)
@@ -319,6 +376,12 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps) -> No
     names = [str(layer.get('Name') or layer.get('name')) for layer in layers]
     if MAKEUP_LAYER not in names:
         raise RuntimeError('the makeup layer did not survive save/reopen: ' + ', '.join(names))
+    authored = next(layer for layer in layers
+                    if str(layer.get('Name') or layer.get('name')) == MAKEUP_LAYER)
+    exported_layer = await call('export_texture_layer', {'expected_model': token,
+                                'region_id': cheek['region_id'], 'layer_id': authored['layer_id']})
+    if exported_layer['sha256'] != facts['makeup_png_sha256']:
+        raise RuntimeError('makeup PNG pixels changed across cold reopen')
     await call('close_texture_editor', {'expected_model': token})
     nodes = await call('list_hair_nodes', {'category': 'HairFront'})
     node_count = len(nodes.get('nodes') or [])
@@ -326,20 +389,27 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps) -> No
         raise RuntimeError(f"hair node count changed across reopen: {node_count} vs {facts['hair_nodes']}")
     steps.record('reopen in a new process', {'face_parameter_kept': face_value,
                                              'face_parameter_id': face_id,
-                                             'height_cm': height['centimeters'],
+                                             'height_cm': height['live_cm'],
+                                             'height_ui_cm': height['ui_cm'],
+                                             'height_scale': height['scale'],
                                              'height_drift_cm': height_drift,
                                              'makeup_layer_present': True,
+                                             'makeup_png_sha256_equal': True,
                                              'cheek_layers': len(layers),
                                              'hair_nodes': node_count,
                                              'seconds': round(time.monotonic() - started, 1)})
 
+    if capture_reviews:
+        facts['cold_review'] = await call('capture_review', {'expected_model': token,
+                                    'views': ['body_front', 'body_back', 'face_front'], 'size': 512})
+
     steps.current = 'open the saved base model in Dress-up'
     wear = await call('get_wear_status')
-    assembled = await call('open_wear_project', {'filename': BASE_FILENAME,
+    assembled = await call('open_wear_project', {'filename': facts.get('base_filename', BASE_FILENAME),
                                                  'expected_wear': wear['wear_token'],
                                                  'discard_unsaved': True})
     wear_token = assembled['wear_token']
-    steps.current = 'import v22 outfit in Dress-up'
+    steps.current = 'import supplied XWear in Dress-up'
     imported = await call('import_xwear', {'filename': facts['xwear_name'], 'expected_wear': wear_token})
     wear_token = imported.get('wear_token', wear_token)
     items = imported.get('items') or []
@@ -348,12 +418,16 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps) -> No
         raise RuntimeError('the imported outfit produced no Dress-up items')
     facts['wear_items'] = len(items)
     facts['wear_added'] = len(added)
-    steps.record('import v22 outfit in Dress-up', {'items': len(items), 'added_items': len(added),
+    steps.record('import supplied XWear in Dress-up', {'items': len(items), 'added_items': len(added),
                                                    'mesh_names': [i.get('mesh') or i.get('name') for i in items][:6]})
+    if capture_reviews:
+        facts['wear_review'] = await call('capture_wear_review', {'expected_wear': wear_token,
+                                          'views': ['body_front', 'body_back'], 'size': 512})
 
     steps.current = 'save assembly'
-    assembly = await call('save_wear_project', {'filename': ASSEMBLY_FILENAME, 'expected_wear': wear_token})
-    assembly_path = lab / 'saves' / ASSEMBLY_FILENAME
+    assembly_name = facts.get('assembly_filename', ASSEMBLY_FILENAME)
+    assembly = await call('save_wear_project', {'filename': assembly_name, 'expected_wear': wear_token})
+    assembly_path = lab / 'saves' / assembly_name
     if not assembly_path.is_file():
         raise RuntimeError('save_wear_project reported success but the archive is missing')
     facts['assembly'] = str(assembly_path)
@@ -362,10 +436,11 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps) -> No
                                    'detail': {k: assembly.get(k) for k in ('bytes', 'saved') if k in assembly}})
 
     steps.current = 'export VRM'
-    exported = await call('export_wear_vrm', {'filename': VRM_FILENAME, 'expected_wear': wear_token,
+    vrm_name = facts.get('vrm_filename', VRM_FILENAME)
+    exported = await call('export_wear_vrm', {'filename': vrm_name, 'expected_wear': wear_token,
                                               'title': 'VRoid-MCP clean-lab E2E', 'author': 'VRoid-MCP',
                                               'version': '1.0'})
-    vrm_path = lab / 'saves' / VRM_FILENAME
+    vrm_path = lab / 'saves' / vrm_name
     if not vrm_path.is_file():
         raise RuntimeError('export_wear_vrm reported success but the VRM is missing')
     facts['vrm'] = str(vrm_path)
@@ -381,6 +456,7 @@ def main() -> int:
     parser.add_argument('--xwear', required=True, help='outfit .xwear to import')
     parser.add_argument('--json', dest='json_out', default='', help='write the step report here')
     parser.add_argument('--keep-lab-on-failure', action='store_true')
+    parser.add_argument('--capture-reviews', action='store_true', help='retain native before/cold/assembly renders')
     args = parser.parse_args()
 
     source = pathlib.Path(args.source).resolve()
@@ -443,11 +519,15 @@ def main() -> int:
 
     facts: dict = {'xwear_name': xwear_name}
     try:
-        facts.update(asyncio.run(session(lab, None, lambda call: phase_edit(call, lab, steps))))
+        facts.update(asyncio.run(session(lab, None, lambda call: phase_edit(call, lab, steps, args.capture_reviews))))
         report['base_model'] = facts.get('base_model')
         report['base_sha256'] = facts.get('base_sha256')
         asyncio.run(session(lab, pathlib.Path(facts['base_model']),
-                            lambda call: phase_reopen(call, lab, facts, steps)))
+                            lambda call: phase_reopen(call, lab, facts, steps, args.capture_reviews)))
+        report['height_checkpoints'] = {name: facts[name] for name in
+                                       ('height_before_save', 'height_after_save', 'height_cold_reopen')}
+        if args.capture_reviews:
+            report['reviews'] = {name: facts[name] for name in ('edit_review', 'cold_review', 'wear_review')}
         report.update({k: facts.get(k) for k in ('assembly', 'assembly_sha256', 'vrm', 'vrm_sha256', 'wear_items')})
         inspection = vrm_inspect.inspect(pathlib.Path(facts['vrm']))
         report['vrm_inspection'] = inspection

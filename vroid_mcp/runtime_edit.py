@@ -251,7 +251,13 @@ class EditTools:
             samples: list[dict] = []
 
             async def measure() -> float:
-                return (await self._call('get_height', args))['centimeters']
+                # BodyHeightValue is a UI cache and can be stale after loading.
+                # Always solve against the current native geometry measurement.
+                reading = await self._call('get_height', args)
+                value = float(reading['live_centimeters'])
+                if not math.isfinite(value):
+                    raise RuntimeError('Native live height is not finite')
+                return value
 
             async def apply(value: float) -> float:
                 written = await self._call('set_body_params', {**args, 'changes': [
@@ -269,7 +275,7 @@ class EditTools:
                             'measured_cm': measured, 'error_cm': measured - centimeters,
                             'tolerance_cm': tolerance_cm, 'scale_parameter': scale, 'samples': samples,
                             'settled': True,
-                            'measurement': 'VRoid native BodyHeightValue; hairstyle and model '
+                            'measurement': 'VRoid native GetBodyHeight (live); hairstyle and model '
                                            'proportions can affect this measurement'}
                 if len(samples) == 1:
                     # Nudge the scale first so the next sample gives a slope.

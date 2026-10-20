@@ -12,6 +12,10 @@ on a clean lab; the character art (formal v22 assembly, shoes, sitting skirt) is
 a separate line of work. See [SCOPE.md](SCOPE.md) for what 0.4.x includes and
 what it deliberately does not.
 
+Confirmed body-parameter edits now require a saved-file cold reopen before
+entering texture editing, to avoid a known native crash path. Other reads and
+saving remain available; see [recovery](RECOVERY.md).
+
 ## In action
 
 These are native screenshots from development validation on **2026-10-19**,
@@ -49,6 +53,16 @@ check, is in the [Chinese walkthrough](README.zh-CN.md#效果展示).
   it. See [LICENSING.md](LICENSING.md).
 
 ## How it works
+
+Before connecting a prepared lab, run
+`.venv\Scripts\python.exe tools\doctor.py --lab <lab-directory>` with your
+client's interpreter. This checks dependencies, supported binaries, the local
+async environment, ownership and the known crash key without launching VRoid.
+See [diagnostics and recovery](RECOVERY.md) for reports, limits and recovery.
+The [public sample](PUBLIC_SAMPLE.md) generates its own test accessory and
+reproduces editing, cold reopening and VRM export without private outfit assets.
+See [visual regression and coverage](REGRESSION.md) and
+[external beta acceptance](BETA_TESTING.md) for the next validation layers.
 
 `prepare_lab.py` copies a supported VRoid Studio installation into a lab
 directory. The server launches only that copy, with a private profile, a private
@@ -169,9 +183,11 @@ own report is not the evidence.
 
 ## Known limitations
 
-- **Height is not exact across save/reopen.** `set_height` reaches the target in
-  session; the reopened file measures about 1.4 cm higher in this build. The
-  clean-lab report records the drift instead of hiding it.
+- **Calibrate height after styling.** Hair changes the native measured height.
+  The earlier ~1.4 cm "reopen drift" compared a pre-hair value with a post-hair
+  model; the change had already happened before saving. The solver now uses
+  `live_centimeters` (`GetBodyHeight`), since UI `centimeters` can be cached.
+  E2E checks target/live-height within 0.05 cm and preserved scale across cold reopen.
 - **Per-strand hair colour is not visible.** Writing the `Level1BaseHair_*` colour
   channels reads back but changes 0 of 640x640 rendered pixels; global hair
   colour (`colors/Hair/All`) changes 24.6%. Only global colour is supported.

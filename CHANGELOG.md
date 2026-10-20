@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased — reproducibility and recovery
+
+- Corrected the earlier ~1.4 cm "save/reopen height drift" diagnosis: the old
+  E2E calibrated before changing hair, then compared different styled models.
+  Controlled measurements show the change before save and unchanged live height
+  and body scale after cold reopen. Historical reports below retain their original
+  numbers; their persistence interpretation is superseded by this correction.
+- Height solver now uses live `GetBodyHeight` rather than cached `BodyHeightValue`.
+  E2E applies hair before calibration, compares pre-save/post-save/cold live height
+  within 0.05 cm and scale within 1e-6, replacing the misleading 2 cm allowance.
+  Added a reproducible four-case native order/persistence diagnostic.
+- Standard-library installation doctor with bounded async/import probes, exact
+  build checks and non-rewriting lock inspection. Diagnostic mode never clears
+  registry keys, even when the runtime auto-clear environment variable is set.
+- Public sample with original generated badge geometry, retained Blender source,
+  PNG cold-reopen checks, native views and VRM export; no private outfit inputs.
+- E2E temporary files now belong to the lab, for both parent and child processes.
+- Confirmed body edits now block known-dangerous texture-editor entry until a
+  cold reopen; saving and reading remain available. This is a conservative
+  workaround for VRoid's native overlay cache.
+- Fixed parameter adapter regressions found by real multi-view capture: a local
+  colour model shadowed the model accessor, and batch colour validation received
+  the wrong entry shape. Added a composed adapter regression.
+- Regional render comparison with PNG integrity, camera/GPU compatibility gates,
+  whole-image and named rectangle metrics, difference images and portable HTML.
+- Bounded F00 height/top integration matrix and Windows offline CI workflow.
+  External-user acceptance and human golden-image approval remain pending.
+- Native follow-up: three corrected height targets retained live measurements
+  and scale across cold reopen. An additional same-process texture-check to
+  Dress-up transition crashed in native code and remains unresolved; a fresh
+  process opened the same saved model and completed assembly/save/VRM parsing.
+  The failed same-process run is not counted as a complete E2E pass.
+
+The MCP input contract remains 86 tools; hairstyle-dependent height measurement, limited M00 and
+hair-colour coverage, paused skirt collision and engine-validation limits remain.
+
 ## 0.4.1 — 2026-10-20
 
 Independent reimplementation of the tool layer. The published tool contract is

@@ -24,7 +24,7 @@ from typing import Any
 
 import frida
 
-from . import closet_guard, lab_lock
+from . import closet_guard, lab_lock, edit_sequence
 from .supported_builds import validate_assembly
 
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
@@ -156,9 +156,13 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
     if subject.uncertain and operation != 'status':
         raise RuntimeError('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
     timeout = SLOW_OPERATIONS.get(operation, DEFAULT_TIMEOUT_SECONDS)
+    payload = args or {}
+    edit_sequence.before_call(subject, operation, payload)
     try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(subject.script.exports_sync.call, operation, args or {}), timeout)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(subject.script.exports_sync.call, operation, payload), timeout)
+        edit_sequence.after_call(subject, operation, payload, result)
+        return result
     except asyncio.TimeoutError:
         # No answer is not success: the model may have changed already.
         subject.uncertain = True
@@ -233,7 +237,8 @@ async def status(subject) -> dict:
             subject.dead = True
             return dict(DISCONNECTED)
         result.update(connected=True, writes_blocked=subject.uncertain, lab=str(subject.lab),
-                      crash_guard=subject.crash_guard)
+                      crash_guard=subject.crash_guard,
+                      texture_editor_guard=edit_sequence.status(subject, result.get('model_token')))
         return result
 
 
