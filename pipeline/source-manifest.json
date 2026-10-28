@@ -1,15 +1,20 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 311,
- "total_bytes": 1893814,
- "tool_count": 86,
- "toolset_hash": "sha256:69101bb60cc1f53ba6a94e44a8787996b3b31fa908ffe9be59ee76744f4b8517",
+ "file_count": 318,
+ "total_bytes": 1945980,
+ "tool_count": 92,
+ "toolset_hash": "sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034",
  "files": [
   {
    "path": ".github/workflows/checks.yml",
    "bytes": 1370,
    "sha256": "e458fc7eec5a4103376553bae65118deddbd13a7be44f13ab9b209dfbff2d503"
+  },
+  {
+   "path": "ATTACHED_SESSION.md",
+   "bytes": 2500,
+   "sha256": "b7247b4b8b0477f7f357f2ba145f90d930b32596e304cd53ced4a5b732b06e28"
   },
   {
    "path": "BETA_TESTING.md",
@@ -23,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 14085,
-   "sha256": "129de3235986634a89fd9d03d4c2106dca90e61268c2fb3a88fda0205a33eb83"
+   "bytes": 15087,
+   "sha256": "8edb7d2c26c63f538db832b180870981783fd2dda50570aac74afe66a49ae4b1"
   },
   {
    "path": "LICENSE",
@@ -33,13 +38,13 @@
   },
   {
    "path": "LICENSING.md",
-   "bytes": 2574,
-   "sha256": "f457e71e6b107aa77dcd0d4ba9a49532bea1cfc6be8cc491f749f70d92d2b2b7"
+   "bytes": 3059,
+   "sha256": "1b85374594060d056a32360e0dfdde302cbefb20507e00ea7d06c46bdc21de47"
   },
   {
    "path": "NOTICE",
-   "bytes": 1626,
-   "sha256": "6721ffee35e12207c7fbd7cc86c66c758ba740e8727da89ce7b197eeffe81932"
+   "bytes": 1567,
+   "sha256": "d64bcf7fdedd27ce9542c144b4ab47cf4aa750b9d4e22fa62029b901d916d90b"
   },
   {
    "path": "PUBLIC_SAMPLE.md",
@@ -48,18 +53,18 @@
   },
   {
    "path": "README.md",
-   "bytes": 12400,
-   "sha256": "43a1904ed82fc88bc11739398413afcee339e234d8113624ba8e63ddca9dc8e0"
+   "bytes": 12896,
+   "sha256": "e8bc38a33edeefcfc37853fa71d5b889cbe1d86b8bd6ea3e67d09a6dee9afe02"
   },
   {
    "path": "README.zh-CN.md",
-   "bytes": 14570,
-   "sha256": "7bf148f7c1c6c490c7ec8c86fa84a5b6790f9b45375e1fd9aa9fab3bea438476"
+   "bytes": 15109,
+   "sha256": "cd5178290a6b9b50eabf4cea469a9dfb69a1468f88c36d4c312d089536ab6154"
   },
   {
    "path": "README.zh-TW.md",
-   "bytes": 8837,
-   "sha256": "2bcb151837a8d585ea049229b06f5e881e3a61c3243a8cd987bbfb7732bfaaca"
+   "bytes": 9277,
+   "sha256": "33c4e263312a8c7e299568208571b8d8ce30af192a87f67297940415a8d27423"
   },
   {
    "path": "RECOVERY.md",
@@ -73,8 +78,8 @@
   },
   {
    "path": "SCOPE.md",
-   "bytes": 6743,
-   "sha256": "449fb478f5f503049645e05e6e84c3c4cab45ffda8f691652529191191f7d48a"
+   "bytes": 6915,
+   "sha256": "01ef3abd4c73794c72ff511a523f0880ef7e50f5dc8731ce095dea41c94dec25"
   },
   {
    "path": "UPSTREAM.json",
@@ -103,13 +108,23 @@
   },
   {
    "path": "agent/main_thread.js",
-   "bytes": 8370,
-   "sha256": "9132caea63f308f92281f66362d4a49b50cbe6fc523037a4c5734c37edc7b4a8"
+   "bytes": 13157,
+   "sha256": "e682ba41c637f7c2ecaa36c0921f04fe7a71aed1f9b71986316b1d36948c0a2b"
+  },
+  {
+   "path": "agent/native_traps.js",
+   "bytes": 458,
+   "sha256": "1448a63f86430ba4b697937cdf3abdba7fa47513ffc1a9f53fcd8c1f9370ae35"
   },
   {
    "path": "agent/operations.js",
-   "bytes": 39555,
-   "sha256": "67355bb669900f209f467853ac4c8b386710a98471922622c8e0cb21c1389368"
+   "bytes": 39826,
+   "sha256": "9dc15a4321ec994e61e9620676c4f5607880ab184c272313bf110ac1c4e0f5b4"
+  },
+  {
+   "path": "agent/ordinary_extensions.js",
+   "bytes": 12720,
+   "sha256": "a760ccf8f6a31237997b73a32b9004471b9125356b2ecc4f58d57819c40d4a5b"
   },
   {
    "path": "agent/parameter_semantics.js",
@@ -128,8 +143,8 @@
   },
   {
    "path": "agent/profile_guard.js",
-   "bytes": 11500,
-   "sha256": "06a80eff339bf177207fd2bf13d4e5c79ea09bfe9f5e308aeb6d8cf4973a8570"
+   "bytes": 12775,
+   "sha256": "6b0c1e56a8ef171b9e88c6b14b78e7f6693fe18503175b880e82e49d390a6244"
   },
   {
    "path": "agent/textures.js",
@@ -145,6 +160,11 @@
    "path": "launch.py",
    "bytes": 337,
    "sha256": "06fec5daa34044789cd519c4c6a5d5e7a2fc256a851f6f0e74886347f0409d0b"
+  },
+  {
+   "path": "licenses/karylcode-upstream-20261023.txt",
+   "bytes": 1066,
+   "sha256": "4f2a7d5304bef4ddc706f784a56ee4d02834fb035bf0c483f72b13bffde43c17"
   },
   {
    "path": "package.json",
@@ -1117,6 +1137,11 @@
    "sha256": "bc963d28c78ba5c2815c3c67b1e20dd5e51bcd0f4ad4f63b6d33bc35e5ebba2d"
   },
   {
+   "path": "tests/test_ordinary_extensions.py",
+   "bytes": 6327,
+   "sha256": "a64af23d4d92eea2920ebb9fa876bb3d121d0ef4c4c50640a547ebb986089700"
+  },
+  {
    "path": "tests/test_parameter_labels.py",
    "bytes": 3314,
    "sha256": "bceafc6f993d8834f7690cc4364f733d3aa20e5ebbed9cc7ccca1921da43fa84"
@@ -1303,8 +1328,8 @@
   },
   {
    "path": "tools/gen_tool_docs.py",
-   "bytes": 8604,
-   "sha256": "27648d81c28feadc482d502c3874f4f80288638c725f4c0d8a81f3a4a40177e2"
+   "bytes": 8751,
+   "sha256": "00537affbb3506b305dbaf1a3e756e9b97016232a55aa616471bd6f2b2d8d3e4"
   },
   {
    "path": "tools/replay_makeup_recipe.py",
@@ -1328,8 +1353,8 @@
   },
   {
    "path": "tools/source_manifest.py",
-   "bytes": 6166,
-   "sha256": "d1fe54d5e93037f80ecc89656919b0c631712c3256cccd63da19c2d95633cea2"
+   "bytes": 6339,
+   "sha256": "304e248707c086206336e43ff1c632f24bbf904f629871dab6f85b6710848d78"
   },
   {
    "path": "tools/tool_manifest.py",
@@ -1363,8 +1388,8 @@
   },
   {
    "path": "vroid_mcp/bridge.py",
-   "bytes": 10566,
-   "sha256": "dcfb05dc157f22fb1b577037fd5116edeaeaa659c1cba83cc445908f2e63cb53"
+   "bytes": 15928,
+   "sha256": "6d462614ebc888b7bbb28b44ac44f51e01daffd59663d2e9e883e7f106874074"
   },
   {
    "path": "vroid_mcp/capture_quality.py",
@@ -1438,23 +1463,28 @@
   },
   {
    "path": "vroid_mcp/runtime.py",
-   "bytes": 2892,
-   "sha256": "4d3d10ae6248986c55aa9ab642ffdee6b002750f5c25357b663e886ac7deb1e7"
+   "bytes": 3220,
+   "sha256": "0b5c4fdf0e29d054ea0c0e123013c3ea3f5229dd29fce6c4af226845fbcfffd5"
   },
   {
    "path": "vroid_mcp/runtime_capture.py",
-   "bytes": 10311,
-   "sha256": "986f2f319c8d298ada35263d274b41c216fdd6d6f4061d1749c626fb8e3f5c7d"
+   "bytes": 10601,
+   "sha256": "1fc97ff76124c9e1377e56971dcc086e5ae306f5e2d93f9166c1b1151f49de01"
   },
   {
    "path": "vroid_mcp/runtime_edit.py",
-   "bytes": 18210,
-   "sha256": "6984896f34a16f2e7c9c4a6876c7cf3d789068edd43293c818dfbf1c120743f3"
+   "bytes": 18368,
+   "sha256": "5329188abf04fbd8ef3c793b77a1dbf6b0b9a1c1bc5140f06496e3c97bc3ee31"
   },
   {
    "path": "vroid_mcp/runtime_handle.py",
    "bytes": 973,
    "sha256": "4d250403971e17c75fd500ef255855420d4c0af075b10c90c74a5eec5b2b15c3"
+  },
+  {
+   "path": "vroid_mcp/runtime_ordinary.py",
+   "bytes": 7233,
+   "sha256": "8608fab3d16a5938656a6d77fe4c37b1d2bcee1cafb1a7e28649f29a7b0768cc"
   },
   {
    "path": "vroid_mcp/runtime_wear.py",
@@ -1463,8 +1493,8 @@
   },
   {
    "path": "vroid_mcp/server.py",
-   "bytes": 7634,
-   "sha256": "cb5bd837246e87272cc36242b2870b0183527d18ef17f0ab69759bb6f130356e"
+   "bytes": 11382,
+   "sha256": "b844a379f9516d2eb4312c013efc8aa66af13c633494612878ec8091930156bd"
   },
   {
    "path": "vroid_mcp/supported_builds.py",
@@ -1515,6 +1545,11 @@
    "path": "vroid_mcp/tools_hair.py",
    "bytes": 10281,
    "sha256": "ab24a3b790894c0f10286dac276ecacf0fbee6a56c69575a9c1d9ccc7f91d525"
+  },
+  {
+   "path": "vroid_mcp/tools_ordinary.py",
+   "bytes": 2248,
+   "sha256": "d5779c985e0263aef0dd3ec9e495726ffb3c56d07d095b9dce7b1ff1377c2d33"
   },
   {
    "path": "vroid_mcp/tools_parameters.py",

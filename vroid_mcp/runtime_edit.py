@@ -308,6 +308,8 @@ class EditTools:
             return name_parameters(await self._call('list_face_params', {'expected_model': expected_model}))
 
     async def save_as(self, filename: str, expected_model: str) -> dict:
+        if getattr(self, 'mode', 'copy') == 'attached':
+            raise ValueError('Save in the attached VRoid; save_as would change its file association')
         async with self.lock:
             destination = save_destination(self.lab, filename)
             staging = destination.parent / ('stage-' + uuid.uuid4().hex + '.vroid')

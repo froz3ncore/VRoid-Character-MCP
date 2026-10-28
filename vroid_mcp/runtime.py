@@ -25,11 +25,12 @@ from .lab_paths import review_folder, save_destination, validate_capture
 from .runtime_capture import CaptureTools
 from .runtime_edit import EditTools
 from .runtime_wear import WearTools
+from .runtime_ordinary import OrdinaryTools
 
 __all__ = ['Runtime', 'review_folder', 'save_destination', 'validate_capture']
 
 
-class Runtime(EditTools, CaptureTools, WearTools):
+class Runtime(OrdinaryTools, EditTools, CaptureTools, WearTools):
     """One lab: process ownership from the bridge, operations from the mixins."""
 
     def __init__(self, lab: pathlib.Path, bridge_js: pathlib.Path | None = None) -> None:
@@ -37,6 +38,9 @@ class Runtime(EditTools, CaptureTools, WearTools):
         self.exe = self.lab / 'app' / 'VRoidStudio.exe'
         self.bridge_js = bridge_js or PROJECT / 'node_modules/frida-il2cpp-bridge/dist/index.js'
         self.pid: int | None = None
+        self.mode = 'copy'
+        self.owns_process = False
+        self.target: str | None = None
         self.device = self.session = self.script = None
         self.lock = asyncio.Lock()
         self.file_lock = None
@@ -53,6 +57,12 @@ class Runtime(EditTools, CaptureTools, WearTools):
     def start(self) -> None:
         frida_bridge.start(self)
 
+    def attach(self, pid: int) -> None:
+        frida_bridge.attach(self, pid)
+
+    async def adopt(self) -> dict:
+        return await frida_bridge.adopt(self)
+
     async def initialize(self, variant: str = 'F00', model_file: pathlib.Path | None = None) -> dict:
         return await frida_bridge.initialize(self, variant, model_file)
 
@@ -68,5 +78,5 @@ class Runtime(EditTools, CaptureTools, WearTools):
     async def status(self) -> dict:
         return await frida_bridge.status(self)
 
-    def close(self) -> None:
-        frida_bridge.close(self)
+    def close(self) -> dict:
+        return frida_bridge.close(self)

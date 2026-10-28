@@ -2,12 +2,12 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · **繁體中文**
 
-本地 MCP 伺服器：只驅動**一份可丟棄的 VRoid Studio 副本**，透過應用程式自己的
-managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **86 個工具**。
+本地 MCP 伺服器：預設驅動**一份可丟棄的 VRoid Studio 副本**，也可明確連接已開啟的 VRoid；透過
+managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **92 個工具**。
 不使用滑鼠自動化、OCR 或螢幕抓取。
 
-狀態：**0.4.1 開發版**。工具層已收口並在乾淨 lab 上端到端驗證；角色美術
-（正式 v22 裝配、鞋、坐姿裙擺）是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
+狀態：**0.4.1 開發版**。原有 86 工具基準已在乾淨 lab 上端到端驗證；新加入的
+既有工作階段與普通匯出功能另行驗證。角色美術是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
 
 確認體型參數改變後，會提前拒絕進入貼圖編輯器以避開已知原生崩潰路徑；先另存新檔，
 再冷重開。讀取與保存仍可用，見 [恢復步驟](RECOVERY.md)。
@@ -38,9 +38,12 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 在新副本中驗證保存、冷重開與 VRM 匯出，不依賴私人展示服裝。
 另見 [視覺回歸與覆蓋矩陣](REGRESSION.md) 與 [外部試用驗收](BETA_TESTING.md)。
 
-`prepare_lab.py` 把支援的 VRoid Studio 安裝複製成一個 lab。伺服器只啟動那份副本，
+`prepare_lab.py` 把支援的 VRoid Studio 安裝複製成一個 lab。預設伺服器啟動那份副本，
 使用獨立 profile、獨立登錄鍵與自己的 `TEMP`，以 Frida 附加，並在 Unity 主執行緒呼叫
-managed 方法；不會附加到你原本開著的 VRoid。
+managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯直接作用於真實角色與 profile，
+不載入副本隔離守衛；請在 VRoid 中保存。斷開不會關閉視窗。因連接前的編輯歷史未知，
+連接模式禁止進入貼圖編輯與切換進入換裝。普通編輯可匯出 VRM 0.x/1.0；自訂物件保存因未驗證持久化而暫時停用。
+連接和部件操作詳見 [既有工作階段與普通匯出](ATTACHED_SESSION.md)。
 
 - `agent/profile_guard.js`：把使用者 profile 重導進 lab，並拒絕指向 lab 外的寫入、複製與子程序。
 - `agent/main_thread.js`：主執行緒佇列、GC handle 保留與編輯器單例。
@@ -139,9 +142,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manife
 
 ## 授權與來源
 
-本倉庫最初 fork 自 `Karylcode/VRoid-MCP`，該專案公開但**沒有任何授權**：
-GitHub 顯示 `license: null`，baseline 提交內也沒有授權檔。公開可見不等於授權，
-因此繼承實作是被**替換**而不是重新授權。
+本倉庫最初 fork 自 `Karylcode/VRoid-MCP`，當時的 baseline 沒有授權檔，繼承實作因此被替換。
+上游後續版本採用 MIT 授權；本次部分功能依該版本適配並保留其授權與出處。
 
 - [LICENSE](LICENSE)：本倉庫原創程式碼的授權。
 - [LICENSING.md](LICENSING.md)：範圍與仍被排除的部分。

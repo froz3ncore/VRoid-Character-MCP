@@ -40,10 +40,13 @@ def _candidates() -> list[pathlib.Path]:
     for name in ('launch.py', 'prepare_lab.py', 'pyproject.toml', 'package.json', 'SCOPE.md',
                  'CHANGELOG.md', 'README.md', 'README.zh-CN.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
                  'LICENSING.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md', 'RECOVERY.md',
-                 'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md'):
+                 'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md', 'ATTACHED_SESSION.md'):
         path = PROJECT / name
         if path.is_file():
             files.append(path)
+    upstream_license = PROJECT / 'licenses/karylcode-upstream-20261023.txt'
+    if upstream_license.is_file():
+        files.append(upstream_license)
     for root in ROOTS:
         base = PROJECT / root
         if not base.is_dir():

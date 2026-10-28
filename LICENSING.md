@@ -7,8 +7,8 @@ https://github.com/froz3ncore/VRoid-Character-MCP.
 
 This repository began as a fork of
 [Karylcode/VRoid-MCP](https://github.com/Karylcode/VRoid-MCP), which is public
-but carries **no licence**: GitHub reports `license: null` and the baseline
-commit `9b264d3` contains no LICENSE, COPYING or NOTICE file. Public visibility
+whose baseline commit `9b264d3` contained no LICENSE, COPYING or NOTICE file,
+and whose GitHub API then reported `license: null`. Public visibility
 is not a grant, so inherited code could not simply be relicensed.
 
 The inherited implementation has therefore been **replaced**. All 26 baseline
@@ -17,7 +17,15 @@ reduced to declarative configuration, and `tools/check_provenance.py` measures
 that claim rather than asserting it: it compares every baseline blob with the
 current file (ordered line matching) and separately searches the whole source
 tree for inherited lines that were moved into new modules. Both passes are
-empty, and nothing above the 0.10 threshold remains.
+were empty at the original rewrite audit; see the recorded results in REWRITE.md.
+
+Upstream subsequently added an MIT licence in October 2026. The later commit
+`baaa94e2fdc0419c68cb83b0ecc0b61fcc5661dd` is the source for parts of the
+ordinary-edit exporter, part operations, late-attachment and isolation changes.
+Its copyright and MIT text are retained in
+[licenses/karylcode-upstream-20261023.txt](licenses/karylcode-upstream-20261023.txt).
+The old baseline's former licensing status is not a statement about the licence
+of the later revision.
 
 The rewrite was behaviour-driven: the published tool contract (86 tools and
 their JSON schemas) was captured before each step and compared afterwards, with

@@ -2,15 +2,15 @@
 
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
-A local MCP server that drives **one disposable copy of VRoid Studio** through
-the application's own managed API. It exposes 86 tools for character
+A local MCP server that normally drives **one disposable copy of VRoid Studio** through
+the application's own managed API, with optional attachment to an existing session. It exposes 92 tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.4.1 development**. The tool layer is closed and verified end to end
-on a clean lab; the character art (formal v22 assembly, shoes, sitting skirt) is
-a separate line of work. See [SCOPE.md](SCOPE.md) for what 0.4.x includes and
-what it deliberately does not.
+Status: **0.4.1 development**. The earlier 86-tool baseline was verified end to
+end on a clean lab; the new attached-session and ordinary-export features are
+under independent verification. Character art and sitting-skirt fit remain
+separate work. See [SCOPE.md](SCOPE.md).
 
 Confirmed body-parameter edits now require a saved-file cold reopen before
 entering texture editing, to avoid a known native crash path. Other reads and
@@ -65,10 +65,15 @@ See [visual regression and coverage](REGRESSION.md) and
 [external beta acceptance](BETA_TESTING.md) for the next validation layers.
 
 `prepare_lab.py` copies a supported VRoid Studio installation into a lab
-directory. The server launches only that copy, with a private profile, a private
+directory. By default the server launches that copy, with a private profile, a private
 registry key and its own `TEMP`, attaches with Frida, and calls managed methods
-on Unity's main thread. Nothing is attached to a VRoid instance you started
-yourself.
+on Unity's main thread. `attach_open_vroid` can explicitly connect an existing
+user-opened process. Edits then affect the user's unsaved model and profile;
+the copy's isolation guard is not loaded. `detach_open_vroid` leaves it running.
+Save in VRoid itself. Because the preceding manual edit history is unknown,
+entering the texture editor or switching into Dress-up is refused in attached mode.
+Ordinary VRM export writes under lab/saves. `save_custom_items` is disabled until
+its persistence can be verified. See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 
 - `agent/profile_guard.js` — remaps the machine profile into the lab and refuses
   writes, copies or child processes that point outside it.
@@ -205,10 +210,9 @@ acceptance remain pending. See [regression scope](REGRESSION.md).
 
 ## Licensing and provenance
 
-This repository began as a fork of `Karylcode/VRoid-MCP`, which is public but
-carries **no licence**: `license: null` on GitHub and no licence file in the
-baseline commit. Public visibility is not a grant, so the inherited
-implementation has been replaced in this development line rather than relicensed.
+This repository began as a fork of `Karylcode/VRoid-MCP`; the historical baseline
+had no licence and its inherited implementation was replaced. A later upstream
+revision is MIT licensed and portions have since been adapted with attribution.
 
 - [LICENSE](LICENSE) covers the original code in this repository.
 - [LICENSING.md](LICENSING.md) states the scope and what is still excluded.
@@ -241,7 +245,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 86 tools |
+| `tools/TOOLS.md` | generated reference for all 92 tools |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

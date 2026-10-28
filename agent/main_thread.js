@@ -23,6 +23,11 @@ const bridge = {
     backlog: [],
     executing: false,
     background: null,
+    backgroundScope: null,
+    backgroundHook: null,
+    pumpHooks: [],
+    lastExec: 0,
+    postThreadMessage: null,
 };
 
 const QUEUE_LIMIT = 32;
@@ -71,7 +76,7 @@ function createHandleKeeper() {
 
 let keep = null;
 
-function schedule(work) {
+function schedule(work, wake = false) {
     if (!bridge.ready) return Promise.reject(new Error(bridge.error || 'BRIDGE_NOT_READY'));
     if (bridge.backlog.length >= QUEUE_LIMIT) return Promise.reject(new Error('QUEUE_FULL'));
     return new Promise(function (resolve, reject) {
@@ -80,6 +85,7 @@ function schedule(work) {
             resolve: resolve,
             reject: reject,
             expiresAt: Date.now() + JOB_TIMEOUT_MS,
+            wake: wake,
         };
         job.timer = setTimeout(function () {
             const index = bridge.backlog.indexOf(job);
@@ -88,6 +94,12 @@ function schedule(work) {
             reject(new Error('MAIN_THREAD_TIMEOUT: not executed'));
         }, JOB_TIMEOUT_MS);
         bridge.backlog.push(job);
+        const wakeUp = function () {
+            if (!bridge.backlog.includes(job) || !bridge.postThreadMessage) return;
+            bridge.postThreadMessage(bridge.mainThread, 0, NULL, NULL);
+            setTimeout(wakeUp, 100);
+        };
+        if (wake) wakeUp();
     });
 }
 
@@ -96,6 +108,11 @@ function schedule(work) {
 function drainOne() {
     if (Process.getCurrentThreadId() !== bridge.mainThread || bridge.executing) return;
     bridge.frame += 1;
+    bridge.lastExec = Date.now();
+    drainJob();
+}
+
+function drainJob() {
     const job = bridge.backlog.shift();
     if (!job) return;
     clearTimeout(job.timer);
@@ -113,6 +130,87 @@ function drainOne() {
     } finally {
         bridge.executing = false;
     }
+}
+
+// Late attachment cannot rely on constructors that already ran. These helpers
+// adapt the approach in Karylcode/VRoid-MCP baaa94e (MIT; see licenses/).
+function unityWindowThread() {
+    const user32 = Process.getModuleByName('user32.dll');
+    const find = new NativeFunction(user32.getExportByName('FindWindowExW'), 'pointer', ['pointer','pointer','pointer','pointer']);
+    const ownerThread = new NativeFunction(user32.getExportByName('GetWindowThreadProcessId'), 'uint32', ['pointer','pointer']);
+    const name = Memory.allocUtf16String('UnityWndClass'), owner = Memory.alloc(4);
+    for (let window = find(NULL, NULL, name, NULL); !window.isNull(); window = find(NULL, window, name, NULL)) {
+        const thread = ownerThread(window, owner);
+        if (owner.readU32() === Process.id) return thread;
+    }
+    throw Error('UNITY_WINDOW_NOT_FOUND');
+}
+
+function pumpAttached() {
+    if (Process.getCurrentThreadId() !== bridge.mainThread || bridge.executing ||
+        Date.now() - bridge.lastExec < 250 || !bridge.backlog[0]?.wake) return;
+    drainJob();
+}
+
+function installPump() {
+    const user32 = Process.getModuleByName('user32.dll');
+    bridge.postThreadMessage = new NativeFunction(user32.getExportByName('PostThreadMessageW'), 'bool', ['uint32','uint32','pointer','pointer']);
+    for (const name of ['PeekMessageW','PeekMessageA','GetMessageW','GetMessageA']) {
+        const address = user32.findExportByName(name);
+        if (address) bridge.pumpHooks.push(Interceptor.attach(address, {onLeave: pumpAttached}));
+    }
+}
+
+function rememberSingleton(name, instance) {
+    const previous = bridge.retained.get(name);
+    if (previous) previous.free();
+    bridge.retained.set(name, keep(instance));
+    state.refs[name] = instance.handle.toString();
+}
+
+function adoptRunning() {
+    const find = name => {
+        const type = nativeClass('VRoid.Studio', name);
+        return Il2Cpp.gc.choose(type).filter(o => o.class.handle.equals(type.handle));
+    };
+    const mainName = 'VRoid.Studio.MainViewModel', rootName = 'VRoid.Studio.EditRootScreen.ViewModel';
+    const mains = find(mainName);
+    if (mains.length !== 1) throw Error('MAIN_VIEW_MODEL_NOT_FOUND: ' + mains.length);
+    rememberSingleton(mainName, mains[0]);
+    const file = mains[0].field('_mainModel').value.field('currentFile').value;
+    const engine = file.handle.isNull() ? null : file.field('engine').value;
+    const root = engine && find(rootName).find(o => o.field('_engineModel').value.handle.equals(engine.handle));
+    if (root) rememberSingleton(rootName, root);
+    const navigation = mains[0].method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke();
+    const screen = navigation.method('get_ActiveScreen').invoke();
+    if (screen.class.type.name === 'VRoid.Studio.XWear.Edit.ViewModel') {
+        rememberSingleton('VRoid.Studio.XWear.Edit.ViewModel', screen);
+    }
+    const utility = nativeClass('VRoid.UI', 'VRoid.UI.Util.RunInBackgroundUtil');
+    const binding = Il2Cpp.exports.resolveInternalCall(Memory.allocUtf8String('UnityEngine.Application::set_runInBackground'));
+    if (binding.isNull()) throw Error('BACKGROUND_BINDING_MISSING');
+    const scope = utility.method('EnableRunInBackgroundScoped').invoke();
+    bridge.backgroundScope = scope;
+    bridge.background = keep(scope);
+    bridge.backgroundHook = Interceptor.attach(binding, {onEnter(args) { args[0] = ptr(1); }});
+    for (const hook of bridge.pumpHooks) hook.detach();
+    bridge.pumpHooks = [];
+    return {main_view_model: true, edit_root: !!root, wear_active: screen.class.type.name === 'VRoid.Studio.XWear.Edit.ViewModel'};
+}
+
+function releaseAttached() {
+    if (bridge.backgroundHook) bridge.backgroundHook.detach();
+    bridge.backgroundHook = null;
+    if (bridge.backgroundScope) {
+        const scope = bridge.backgroundScope;
+        bridge.backgroundScope = null;
+        try { (scope.tryMethod('Dispose') ?? scope.method('System.IDisposable.Dispose')).invoke(); }
+        finally { if (bridge.background) bridge.background.free(); bridge.background = null; }
+    }
+    for (const handle of bridge.retained.values()) handle.free();
+    bridge.retained.clear();
+    state.refs = {};
+    return {released: true};
 }
 
 // The editor singletons are recreated whenever a file is opened. Retaining each
@@ -135,10 +233,7 @@ function retainEditorSingletons() {
                     if (Process.getCurrentThreadId() !== bridge.mainThread) return;
                     const instance = new Il2Cpp.Object(this.self);
                     if (!instance.class.handle.equals(type.handle)) return;
-                    const previous = bridge.retained.get(className);
-                    if (previous) previous.free();
-                    bridge.retained.set(className, keep(instance));
-                    state.refs[className] = instance.handle.toString();
+                    rememberSingleton(className, instance);
                 },
             }));
         }
@@ -180,7 +275,7 @@ Il2Cpp.perform(function () {
     if (Il2Cpp.unityVersion !== '6000.0.62f1') {
         throw new Error('UNTESTED_UNITY_VERSION: ' + Il2Cpp.unityVersion);
     }
-    bridge.mainThread = Process.getCurrentThreadId();
+    bridge.mainThread = ATTACHED ? unityWindowThread() : Process.getCurrentThreadId();
     keep = createHandleKeeper();
     // Frames arrive through the synchronization context; attaching on leave
     // means the queue drains after the frame's own work, not in the middle.
@@ -189,11 +284,11 @@ Il2Cpp.perform(function () {
             .method('Exec').virtualAddress,
         { onLeave: drainOne }));
     retainEditorSingletons();
-    holdRunInBackground();
+    if (ATTACHED) installPump(); else holdRunInBackground();
     countModelUpdates();
     bridge.ready = true;
     send({ event: 'ready', pid: Process.id, unity: Il2Cpp.unityVersion, main_thread: bridge.mainThread });
-}, 'main').catch(function (error) {
+}, ATTACHED ? 'free' : 'main').catch(function (error) {
     bridge.error = String(error);
     send({ event: 'init-error', error: String(error) });
 });
@@ -205,4 +300,6 @@ rpc.exports = {
     call(name, args) {
         return schedule(function () { return vroid.dispatch(name, args || {}); });
     },
+    adopt() { return schedule(adoptRunning, true); },
+    release() { if (ATTACHED && bridge.pumpHooks.length === 0) installPump(); return schedule(releaseAttached, true); },
 };

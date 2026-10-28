@@ -681,8 +681,10 @@ globalThis.vroid = (() => {
     const presetPreviews = createPresetPreviewApi({ model: modelContext, main: mainViewModel,
                                                      presetEntries: collectPresets, core, text });
     const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged });
+    const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
 
     function prepareCapture(args) {
+        if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         const m = modelContext(args.expected_model);
         const hair = m.root.method('get_HairEditor').invoke();
         const bone = hair.method('get_BoneEditor').invoke();
@@ -703,6 +705,7 @@ globalThis.vroid = (() => {
 
     const operations = {
         ...textureApi.operations,
+        ...ordinary.operations,
         ...presetPreviews.operations,
         ...bodyReference.operations,
         ...wear.operations,
@@ -746,7 +749,7 @@ globalThis.vroid = (() => {
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
         + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
-        + 'preview_expression)$');
+        + 'preview_expression|replace_part|save_custom_items|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
         + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
 

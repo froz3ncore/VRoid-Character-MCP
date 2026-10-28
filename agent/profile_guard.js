@@ -91,13 +91,18 @@ function guardPathArgument(context, args, index, options) {
 }
 
 const kernel32 = Process.getModuleByName('kernel32.dll');
+const fileApi = Process.findModuleByName('kernelbase.dll') || kernel32;
+const fileExport = name => fileApi.findExportByName(name) || kernel32.findExportByName(name);
 
 // ---------------------------------------------------------------- child spawn
 // A relaunch or helper process would escape this guard, and this copy never
 // needs one. Replace instead of attach: the call must fail, not succeed quietly.
-for (const name of ['CreateProcessW', 'CreateProcessA']) {
-    const address = kernel32.findExportByName(name);
+const processAddresses = new Set();
+for (const module of [kernel32, fileApi]) for (const name of ['CreateProcessW', 'CreateProcessA']) {
+    const address = module.findExportByName(name);
     if (!address) continue;
+    if (processAddresses.has(address.toString())) continue;
+    processAddresses.add(address.toString());
     const refusal = new NativeCallback(function () {
         this.lastError = 5;
         report('blocked-child-process', name);
@@ -111,8 +116,9 @@ for (const name of ['CreateProcessW', 'CreateProcessA']) {
 // --------------------------------------------------------------- file writes
 // CreateFileW carries the access mask and the disposition, so intent has to be
 // read from the arguments rather than assumed from the API name.
-const createFile = kernel32.findExportByName('CreateFileW');
-if (createFile) {
+for (const [name, dispositionIndex] of [['CreateFileW', 4], ['CreateFile2', 3]]) {
+    const createFile = fileExport(name);
+    if (!createFile) continue;
     keptHooks.push(Interceptor.attach(createFile, {
         onEnter(args) {
             const original = readArgument(args, 0);
@@ -120,7 +126,7 @@ if (createFile) {
             if (mapped !== original) replaceArgument(this, args, 0, mapped);
             if (!mapped || inLab(mapped) || isDevicePath(mapped)) return;
             const requestsWrite = (args[1].toUInt32() & 0x400d0116) !== 0;
-            const creates = args[4].toUInt32() !== 3;
+            const creates = args[dispositionIndex].toUInt32() !== 3;
             if (requestsWrite || creates || /\.vroid(?:$|[.\\])/i.test(mapped)) {
                 report(requestsWrite || creates ? 'redirected-outside-write' : 'blocked-external-model', mapped);
                 replaceArgument(this, args, 0, deniedPath);
@@ -129,8 +135,8 @@ if (createFile) {
     }));
 }
 
-for (const name of ['DeleteFileW', 'CreateDirectoryW', 'RemoveDirectoryW']) {
-    const address = kernel32.findExportByName(name);
+for (const name of ['DeleteFileW', 'CreateDirectoryW', 'RemoveDirectoryW', 'SetFileAttributesW']) {
+    const address = fileExport(name);
     if (!address) continue;
     keptHooks.push(Interceptor.attach(address, {
         onEnter(args) {
@@ -139,14 +145,21 @@ for (const name of ['DeleteFileW', 'CreateDirectoryW', 'RemoveDirectoryW']) {
     }));
 }
 
-const renameApis = ['MoveFileW', 'MoveFileExW', 'ReplaceFileW'];
+const mkdirEx = fileExport('CreateDirectoryExW');
+if (mkdirEx) keptHooks.push(Interceptor.attach(mkdirEx, {onEnter(args) {
+    guardPathArgument(this, args, 0, {blockWrites: false});
+    guardPathArgument(this, args, 1, {blockWrites: true});
+}}));
+
+const renameApis = ['MoveFileW', 'MoveFileExW', 'MoveFileWithProgressW', 'ReplaceFileW'];
 for (const name of renameApis) {
-    const address = kernel32.findExportByName(name);
+    const address = fileExport(name);
     if (!address) continue;
     keptHooks.push(Interceptor.attach(address, {
         onEnter(args) {
             guardPathArgument(this, args, 0, { blockWrites: true });
             guardPathArgument(this, args, 1, { blockWrites: true });
+            if (name === 'ReplaceFileW') guardPathArgument(this, args, 2, { blockWrites: true });
         }
     }));
 }
@@ -155,7 +168,7 @@ for (const name of renameApis) {
 // Reads are not violations, but they must not see the machine profile either:
 // a cached absolute path would otherwise load the user's own files.
 for (const name of ['GetFileAttributesW', 'GetFileAttributesExW', 'FindFirstFileW', 'FindFirstFileExW']) {
-    const address = kernel32.findExportByName(name);
+    const address = fileExport(name);
     if (!address) continue;
     keptHooks.push(Interceptor.attach(address, {
         onEnter(args) {
@@ -170,7 +183,7 @@ for (const name of ['GetFileAttributesW', 'GetFileAttributesExW', 'FindFirstFile
 // XRoid import copies the converted base and the wearables through CopyFile*,
 // which never passes through CreateFileW; the destination is enforced here.
 for (const name of ['CopyFileW', 'CopyFileExW', 'CopyFile2']) {
-    const address = kernel32.findExportByName(name);
+    const address = fileExport(name);
     if (!address) continue;
     keptHooks.push(Interceptor.attach(address, {
         onEnter(args) {
@@ -192,6 +205,7 @@ for (const name of ['CopyFileW', 'CopyFileExW', 'CopyFile2']) {
 // Shell lookups return a fresh string; the guard has to replace the allocation,
 // not the argument, and release the original with the same allocator.
 const shell32 = Module.load('shell32.dll');
+const windowsStorage = Module.load('windows.storage.dll');
 const ole32 = Module.load('ole32.dll');
 const allocate = new NativeFunction(ole32.getExportByName('CoTaskMemAlloc'), 'pointer', ['size_t']);
 const release = new NativeFunction(ole32.getExportByName('CoTaskMemFree'), 'void', ['pointer']);
@@ -226,7 +240,11 @@ const knownFolderCalls = [
     { exportName: 'SHGetFolderPathW', slotIndex: 4, adopt: adoptInPlace },
 ];
 for (const call of knownFolderCalls) {
-    const address = shell32.getExportByName(call.exportName);
+    const addresses = new Set();
+    for (const module of [shell32, windowsStorage, fileApi, kernel32]) {
+    const address = module.findExportByName(call.exportName);
+    if (!address || addresses.has(address.toString())) continue;
+    addresses.add(address.toString());
     keptHooks.push(Interceptor.attach(address, {
         onEnter(args) { this.outSlot = args[call.slotIndex]; },
         onLeave(retval) {
@@ -235,6 +253,7 @@ for (const call of knownFolderCalls) {
             call.adopt(this.outSlot);
         },
     }));
+    }
 }
 
 // ------------------------------------------------------------------ registry
@@ -243,8 +262,12 @@ for (const call of knownFolderCalls) {
 const advapi32 = Module.load('advapi32.dll');
 const vroidHive = /^software\\pixiv\\vroid studio(?:\\|$)/i;
 const registryOpenApis = ['RegCreateKeyExW', 'RegOpenKeyExW'];
-for (const name of registryOpenApis) {
-    keptHooks.push(Interceptor.attach(advapi32.getExportByName(name), {
+const registryAddresses = new Set();
+for (const name of registryOpenApis) for (const module of [advapi32, fileApi]) {
+    const address = module.findExportByName(name);
+    if (!address || registryAddresses.has(address.toString())) continue;
+    registryAddresses.add(address.toString());
+    keptHooks.push(Interceptor.attach(address, {
         onEnter(args) {
             if (args[1].isNull()) return;
             const before = args[1].readUtf16String();

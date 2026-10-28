@@ -23,13 +23,16 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from . import (toolset, tools_accessories, tools_capture, tools_hair, tools_parameters,
-               tools_wear)
+               tools_wear, tools_ordinary, bridge)
 from .runtime import Runtime
 from .runtime_handle import RuntimeHandle
 from .texture_tools import register_texture_tools
 
 INSTRUCTIONS = (
-    'This server drives one disposable VRoid Studio copy through its own managed API. '
+    'This server normally drives one disposable VRoid Studio copy through its managed API. '
+    'attach_open_vroid explicitly switches to an existing user-opened process; edits then affect '
+    'the real unsaved session and its own profile, and the lab guard is not loaded. '
+    'detach_open_vroid leaves that process running. Save attached work in VRoid itself. '
     'Start with list_face_params and pass the model_token it returns as expected_model. '
     'list_parameters covers the face, body, clothing, colours, expressions, general, hair, '
     'hair-bone, accessory and photo domains: hair needs a category and a node scope, an '
@@ -56,6 +59,7 @@ INSTRUCTIONS = (
     'and read affected_parameter_ids before touching a shared colour. '
     'preview_presets returns native thumbnails for one to six ids. '
     'export_wear_vrm writes the actual assembly with restrictive native metadata defaults. '
+    'export_vrm exports an ordinary edit model to the lab with its native metadata and permissions. '
     'Nothing here uses desktop input or a freehand brush; texture tools work with native '
     'regions, layers and UV export plus PNG layer import. '
     'Batches follow native history, so one edit may need several undo steps.'
@@ -103,6 +107,56 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         return register
 
     @mcp.tool(annotations=DESTRUCTIVE)
+    async def attach_open_vroid(pid: int | None = None, discard_copy_unsaved: bool = False) -> dict:
+        """Attach to a user-opened VRoid process without closing it on detach.
+
+        Edits act on that real session, including its unsaved model. If the MCP
+        copy is running, explicitly set discard_copy_unsaved after saving it.
+        Multiple candidate processes require a PID. Other MCP labs are excluded.
+        Attached mode does not load the lab isolation guard; save in VRoid itself.
+        """
+        async with session_gate:
+            candidates = await asyncio.to_thread(bridge.find_open_vroid, lab)
+            if pid is None:
+                if len(candidates) != 1:
+                    raise ValueError('Select one eligible VRoid PID: ' + str(candidates))
+                pid = candidates[0]['pid']
+            if not any(item['pid'] == pid and item['path'] for item in candidates):
+                raise ValueError('No eligible inspectable VRoid process for this PID')
+            current = runtime.current
+            if state['initialized'] and current.mode == 'attached' and current.pid == pid and not current.dead:
+                return await current.status()
+            if state['initialized'] and current.mode == 'copy' and not current.dead and not discard_copy_unsaved:
+                raise ValueError('Save the running MCP copy or explicitly set discard_copy_unsaved=true')
+            # Validate the executable before touching the current session.
+            target = next(item for item in candidates if item['pid'] == pid)
+            await asyncio.to_thread(bridge.validate_assembly, Path(target['path']).parent / 'GameAssembly.dll')
+            await asyncio.to_thread(current.close)
+            runtime.rebind(Runtime(lab))
+            state['initialized'] = False
+            try:
+                await asyncio.to_thread(runtime.current.attach, pid)
+                adopted = await runtime.current.adopt()
+                state['initialized'] = True
+                return {**await runtime.current.status(), 'adopted': adopted,
+                        'notice': 'Editing the real VRoid session; isolation guard is not loaded.'}
+            except BaseException:
+                await asyncio.to_thread(runtime.current.close)
+                runtime.rebind(Runtime(lab))
+                raise
+
+    @mcp.tool(annotations=EDIT)
+    async def detach_open_vroid() -> dict:
+        """Detach from the user-opened VRoid without closing its process or saving it."""
+        async with session_gate:
+            if runtime.current.mode != 'attached':
+                return {'detached': False, 'mode': runtime.current.mode}
+            closed = await asyncio.to_thread(runtime.current.close)
+            runtime.rebind(Runtime(lab))
+            state['initialized'] = False
+            return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
+
+    @mcp.tool(annotations=DESTRUCTIVE)
     async def restart_session(discard_unsaved: bool = False) -> dict:
         """Recreate only this MCP-owned VRoid copy, discarding its unsaved changes.
 
@@ -111,9 +165,14 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         id issued before it. It also recovers from COPY_DISCONNECTED or an uncertain
         native call, and other VRoid processes are never touched.
         """
-        if discard_unsaved is not True:
-            raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
         async with session_gate:
+            if runtime.current.mode == 'attached':
+                closed = await asyncio.to_thread(runtime.current.close)
+                runtime.rebind(Runtime(lab))
+                state['initialized'] = False
+                return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
+            if discard_unsaved is not True:
+                raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
             await asyncio.to_thread(runtime.current.close)
             runtime.rebind(Runtime(lab))
             state['initialized'] = False
@@ -135,7 +194,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             status['toolset_error'] = str(error)
         return status
 
-    for module in (tools_wear, tools_parameters, tools_hair, tools_accessories, tools_capture):
+    for module in (tools_wear, tools_parameters, tools_hair, tools_accessories, tools_capture, tools_ordinary):
         module.register(ready_tool, runtime, lab, READ_ONLY, EDIT)
     register_texture_tools(ready_tool, runtime, lab, READ_ONLY, EDIT)
     return mcp

@@ -4,9 +4,13 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 86 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 92 个 MCP 工具 · stdio · MIT
 
-本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。服务只启动一份具有独立配置的 VRoid 副本，不连接你已经打开的 VRoid 进程。
+本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
+
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载，请在 VRoid 中自行保存。断开连接不会关闭该窗口。由于连接前的手动编辑历史无法确认，连接模式禁止进入纹理编辑器和切换进入换装；这些步骤请在独立副本中进行。普通角色可导出 VRM 0.x/1.0；自定义物品保存因未验证持久化而暂时禁用。
+
+连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
 当前为 **0.4.1 开发版**。工具功能与角色美术分别验收：可以完成操作、保存重开和导出，不代表服装已经没有穿插，或已完成游戏引擎中的物理验证。
 
@@ -60,7 +64,7 @@ Windows · VRoid Studio 2.14.0 · 86 个 MCP 工具 · stdio · MIT
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [86 个工具参考](tools/TOOLS.md)。
+完整工具名称、参数、前置条件和错误处理见 [92 个工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
@@ -138,7 +142,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **86 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后应能发现 **92 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -232,7 +236,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 86 个工具与参数。
+- [工具参考](tools/TOOLS.md)：完整的 92 个工具与参数。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — existing sessions, model parts and ordinary VRM export
+
+- Optional attachment to an already-open supported VRoid process; detach leaves
+  it running and reports background-setting restoration. Copy ownership, real
+  user profiles, known native transition limits and unsaved edits are explicit.
+- Ordinary editing exports VRM 0.x or 1.0 with existing native permissions and
+  optional output title/author; new filenames are staged and checked. Active
+  transferable parts can be listed and catalog-verified built-in parts replaced.
+  Custom-item save is disabled until persistence can be verified.
+- Extended the profile guard and default native-call interception based on the
+  later MIT-licensed Karylcode upstream; see LICENSE notices and ATTACHED_SESSION.md.
+  Process-local guards remain narrower than an OS sandbox.
+- Empty and stale model tokens are rejected before screenshot preparation.
+- Six new tools extend the 86-tool baseline to 92; the contract change is intentional.
+
 ## Unreleased — reproducibility and recovery
 
 - Verified follow-up: 502 Python tests passed / 1 skipped on Python 3.10 and

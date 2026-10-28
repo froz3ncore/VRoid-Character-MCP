@@ -43,6 +43,7 @@ AGENT_MODULES = (
     'wear.js',
     'body_reference.js',
     'preset_previews.js',
+    'ordinary_extensions.js',
     'operations.js',
 )
 GUARD_MODULE = 'profile_guard.js'
@@ -69,11 +70,22 @@ DISCONNECTED = {
 }
 
 
-def script_text(config: dict, bridge_js: pathlib.Path) -> str:
+def disconnected_status(subject) -> dict:
+    result = dict(DISCONNECTED)
+    if getattr(subject, 'mode', 'copy') == 'attached':
+        result.update(mode='attached', reason='ATTACHED_VROID_DISCONNECTED',
+                      recovery='detach or attach again; the MCP does not close the user process')
+    return result
+
+
+def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = False) -> str:
     """Concatenate the agent into one script with the probe config in front."""
-    parts = ['const PROBE=' + json.dumps(config) + ';',
-             (PROJECT / 'agent' / GUARD_MODULE).read_text(encoding='utf-8'),
-             bridge_js.read_text(encoding='utf-8')]
+    parts = ['const ATTACHED=' + json.dumps(attached) + ';',
+             (PROJECT / 'agent' / 'native_traps.js').read_text(encoding='utf-8')]
+    if not attached:
+        parts.extend(['const PROBE=' + json.dumps(config) + ';',
+                      (PROJECT / 'agent' / GUARD_MODULE).read_text(encoding='utf-8')])
+    parts.append(bridge_js.read_text(encoding='utf-8'))
     parts.extend((PROJECT / 'agent' / name).read_text(encoding='utf-8') for name in AGENT_MODULES)
     return '\n'.join(parts)
 
@@ -137,6 +149,7 @@ def start(subject) -> None:
         argv = [str(subject.exe), '-logFile', str(subject.run_dir / 'Player.log'),
                 '-screen-fullscreen', '0', '-screen-width', '960', '-screen-height', '720']
         subject.pid = subject.device.spawn(argv, cwd=str(subject.exe.parent), env=env, stdio='pipe')
+        subject.owns_process = True
         subject.session = subject.device.attach(subject.pid)
         subject.session.on('detached', lambda reason, *rest: _detached(subject, reason))
         subject.script = subject.session.create_script(script_text(_probe_config(subject), subject.bridge_js))
@@ -150,13 +163,86 @@ def start(subject) -> None:
         raise
 
 
+def find_open_vroid(lab: pathlib.Path) -> list[dict]:
+    """Find inspectable VRoid processes, excluding all managed MCP labs."""
+    candidates = []
+    for process in frida.get_local_device().enumerate_processes(scope='full'):
+        if process.name.lower() != 'vroidstudio.exe':
+            continue
+        path = process.parameters.get('path')
+        if not path:
+            candidates.append({'pid': process.pid, 'path': None})
+            continue
+        exe = pathlib.Path(path).resolve()
+        # Do not claim another MCP lab's process, even when it is not our lab.
+        if (exe.parent.parent / '.mcp-owner.lock').exists():
+            continue
+        if exe.is_relative_to(lab.resolve() / 'app'):
+            continue
+        candidates.append({'pid': process.pid, 'path': str(exe)})
+    return sorted(candidates, key=lambda p: p['pid'])
+
+
+def attach(subject, pid: int) -> None:
+    if os.name != 'nt' or not subject.bridge_js.is_file():
+        raise RuntimeError('Attached VRoid requires Windows and frida-il2cpp-bridge')
+    target = next((p for p in find_open_vroid(subject.lab) if p['pid'] == pid), None)
+    if target is None:
+        raise ValueError('PID is not an eligible external VRoid process')
+    if not target['path']:
+        raise PermissionError('VRoid process path is unavailable; check process privileges')
+    exe = pathlib.Path(target['path'])
+    validate_assembly(exe.parent / 'GameAssembly.dll')
+    subject.file_lock = lab_lock.acquire(subject.lab)
+    subject.lab_owner = os.getpid()
+    prepare_run_directory(subject)
+    subject.mode, subject.target = 'attached', str(exe)
+    subject.device = frida.get_local_device()
+    try:
+        subject.session = subject.device.attach(pid)
+        subject.pid = pid
+        subject.session.on('detached', lambda reason, *rest: _detached(subject, reason))
+        subject.script = subject.session.create_script(script_text(None, subject.bridge_js, attached=True))
+        subject.script.on('message', lambda message, data: record(subject, {'event': 'agent', 'message': message}))
+        subject.script.load()
+        record(subject, {'event': 'attached', 'pid': pid, 'exe': str(exe)})
+    except BaseException:
+        close(subject)
+        raise
+
+
+async def adopt(subject) -> dict:
+    deadline = time.monotonic() + 30
+    while True:
+        health = await asyncio.to_thread(subject.script.exports_sync.health)
+        if health['error']:
+            raise RuntimeError(health['error'])
+        if health['ready']:
+            break
+        if time.monotonic() > deadline:
+            raise TimeoutError('Attached bridge did not become ready')
+        await asyncio.sleep(.2)
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(subject.script.exports_sync.adopt), 30)
+    except asyncio.TimeoutError:
+        subject.uncertain = True
+        raise TimeoutError('VRoid main thread did not respond; detach and retry after focusing the window')
+
+
 async def call(subject, operation: str, args: dict | None = None) -> Any:
     if subject.dead or subject.script is None:
+        if getattr(subject, 'mode', 'copy') == 'attached':
+            raise RuntimeError('ATTACHED_VROID_DISCONNECTED: detach or attach again')
         raise RuntimeError('COPY_DISCONNECTED: restart the MCP server')
     if subject.uncertain and operation != 'status':
         raise RuntimeError('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
     timeout = SLOW_OPERATIONS.get(operation, DEFAULT_TIMEOUT_SECONDS)
     payload = args or {}
+    if getattr(subject, 'mode', 'copy') == 'attached':
+        if operation in {'open_texture_editor', 'open_wear_project'}:
+            raise RuntimeError('ATTACHED_HISTORY_UNKNOWN: prior manual body and texture edits cannot be verified; use a fresh isolated copy for this transition')
+        if operation in {'save_as', 'open_model', 'new_model', 'save_wear_project', 'wear_clear_save_path', 'import_xwear'}:
+            raise RuntimeError('ATTACHED_FILE_OPERATION_REFUSED: save in VRoid; file operations belong to the isolated copy')
     edit_sequence.before_call(subject, operation, payload)
     try:
         result = await asyncio.wait_for(
@@ -228,25 +314,43 @@ async def settle(subject, after_frame: int = -1) -> dict:
 async def status(subject) -> dict:
     async with subject.lock:
         if subject.dead:
-            return dict(DISCONNECTED)
+            return disconnected_status(subject)
         try:
             result = await call(subject, 'status')
         except frida.InvalidOperationError as error:
             if 'script has been destroyed' not in str(error):
                 raise
             subject.dead = True
-            return dict(DISCONNECTED)
-        result.update(connected=True, writes_blocked=subject.uncertain, lab=str(subject.lab),
+            return disconnected_status(subject)
+        result.update(connected=True, mode=getattr(subject, 'mode', 'copy'), target=getattr(subject, 'target', None),
+                      writes_blocked=subject.uncertain, lab=str(subject.lab),
                       crash_guard=subject.crash_guard,
                       wear_transition_guard=edit_sequence.wear_status(subject),
                       texture_editor_guard=edit_sequence.status(subject, result.get('model_token')))
         return result
 
 
-def close(subject) -> None:
+def close(subject) -> dict:
     # Kill only the process this subject spawned: never a name-based kill.
+    outcome = {'mode': getattr(subject, 'mode', 'copy')}
     try:
-        if subject.pid is not None and subject.device is not None and not subject.dead:
+        if getattr(subject, 'mode', 'copy') == 'attached':
+            if subject.script is not None and not subject.dead:
+                try:
+                    released = subject.script.exports_sync.release()
+                    outcome['background_restored'] = bool(released.get('released'))
+                    record(subject, {'event': 'released', 'result': released})
+                except Exception as error:
+                    outcome.update(background_restored=False, release_error=str(error))
+                    record(subject, {'event': 'release-error', 'error': str(error)})
+                try:
+                    subject.script.unload()
+                except frida.InvalidOperationError:
+                    pass
+            if subject.session is not None and not subject.dead:
+                subject.session.detach()
+            outcome['detached'] = True
+        elif getattr(subject, 'owns_process', True) and subject.pid is not None and subject.device is not None and not subject.dead:
             try:
                 subject.device.kill(subject.pid)
             except frida.ProcessNotFoundError:
@@ -256,6 +360,7 @@ def close(subject) -> None:
         if subject.file_lock:
             lab_lock.release(subject.file_lock)
             subject.file_lock = None
+    return outcome
 
 
 def run_directory(lab: pathlib.Path) -> pathlib.Path:

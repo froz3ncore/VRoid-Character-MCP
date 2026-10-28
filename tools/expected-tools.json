@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 86,
- "toolset_hash": "sha256:69101bb60cc1f53ba6a94e44a8787996b3b31fa908ffe9be59ee76744f4b8517",
+ "tool_count": 92,
+ "toolset_hash": "sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034",
  "tools": {
   "add_shoe_template": {
    "parameters": [
@@ -44,6 +44,13 @@
     "expected_model",
     "preset_id"
    ]
+  },
+  "attach_open_vroid": {
+   "parameters": [
+    "discard_copy_unsaved",
+    "pid"
+   ],
+   "required": []
   },
   "capture_body_reference": {
    "parameters": [
@@ -127,6 +134,10 @@
    "required": [
     "expected_model"
    ]
+  },
+  "detach_open_vroid": {
+   "parameters": [],
+   "required": []
   },
   "duplicate_hair_strand": {
    "parameters": [
@@ -225,6 +236,19 @@
    ],
    "required": [
     "expected_model"
+   ]
+  },
+  "export_vrm": {
+   "parameters": [
+    "author",
+    "expected_model",
+    "filename",
+    "title",
+    "version"
+   ],
+   "required": [
+    "expected_model",
+    "filename"
    ]
   },
   "export_wear_vrm": {
@@ -467,6 +491,14 @@
     "domain"
    ]
   },
+  "list_parts": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
   "list_presets": {
    "parameters": [
     "area",
@@ -641,6 +673,16 @@
     "expected_model"
    ]
   },
+  "replace_part": {
+   "parameters": [
+    "expected_model",
+    "part_id"
+   ],
+   "required": [
+    "expected_model",
+    "part_id"
+   ]
+  },
   "restart_session": {
    "parameters": [
     "discard_unsaved"
@@ -663,6 +705,15 @@
    "required": [
     "expected_model",
     "filename"
+   ]
+  },
+  "save_custom_items": {
+   "parameters": [
+    "expected_model",
+    "types"
+   ],
+   "required": [
+    "expected_model"
    ]
   },
   "save_wear_project": {

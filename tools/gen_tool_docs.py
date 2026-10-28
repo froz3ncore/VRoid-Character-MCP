@@ -29,13 +29,14 @@ from vroid_mcp import toolset  # noqa: E402
 from vroid_mcp.server import create_server  # noqa: E402
 
 DOMAINS = [
-    ('Session and status', ['restart_session', 'get_status']),
+    ('Session and status', ['restart_session', 'get_status', 'attach_open_vroid', 'detach_open_vroid']),
     ('Parameters, presets and saving', ['list_parameters', 'set_parameters', 'list_presets', 'preview_presets',
                                         'apply_preset', 'list_face_params', 'set_face_params', 'list_body_params',
                                         'set_body_params', 'list_clothing_params', 'set_clothing_params',
                                         'list_hair_presets', 'apply_hair_preset', 'list_clothing_presets',
                                         'apply_clothing_preset', 'list_shoe_templates', 'add_shoe_template',
-                                        'get_height', 'set_height', 'undo', 'redo', 'save_as']),
+                                        'get_height', 'set_height', 'undo', 'redo', 'save_as',
+                                        'list_parts', 'replace_part', 'save_custom_items', 'export_vrm']),
     ('Hair authoring', ['list_hair_nodes', 'list_hair_bone_groups', 'generate_hair_bones', 'edit_hair_structure',
                         'list_hair_strand_points', 'move_hair_strand_point', 'duplicate_hair_strand',
                         'list_hair_color_elements', 'set_hair_color', 'list_hair_materials', 'set_hair_material']),

@@ -68,10 +68,14 @@ class CaptureTools:
 
     async def screenshot(self, view: str, expected_model: str, size: int = 512,
                          quality: str = 'balanced') -> bytes:
+        if not isinstance(expected_model, str) or not expected_model:
+            raise ValueError('EXPECTED_MODEL_REQUIRED: pass a fresh model_token')
         validate_capture([view], size)
         quality_plan(size, quality)
         async with self.lock:
-            await self._settle()
+            state = await self._settle()
+            if state.get('model_token') != expected_model:
+                raise ValueError('STALE_MODEL: list parameters again')
             prepared = await self._call('prepare_capture', {'expected_model': expected_model})
             await self._settle(prepared['frame'])
             return await self._capture(view, expected_model, size, quality)

@@ -3,12 +3,11 @@ Third-party components and data in this repository
 0. Repository ancestry: Karylcode/VRoid-MCP
    https://github.com/Karylcode/VRoid-MCP
    Local fork baseline: 9b264d3ad3a33bea2e18e91a0476e395246a6be6.
-   Upstream license/author permission has not been confirmed by the maintainer.
-   This is now maintained separately as froz3ncore/VRoid-Character-MCP.
-   Full Git ancestry is preserved; the old fork is not deleted or rewritten.
-   The root LICENSE grants MIT only for original contributions controlled by
-   froz3ncore, not inherited portions. See LICENSING.md and UPSTREAM.json.
-   The MIT notices listed below apply only to their respective sources.
+   The 9b264d3 baseline did not include a licence; its inherited implementation
+   was replaced before publication. Later upstream commit baaa94e, published
+   with MIT licence, is the source for portions of the ordinary-edit export,
+   part operations, attached-session and isolation adaptations. Copyright (c)
+   2026 Karylcode. See licenses/karylcode-upstream-20261023.txt and LICENSING.md.
 
 1. vroid_mcp/data/preset_labels/
    Preset labels and the thumbnail-addressing algorithm are adapted from
