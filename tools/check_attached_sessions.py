@@ -10,6 +10,7 @@ import argparse
 import asyncio
 import json
 import os
+import signal
 from pathlib import Path
 import sys
 from datetime import timedelta
@@ -43,6 +44,8 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
     pid = None
     guard_session = None
     controller = None
+    observer = None
+    crashed_server = None
     report = {'scope': 'test-owned external fixture with isolated startup profile',
               'variant': variant, 'checks': {}}
 
@@ -55,25 +58,25 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
 
     async def observe():
         """Read background policy on the Unity thread without adopting/enabling it."""
-        nonlocal controller
-        controller = Runtime(out / 'observer')
-        original = bridge.script_text
-        def instrument(*args, **kwargs):
-            return original(*args, **kwargs) + "\nrpc.exports.observe = () => schedule(() => ({background: nativeClass('UnityEngine.CoreModule','UnityEngine.Application').method('get_runInBackground').invoke()}), true);"
-        bridge.script_text = instrument
-        try:
-            await asyncio.to_thread(controller.attach, pid)
-        finally:
-            bridge.script_text = original
-        try:
+        nonlocal observer
+        if observer is None:
+            observer = Runtime(out / 'observer')
+            original = bridge.script_text
+            def instrument(*args, **kwargs):
+                return original(*args, **kwargs) + "\nrpc.exports.observe = () => schedule(() => ({background: nativeClass('UnityEngine.CoreModule','UnityEngine.Application').method('get_runInBackground').invoke()}), true);"
+            bridge.script_text = instrument
+            try:
+                await asyncio.to_thread(observer.attach, pid)
+            finally:
+                bridge.script_text = original
             deadline = asyncio.get_running_loop().time() + 30
-            while not (await asyncio.to_thread(controller.script.exports_sync.health))['ready']:
+            while not (await asyncio.to_thread(observer.script.exports_sync.health))['ready']:
                 if asyncio.get_running_loop().time() > deadline:
                     raise TimeoutError('Observer not ready')
                 await asyncio.sleep(.1)
-            return await asyncio.to_thread(controller.script.exports_sync.observe)
-        finally:
-            await asyncio.to_thread(controller.close)
+        # Keep observation independent of the MCP host's attach/release cycles.
+        # The observer never adopts a background lease or edits the model.
+        return await asyncio.to_thread(observer.script.exports_sync.observe)
 
     params = StdioServerParameters(command=sys.executable,
         args=['-m', 'vroid_mcp.server', '--lab', str(out / 'client')],
@@ -110,9 +113,15 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
                     passed('attach_at_home_without_model')
                     # Simulate the user creating a model through a second test-owned controller.
                     controller = Runtime(out / 'controller')
-                    await asyncio.to_thread(controller.attach, pid)
-                    await controller.adopt()
-                    await asyncio.to_thread(controller.script.exports_sync.call, 'new_model', {'variant': variant})
+                    original_script = bridge.script_text
+                    def fixture_script(*args, **kwargs):
+                        return original_script(*args, **kwargs) + "\nrpc.exports.fixturemodel = variant => schedule(() => {const type = nativeClass('VRoid.Studio','VRoid.Studio.MainViewModel'); const main = Il2Cpp.gc.choose(type).filter(o => o.class.handle.equals(type.handle)); if(main.length!==1)throw Error('FIXTURE_MAIN_NOT_UNIQUE'); rememberSingleton('VRoid.Studio.MainViewModel', main[0]); return vroid.dispatch('new_model',{variant});},true);"
+                    bridge.script_text = fixture_script
+                    try:
+                        await asyncio.to_thread(controller.attach, pid)
+                    finally:
+                        bridge.script_text = original_script
+                    await asyncio.to_thread(controller.script.exports_sync.fixturemodel, variant)
                     await controller._settle()
                     await asyncio.to_thread(controller.close)
                     face = await call('list_face_params')
@@ -155,6 +164,55 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
             restored = await observe()
             assert restored == baseline
             passed('client_eof_restores_background', restored)
+        # Kill an actual MCP host process without EOF or lifespan cleanup.
+        with (out / 'forced-exit-server.log').open('w', encoding='utf8') as log:
+            crashed_server = await asyncio.create_subprocess_exec(sys.executable, '-m', 'vroid_mcp.server',
+                '--lab', str(out / 'client'), cwd=str(ROOT), env=dict(os.environ),
+                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=log)
+            request_id = 0
+            async def rpc(method, arguments):
+                nonlocal request_id
+                request_id += 1
+                crashed_server.stdin.write((json.dumps({'jsonrpc':'2.0', 'id':request_id,
+                    'method':method, 'params':arguments}) + '\n').encode())
+                await crashed_server.stdin.drain()
+                while True:
+                    line = await asyncio.wait_for(crashed_server.stdout.readline(), 90)
+                    if not line:
+                        raise RuntimeError('Crash-test MCP host exited before response')
+                    response = json.loads(line)
+                    if response.get('id') == request_id:
+                        if 'error' in response or response.get('result', {}).get('isError'):
+                            raise RuntimeError(str(response))
+                        return response['result']
+            await rpc('initialize', {'protocolVersion':'2024-11-05', 'capabilities':{},
+                'clientInfo':{'name':'forced-exit-check','version':'1'}})
+            crashed_server.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
+            await crashed_server.stdin.drain()
+            attached_reply = await rpc('tools/call', {'name':'attach_open_vroid','arguments':{'pid':pid}})
+            attached = attached_reply.get('structuredContent') or json.loads(attached_reply['content'][0]['text'])
+            host_pid = attached['adopted']['owner_pid']
+            assert host_pid > 0 and host_pid not in (os.getpid(), pid)
+            competitor = StdioServerParameters(command=sys.executable,
+                args=['-m', 'vroid_mcp.server', '--lab', str(out / 'competing-client')],
+                cwd=str(ROOT), env=dict(os.environ))
+            with (out / 'competing-server.log').open('w', encoding='utf8') as competing_log:
+                async with stdio_client(competitor, errlog=competing_log) as (reader, writer):
+                    async with ClientSession(reader, writer) as competing_client:
+                        await competing_client.initialize()
+                        refused = await competing_client.call_tool('attach_open_vroid', {'pid':pid})
+                        assert refused.isError and 'ATTACHMENT_ALREADY_OWNED' in str(refused.content), refused
+            passed('second_live_host_refused_without_stealing_connection')
+            report['forced_host_pid'] = host_pid
+            report['launcher_pid'] = crashed_server.pid
+            # Windows os.kill(SIGTERM) uses TerminateProcess. Kill the actual
+            # Python host, which may be a child of the virtualenv launcher.
+            os.kill(host_pid, signal.SIGTERM)
+            await asyncio.wait_for(crashed_server.wait(), 15)
+            assert alive()
+            passed('forced_host_exit_preserves_target')
+            after_crash = await observe()
+            report['background_immediately_after_forced_exit'] = after_crash
         # A fresh server must reacquire the client lock and attach to the same unsaved model.
         with (out / 'recovery-server.log').open('w', encoding='utf8') as log:
             async with stdio_client(params, errlog=log) as (read, write):
@@ -165,13 +223,18 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
                         if response.isError:
                             raise RuntimeError(str(response.content))
                         return response.structuredContent or json.loads(response.content[0].text)
-                    await recover('attach_open_vroid', {'pid': pid})
+                    attachment = await recover('attach_open_vroid', {'pid': pid})
+                    assert attachment['adopted']['recovered_previous_host']
+                    passed('new_host_recovers_previous_host_lease')
                     face = await recover('list_face_params')
                     assert abs(next(p['value'] for p in face['parameters'] if p['id'] == 'face/FaceSet/006') - .5) < 1e-6
-                    passed('new_client_reattaches_after_eof')
+                    passed('new_client_reattaches_after_forced_exit')
                     restarted = await recover('restart_session')
                     assert restarted['detached'] and alive()
                     passed('attached_restart_only_detaches')
+                    restored = await observe()
+                    assert restored == baseline, (restored, baseline)
+                    passed('reattach_after_forced_exit_restores_background', restored)
                     await recover('attach_open_vroid', {'pid': pid})
                     dev.kill(pid)  # exclusively the process spawned above
                     await asyncio.sleep(.5)
@@ -184,6 +247,9 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
         report.update(passed=False, error=repr(error))
         raise
     finally:
+        if crashed_server is not None and crashed_server.returncode is None:
+            crashed_server.kill()
+            await crashed_server.wait()
         if controller is not None and not controller.dead:
             await asyncio.to_thread(controller.close)
         if pid is not None:
@@ -196,6 +262,8 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
                 guard_session.detach()
             except frida.InvalidOperationError:
                 pass
+        if observer is not None:
+            await asyncio.to_thread(observer.close)
         (out / 'checks.json').write_text(json.dumps(report, indent=2), encoding='utf8')
     return report
 

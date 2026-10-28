@@ -25,6 +25,7 @@ const bridge = {
     background: null,
     backgroundScope: null,
     backgroundHook: null,
+    attachmentLease: null,
     pumpHooks: [],
     lastExec: 0,
     postThreadMessage: null,
@@ -186,21 +187,52 @@ function adoptRunning() {
     if (screen.class.type.name === 'VRoid.Studio.XWear.Edit.ViewModel') {
         rememberSingleton('VRoid.Studio.XWear.Edit.ViewModel', screen);
     }
-    const utility = nativeClass('VRoid.UI', 'VRoid.UI.Util.RunInBackgroundUtil');
     const binding = Il2Cpp.exports.resolveInternalCall(Memory.allocUtf8String('UnityEngine.Application::set_runInBackground'));
     if (binding.isNull()) throw Error('BACKGROUND_BINDING_MISSING');
-    const scope = utility.method('EnableRunInBackgroundScoped').invoke();
-    bridge.backgroundScope = scope;
-    bridge.background = keep(scope);
+    const application = nativeClass('UnityEngine.CoreModule', 'UnityEngine.Application');
+    const kernel = Process.getModuleByName('kernel32.dll');
+    const key = Memory.allocUtf16String('VROID_CHARACTER_MCP_ATTACHMENT_V1');
+    const getEnvironment = new NativeFunction(kernel.getExportByName('GetEnvironmentVariableW'), 'uint32', ['pointer','pointer','uint32']);
+    const setEnvironment = new NativeFunction(kernel.getExportByName('SetEnvironmentVariableW'), 'bool', ['pointer','pointer']);
+    const open = new NativeFunction(kernel.getExportByName('OpenProcess'), 'pointer', ['uint32','bool','uint32']);
+    const wait = new NativeFunction(kernel.getExportByName('WaitForSingleObject'), 'uint32', ['pointer','uint32']);
+    const processId = new NativeFunction(kernel.getExportByName('GetProcessId'), 'uint32', ['pointer']);
+    const close = new NativeFunction(kernel.getExportByName('CloseHandle'), 'bool', ['pointer']);
+    bridge.attachmentLease = createAttachmentLease({
+        target: Process.id, owner: ATTACHED_OWNER_PID,
+        read() {
+            const buffer = Memory.alloc(8192), length = getEnvironment(key, buffer, 4096);
+            if (length >= 4096) throw Error('ATTACHMENT_LEASE_TOO_LARGE');
+            return length ? buffer.readUtf16String(length) : null;
+        },
+        write(value) {
+            if (!setEnvironment(key, value === null ? NULL : Memory.allocUtf16String(value)))
+                throw Error('ATTACHMENT_LEASE_WRITE_FAILED');
+        },
+        openOwner() { return open(0x101000, 0, ATTACHED_OWNER_PID).toString(); },
+        ownerState(handle, owner) {
+            if (processId(ptr(handle)) !== owner) return 'invalid';
+            const result = wait(ptr(handle), 0);
+            return result === 0 ? 'dead' : result === 258 ? 'alive' : 'invalid';
+        },
+        closeOwner(handle) { close(ptr(handle)); },
+        getBackground() { return application.method('get_runInBackground').invoke(); },
+        setBackground(value) { application.method('set_runInBackground').invoke(value); },
+    });
+    const lease = bridge.attachmentLease.acquire();
     bridge.backgroundHook = Interceptor.attach(binding, {onEnter(args) { args[0] = ptr(1); }});
     for (const hook of bridge.pumpHooks) hook.detach();
     bridge.pumpHooks = [];
-    return {main_view_model: true, edit_root: !!root, wear_active: screen.class.type.name === 'VRoid.Studio.XWear.Edit.ViewModel'};
+    return {main_view_model: true, edit_root: !!root, wear_active: screen.class.type.name === 'VRoid.Studio.XWear.Edit.ViewModel', ...lease};
 }
 
 function releaseAttached() {
     if (bridge.backgroundHook) bridge.backgroundHook.detach();
     bridge.backgroundHook = null;
+    if (bridge.attachmentLease) {
+        bridge.attachmentLease.release();
+        bridge.attachmentLease = null;
+    }
     if (bridge.backgroundScope) {
         const scope = bridge.backgroundScope;
         bridge.backgroundScope = null;
@@ -210,6 +242,8 @@ function releaseAttached() {
     for (const handle of bridge.retained.values()) handle.free();
     bridge.retained.clear();
     state.refs = {};
+    for (const hook of bridge.pumpHooks) hook.detach();
+    bridge.pumpHooks = [];
     return {released: true};
 }
 

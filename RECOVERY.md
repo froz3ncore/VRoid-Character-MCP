@@ -126,6 +126,20 @@ MCP-observed edits, not manual edits outside the session.
 
 ## Validation boundaries / 验证边界
 
+For an attached user-opened window, a forcibly killed MCP host does not
+automatically close VRoid. With the current attachment lease, start a new MCP
+host, call `attach_open_vroid` on that same process, relist model state, and
+detach normally to restore its pre-attachment background flag. The new model
+token invalidates old requests. Recovery does not prove an interrupted write
+completed or undo it. Another live host is refused; detach it through its own
+client first. No saved character files are rewritten by lease recovery.
+
+连接现有窗口时，若 MCP 服务被强制终止，当前版本会保留进程内恢复记录。重启 MCP、
+连接同一 VRoid 进程、重新列出并检查模型状态，之后正常断开即可恢复连接前的后台设置。
+后台设置在重新连接前可能仍为开启。不要重放结果未确认的写入；新连接需要新 token。
+仍在运行的另一服务不会被抢占，请先通过原客户端断开。该恢复不覆盖旧版无记录的连接、
+操作中途丢失的结果或系统崩溃。
+
 `tools/run_checks.ps1 -Native` runs read-only domain checks on an exclusive
 prepared lab. Saving, cold reopening and exporting are tested separately by
 `tools/e2e_clean_lab.py`, which requires a new lab and caller-provided XWear.

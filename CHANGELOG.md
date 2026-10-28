@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — forced attachment-host exit recovery
+
+- Fixed background state remaining enabled across a killed host and later
+  detach. Attachment now holds a process-local lease with the original flag
+  and a Windows process handle, and recovers a verified dead owner's state on
+  the next attachment. Another live owner is refused. No model/profile files
+  store this lease. Release also removes its message-pump hooks.
+- Recovery happens on reattachment; it does not run automatically at host death
+  and does not establish the outcome of interrupted edits or exports. Agents
+  predating the lease cannot supply a recovery record.
+- F00 and M00 each pass 18 native lifecycle checks including forced termination
+  of the actual Python host, preserved confirmed unsaved edits, recovered
+  original background state, and refusal of another live host. Added JS lease
+  regressions for crash takeover, valid ownership and initialization failures.
+
 ## Unreleased — attachment lifecycle acceptance
 
 - Added a repeatable native attachment checker using a new copied installation,

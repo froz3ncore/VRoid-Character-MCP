@@ -14,6 +14,21 @@ are refused in attached mode. `detach_open_vroid` releases the connection withou
 closing the user's process; its result reports whether background settings were
 restored. `restart_session` also detaches rather than killing an attached process.
 
+Attachment records the original background flag and a Windows handle to the
+owning MCP host in the target's process-local environment. A second live host
+using this lease protocol is refused. If the host was forcibly terminated, a
+new attachment verifies the old process handle, restores its saved flag, and
+starts a fresh lease. The adoption result reports `recovered_previous_host`.
+The handle identifies the original process even if Windows later reuses its PID.
+Normal detach restores the pre-attachment flag and removes the lease.
+
+After a forced host exit, background execution may remain enabled until you
+reconnect and detach normally; recovery is not immediate. Confirmed unsaved
+edits survived the controlled idle-host termination test. An interrupted edit
+or export still has an uncertain result and must not be replayed blindly.
+This recovery applies to leases written by this version; older agents did not
+record this state. Unknown/corrupt ownership records are refused, not guessed.
+
 Prior manual edits are not observable to this server. To preserve the existing
 workaround for native body/texture and texture/Dress-up crashes, attached mode
 refuses `open_texture_editor` and `open_wear_project`. File-based Dress-up save
@@ -60,11 +75,12 @@ belongs to the test; the attached MCP agent itself still has no profile guard.
 Native checks cover home-screen attachment, creating a model after attachment,
 same-PID idempotence, face edits and Undo/Redo, refused operations, detach and
 reattach with unsaved edits, stale-token refusal, normal client EOF cleanup,
-new-client recovery, attached restart, and target-process termination. Background
+new-client recovery, live-host contention, forced Python-host termination,
+subsequent lease recovery, attached restart, and target-process termination. Background
 policy is measured before attachment and again after detach and normal EOF.
 Results go to `checks.json`; application and server logs stay under the output.
 
-F00 and M00 passed these lifecycle checks on the supported 2.14.0 build. This
+F00 and M00 each passed 18 checks on the supported 2.14.0 build. This
 does not establish full M00 editing coverage, modal-dialog handling, multiple
-human users, or recovery after forcibly killing the MCP server or the host OS.
+human users, or recovery of edits interrupted mid-call or a host OS crash.
 Independent real-profile acceptance remains pending in BETA_TESTING.md.

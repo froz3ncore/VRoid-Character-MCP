@@ -33,6 +33,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[1]
 # defines Il2Cpp, the main-thread host installs the queue, and the operation
 # modules register into `globalThis.vroid` last.
 AGENT_MODULES = (
+    'attachment_lease.js',
     'main_thread.js',
     'parameter_semantics.js',
     'color_state.js',
@@ -81,6 +82,7 @@ def disconnected_status(subject) -> dict:
 def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = False) -> str:
     """Concatenate the agent into one script with the probe config in front."""
     parts = ['const ATTACHED=' + json.dumps(attached) + ';',
+             'const ATTACHED_OWNER_PID=' + str(os.getpid()) + ';',
              (PROJECT / 'agent' / 'native_traps.js').read_text(encoding='utf-8')]
     if not attached:
         parts.extend(['const PROBE=' + json.dumps(config) + ';',
