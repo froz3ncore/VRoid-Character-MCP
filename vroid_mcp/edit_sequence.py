@@ -1,12 +1,11 @@
-"""Conservative session guard for the validated build's body/texture crash.
+"""Fallback guards for sessions without the validated native PNG decoder.
 
-A confirmed body edit requires a cold reopen before entering texture editing.
-Undo is not proof that the native overlay cache was reconstructed. This gate
-does not claim to detect manual edits made outside this MCP session.
+Managed copies with the decoder can edit continuously. Unverified sessions keep
+the earlier conservative boundaries; manual history in attached windows is unknown.
 """
 REOPEN_REQUIRED = (
     'TEXTURE_EDITOR_REOPEN_REQUIRED: body parameters changed in this model session. '
-    'This VRoid build can crash when entering texture editing afterwards. '
+    'This session has no verified native PNG lifetime fix for continuous editing. '
     'Save to a new .vroid first, close this session normally, and start a new '
     'session with that saved model. Do makeup before body edits when possible. '
     'Nothing entered the texture editor; do not restart with unsaved work.'
@@ -14,14 +13,21 @@ REOPEN_REQUIRED = (
 
 WEAR_RESTART_REQUIRED = (
     'WEAR_NEW_PROCESS_REQUIRED: texture editing was entered in this process. '
-    'This build has an unresolved native crash when later entering Dress-up. '
+    'This session has no verified native PNG lifetime fix for entering Dress-up. '
     'Close the texture editor and save to a new .vroid if needed, then close '
     'this session normally and open the saved file in Dress-up from a fresh '
     'session. Nothing entered Dress-up; unsaved work was not discarded.'
 )
 
 
+def decoder_enabled(subject) -> bool:
+    return (getattr(subject, 'mode', 'copy') == 'copy'
+            and getattr(subject, 'native_png_decoder_ready', False))
+
+
 def before_call(subject, operation: str, args: dict) -> None:
+    if decoder_enabled(subject):
+        return
     if operation == 'open_wear_project' and getattr(subject, 'texture_editor_entered', False):
         raise RuntimeError(WEAR_RESTART_REQUIRED)
     if operation == 'open_texture_editor' and args.get('expected_model') in getattr(
@@ -49,6 +55,9 @@ def after_call(subject, operation: str, args: dict, result) -> None:
 
 
 def status(subject, token: str | None) -> dict:
+    if decoder_enabled(subject):
+        return {'requires_cold_reopen': False, 'reason': None,
+                'scope': 'Validated copy uses native synchronous PNG decode with deferred callbacks.'}
     blocked = token in getattr(subject, 'body_edited_tokens', set())
     return {'requires_cold_reopen': blocked,
             'reason': 'BODY_EDIT_IN_THIS_SESSION' if blocked else None,
@@ -57,6 +66,9 @@ def status(subject, token: str | None) -> dict:
 
 
 def wear_status(subject) -> dict:
+    if decoder_enabled(subject):
+        return {'requires_new_process': False, 'reason': None,
+                'scope': 'Validated copy uses native synchronous PNG decode with deferred callbacks.'}
     blocked = getattr(subject, 'texture_editor_entered', False)
     return {'requires_new_process': blocked,
             'reason': 'TEXTURE_EDITOR_ENTERED_IN_THIS_PROCESS' if blocked else None,

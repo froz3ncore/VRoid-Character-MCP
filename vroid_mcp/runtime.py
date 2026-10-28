@@ -50,6 +50,7 @@ class Runtime(OrdinaryTools, EditTools, CaptureTools, WearTools):
         self.uncertain = False
         self.body_edited_tokens: set[str] = set()
         self.texture_editor_entered = False
+        self.native_png_decoder_ready = False
         self.events: list[dict] = []
         self.run_dir = frida_bridge.run_directory(self.lab)
 

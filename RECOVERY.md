@@ -71,10 +71,45 @@ lab 的 `crash-guard/`，备份失败不会删除。权限不足时保留错误�
 & .\.venv\Scripts\python.exe .\tools\doctor.py --lab "D:\VRoid-Character-Lab"
 ```
 
-## Texture editor to Dress-up / 纹理编辑后进入换装
+## Continuous editing / 连续编辑
 
-`WEAR_NEW_PROCESS_REQUIRED` is a conservative process boundary for an unresolved,
-intermittent native crash. Once this MCP process has confirmed texture-editor
+On the validated build, MCP-owned copies decode PNGs on Unity's main thread
+using VRoid's synchronous decoder, then deliver the original success/error
+callbacks in a later frame. Inputs and results are retained until callback
+delivery. The original asynchronous worker used a NativeArray view of a
+Texture2D buffer; the reproduced access violation was inside its background
+PNG-writing path. The replacement avoids that cross-thread storage lifetime.
+It does not resample images or patch installation files.
+
+`get_status.png_decoder` reports installation, mode, pending callbacks, decoded
+counts and fatal errors. Model readiness and transitions wait for pending
+callbacks. Body edits, texture editing and Dress-up can share one copy process.
+The former empty Mesh Collider warning also occurs on successful transitions;
+it is not sufficient evidence of a fatal mesh-cache defect.
+
+当前已核构建的独立副本可连续改体型、编辑纹理及进入换装；不用通过重开进程规避本次
+已复现的 PNG 解码崩溃。每帧最多处理四个解码请求，仍转发原生错误回调；内部失败会
+阻止后续操作，不把失败当成功。连接真实窗口没有安装该解码替换，相关限制仍保留。
+更新源码后需正常关闭旧 MCP 服务并重新载入 agent；先保存需保留的修改。
+
+Reproduce through real MCP stdio on an exclusive prepared lab:
+
+```powershell
+& .\.venv\Scripts\python.exe .\tools\check_continuous_editing.py `
+  --lab "D:\VRoid-Character-Lab" --out "D:\Continuous-Editing-F00" --variant F00 --cycles 5
+```
+
+The primary sequence stays in one process through body edits, four available
+texture regions per cycle, diagnostic layer import, saving, Dress-up, XRoid and
+VRM export. It checks exact renderer-to-VRM face-texture RGBA and independently
+parses the VRM. Only afterwards does a second process verify saved body values
+and layer pixels. Generated files have unique names; output must be new.
+M00 uses its actually available regions, not assumed F00-only categories.
+
+## Fallback texture-to-Dress-up guard / 未验证会话的换装守卫
+
+`WEAR_NEW_PROCESS_REQUIRED` is retained for sessions without the validated
+decoder. Once that MCP process has confirmed texture-editor
 entry, `open_wear_project` is refused before the native transition, even after
 closing the texture editor or loading another model. Reads and saving remain
 available. `get_status.wear_transition_guard` explains the state.
@@ -85,16 +120,16 @@ texture editor, list its new wear token, and open the confirmed saved file in
 Dress-up. Nothing automatically restarts or discards unsaved work. The public
 sample performs cold texture verification and Dress-up in separate processes.
 
-确认进入过纹理编辑器的同一进程会拒绝直接进入换装，关闭画板或换模型不解除守卫。
+未安装或未验证解码修复的会话进入过纹理编辑器后，会拒绝直接进入换装。
 需要保留的修改先另存新文件，正常关闭所属会话，再用新进程、新 wear token 打开
-确认保存的文件。此为隔离规避；原生根因尚未定位，不宣称原生缺陷已修复。
+确认保存的文件。此为未验证会话的保守回退；正常加载当前解码修复的独立副本不走此限制。
 
 ## Disconnected or uncertain edits / 断连或写入结果不确定
 
-`TEXTURE_EDITOR_REOPEN_REQUIRED` is a known-build sequence guard. After a
+`TEXTURE_EDITOR_REOPEN_REQUIRED` is a fallback sequence guard. After a
 confirmed body-parameter edit through `set_body_params`, `set_parameters`
 (`domain=body`) or `set_height`, entering texture editing is refused before the
-native call. Reads, capture and saving remain available. This conservatively
+native call when the decoder fix has not been verified. Reads, capture and saving remain available. This conservatively
 covers all body sliders, not only height. No-op writes do not trip it; Undo does
 not prove the native overlay cache was rebuilt and does not clear it. It tracks
 MCP-observed edits, not manual edits outside the session.

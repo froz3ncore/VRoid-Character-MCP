@@ -26,6 +26,7 @@ const bridge = {
     backgroundScope: null,
     backgroundHook: null,
     attachmentLease: null,
+    pngDecoder: null,
     pumpHooks: [],
     lastExec: 0,
     postThreadMessage: null,
@@ -49,6 +50,7 @@ const state = {
     refs: {},
     get frame() { return bridge.frame; },
     get mainThread() { return bridge.mainThread; },
+    get pngDecoder() { return bridge.pngDecoder ? bridge.pngDecoder.status() : {installed: false}; },
 };
 
 // Unity 6 hands out pointer-sized GC handles while the bridge typedefs them as
@@ -110,6 +112,11 @@ function drainOne() {
     if (Process.getCurrentThreadId() !== bridge.mainThread || bridge.executing) return;
     bridge.frame += 1;
     bridge.lastExec = Date.now();
+    if (bridge.pngDecoder) {
+        bridge.executing = true;
+        try { bridge.pngDecoder.pump(); }
+        finally { bridge.executing = false; }
+    }
     drainJob();
 }
 
@@ -311,6 +318,8 @@ Il2Cpp.perform(function () {
     }
     bridge.mainThread = ATTACHED ? unityWindowThread() : Process.getCurrentThreadId();
     keep = createHandleKeeper();
+    if (!ATTACHED) bridge.pngDecoder = installNativePngDecoder({cls: nativeClass, retain,
+        frame: () => bridge.frame, mainThread: () => bridge.mainThread});
     // Frames arrive through the synchronization context; attaching on leave
     // means the queue drains after the frame's own work, not in the middle.
     bridge.hooks.push(Interceptor.attach(
@@ -329,7 +338,8 @@ Il2Cpp.perform(function () {
 
 rpc.exports = {
     health() {
-        return { ready: bridge.ready, error: bridge.error, pid: Process.id, frame: bridge.frame };
+        return { ready: bridge.ready, error: bridge.error, pid: Process.id, frame: bridge.frame,
+                 native_png_decoder_ready: bridge.pngDecoder !== null };
     },
     call(name, args) {
         return schedule(function () { return vroid.dispatch(name, args || {}); });

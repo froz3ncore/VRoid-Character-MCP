@@ -66,7 +66,7 @@ boundaries explicit. Functional acceptance and character-art adoption are separa
 
 ## CI scope / 持续集成范围
 
-Latest native verification: the corrected hair-first height tests passed at
+Historical native verification (before the decoder fix): the corrected hair-first height tests passed at
 151.8 / 157.8 / 165.8 cm with unchanged live height and scale after cold reopen.
 An additional same-process chain passed texture persistence checks, then crashed
 in native code while opening Dress-up (`script has been destroyed`). Opening the
@@ -80,6 +80,16 @@ the sample and matrix use a separate fresh process for Dress-up/export.
 发生原生崩溃。相同哈希底模在新进程中、不进入纹理编辑器时，装配、保存和 VRM
 独立解析通过。原崩溃尚未定位，不把该次完整 E2E 标成通过。
 当前守卫会提前拒绝同进程切换；公开样例与矩阵把换装和导出放在新的独立进程中。
+
+2026-10-28 superseding result: the reproduced async PNG buffer-writing failure
+is addressed in managed copies by main-thread native decoding and deferred
+callbacks. F00 and M00 each passed 20 body-to-texture entries, same-process
+Dress-up/XRoid/VRM export, exact renderer-to-VRM face-texture pixels and a later
+cold persistence check. Use tools/check_continuous_editing.py. The earlier failed
+run remains a failure; independent-user acceptance is still pending.
+
+上段为历史失败与旧规避。本次修复后，已验证独立副本可在同一进程连续编辑及导出；
+真实连接模式仍保留限制。外部用户仍需独立复验，不能把开发者本机通过当成外测通过。
 
 The Windows workflow runs unit tests, MCP input-schema checks, JS behaviour and
 source-manifest verification on clean hosted checkouts. It retains reports on

@@ -34,6 +34,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[1]
 # modules register into `globalThis.vroid` last.
 AGENT_MODULES = (
     'attachment_lease.js',
+    'native_png_decoder.js',
     'main_thread.js',
     'parameter_semantics.js',
     'color_state.js',
@@ -245,6 +246,21 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
             raise RuntimeError('ATTACHED_HISTORY_UNKNOWN: prior manual body and texture edits cannot be verified; use a fresh isolated copy for this transition')
         if operation in {'save_as', 'open_model', 'new_model', 'save_wear_project', 'wear_clear_save_path', 'import_xwear'}:
             raise RuntimeError('ATTACHED_FILE_OPERATION_REFUSED: save in VRoid; file operations belong to the isolated copy')
+    if getattr(subject, 'native_png_decoder_ready', False) and operation in {
+            'open_texture_editor', 'close_texture_editor', 'open_wear_project',
+            'new_model', 'open_model', 'save_as', 'enter_vrm_export'}:
+        deadline = time.monotonic() + 30
+        while True:
+            png = await call(subject, 'native_png_status')
+            if not png.get('installed') or png.get('fatal'):
+                subject.uncertain = True
+                raise RuntimeError('NATIVE_PNG_DECODER_UNAVAILABLE: ' + str(png))
+            if png['pending'] == 0:
+                break
+            if time.monotonic() > deadline:
+                subject.uncertain = True
+                raise TimeoutError('Native PNG callbacks did not finish; transition was not attempted')
+            await asyncio.sleep(.05)
     edit_sequence.before_call(subject, operation, payload)
     try:
         result = await asyncio.wait_for(
@@ -265,6 +281,7 @@ async def initialize(subject, variant: str = 'F00', model_file: pathlib.Path | N
             if health['error']:
                 raise RuntimeError(health['error'])
             if health['ready']:
+                subject.native_png_decoder_ready = bool(health.get('native_png_decoder_ready'))
                 status_result = await call(subject, 'status')
                 if not status_result.get('reason', '').startswith('Error: NOT_READY'):
                     break
@@ -299,7 +316,12 @@ async def settle(subject, after_frame: int = -1) -> dict:
     quiet = 0
     while time.monotonic() < deadline:
         result = await call(subject, 'status')
+        png = result.get('png_decoder', {})
+        if png.get('fatal'):
+            subject.uncertain = True
+            raise RuntimeError('NATIVE_PNG_DECODER_FAILED: ' + str(png['fatal']))
         idle = (result['model_ready'] and not result['updating']
+                and not png.get('pending', 0)
                 and not result.get('command_busy', False) and not result.get('photo_updating', False)
                 and (result.get('photo_active', False) or not result.get('presets_loading', False)))
         if idle and result['frame'] >= after_frame + 2:
@@ -324,6 +346,8 @@ async def status(subject) -> dict:
                 raise
             subject.dead = True
             return disconnected_status(subject)
+        if result.get('png_decoder', {}).get('fatal'):
+            subject.uncertain = True
         result.update(connected=True, mode=getattr(subject, 'mode', 'copy'), target=getattr(subject, 'target', None),
                       writes_blocked=subject.uncertain, lab=str(subject.lab),
                       crash_guard=subject.crash_guard,

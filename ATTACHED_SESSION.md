@@ -41,7 +41,8 @@ active transferable groups, their type, native ID and resource identity.
 `replace_part` accepts catalog-verified built-ins and registered closet IDs; unknown
 IDs are rejected before the native loader. Custom items use native closet selection. Already
 active parts are reported as a no-op. After replacement, re-list parts and
-parameters; a cold reopen is required before texture editing. `save_custom_items`
+parameters. Verified copies await native PNG callbacks before further editing;
+attached sessions still refuse texture entry. `save_custom_items`
 saves new items into the isolated copy profile, optionally restricted to unique
 `types` from `savable_types`. It verifies new files, ZIP integrity, root metadata
 and native closet registration. Existing items are never overwritten. Attached

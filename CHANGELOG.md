@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — same-process native PNG decode lifetime fix
+
+- Reproduced the historical transition access violation at the same binary
+  offsets and mapped it to PNGUtil's background decode closure writing a
+  NativeArray view of Texture2D storage. Empty Mesh Collider warnings also
+  occur in passing runs and are not treated as proof of that crash's cause.
+- Managed copies replace that async entry with the native synchronous decoder
+  on Unity's main thread, retaining inputs/results and deferring original
+  callbacks. Four requests per frame bound the batch; native errors are forwarded
+  and infrastructure failures block further operations. No installation files
+  or pixel resampling are involved.
+- Verified copies await pending callbacks at transitions and no longer require
+  process restarts between body, texture and Dress-up editing. Attached windows
+  retain their existing restrictions. Added real-MCP continuous-editing acceptance
+  through XRoid/VRM with exact texture pixels and a separate persistence check.
+
 ## Unreleased — forced attachment-host exit recovery
 
 - Fixed background state remaining enabled across a killed host and later

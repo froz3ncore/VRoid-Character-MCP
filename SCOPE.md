@@ -10,6 +10,10 @@
 
 ## 必须做（Must）
 
+2026-10-28 连续编辑更新：独立副本的异步 PNG 写入崩溃路径已通过主线程原生解码、
+输入/结果持有及延后回调修复；已验证副本不再要求体型→纹理→换装之间重开进程。
+见 RECOVERY.md 与 tools/check_continuous_editing.py。连接真实窗口仍保留历史未知限制。
+
 后续可复现与恢复改进已加入开发树：`tools/doctor.py`、公开自制配件样例、体型编辑后
 画板冷重开守卫、区域图像比较与身高／原生上衣矩阵。说明见 RECOVERY.md、PUBLIC_SAMPLE.md、
 REGRESSION.md；外部用户验收和人工金标准采用仍待进行，见 BETA_TESTING.md。

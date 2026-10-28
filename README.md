@@ -12,9 +12,10 @@ end on a clean lab; the new attached-session and ordinary-export features are
 under independent verification. Character art and sitting-skirt fit remain
 separate work. See [SCOPE.md](SCOPE.md).
 
-Confirmed body-parameter edits now require a saved-file cold reopen before
-entering texture editing, to avoid a known native crash path. Other reads and
-saving remain available; see [recovery](RECOVERY.md).
+Validated copies support body, texture and Dress-up editing in one process.
+Native PNG decoding runs on Unity's main thread with deferred callbacks to avoid
+the reproduced asynchronous buffer-lifetime crash. Transitions wait for pending
+callbacks; attached windows keep their conservative restrictions. See [recovery](RECOVERY.md).
 
 ## In action
 
@@ -204,8 +205,8 @@ acceptance remain pending. See [regression scope](REGRESSION.md).
   channels reads back but changes 0 of 640x640 rendered pixels; global hair
   colour (`colors/Hair/All`) changes 24.6%. Only global colour is supported.
 - **M00** has not received the coverage F00 has.
-- **Texture editor to Dress-up requires a new process.** A conservative guard
-  avoids an unresolved native transition crash; save first and follow [RECOVERY.md](RECOVERY.md).
+- **Continuous editing requires the validated decoder.** Copies expose its state
+  in `get_status.png_decoder`; attached sessions retain their restrictions.
 - **Rear-skirt collision is paused and unresolved**; it is not assumed away.
 - Godot import, materials and physics require separate engine-side validation.
 

@@ -72,6 +72,7 @@ globalThis.vroid = (() => {
             background: core('Application').method('get_runInBackground').invoke(),
             focused: core('Application').method('get_isFocused').invoke(),
             model_ready: false,
+            png_decoder: state.pngDecoder,
         };
         try {
             const m = modelContext();
@@ -706,6 +707,7 @@ globalThis.vroid = (() => {
     const operations = {
         ...textureApi.operations,
         ...ordinary.operations,
+        native_png_status: () => state.pngDecoder,
         ...presetPreviews.operations,
         ...bodyReference.operations,
         ...wear.operations,
@@ -783,6 +785,8 @@ globalThis.vroid = (() => {
     return {
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
+            if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
+                throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
             requireOrdinaryEditing(name, args);
             return operations[name](args);
         },

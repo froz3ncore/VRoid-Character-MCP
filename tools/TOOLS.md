@@ -340,7 +340,8 @@ Replace one built-in or registered closet part using the native loader.
 
 Registered custom IDs use native custom-item import. Unknown or old-version
 IDs are refused. Relist parts and parameters after replacement.
-A fresh process is required before entering the texture editor afterwards.
+Verified copies wait for native PNG callbacks before texture entry.
+Sessions without that decoder keep the conservative cold-reopen guard.
 
 ### `save_custom_items`
 

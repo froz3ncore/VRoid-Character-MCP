@@ -75,8 +75,7 @@ class OrdinaryTools:
                 if time.monotonic() > deadline:
                     self.uncertain = True
                     raise RuntimeError('REPLACE_PART_UNCONFIRMED: native load may still be pending; inspect Player.log')
-            # Any replacement may change the model's body topology, so do not
-            # permit texture entry until a fresh process reopens the model.
+            # Retain the edit record for fallback sessions without the decoder.
             return {'model_token': expected_model, 'part_id': part_id, 'replaced': True}
 
     async def save_custom_items(self, expected_model, types=None):
