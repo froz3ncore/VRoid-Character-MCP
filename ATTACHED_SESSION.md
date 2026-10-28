@@ -14,17 +14,32 @@ that copy first.
 
 An attached session operates on the user's actual open model and profile. The
 copy's profile guard is **not** installed. Changes use VRoid's native history.
-`save_as` writes a new lab copy and retains the original file association and
+`save_as` writes a new copy and retains the original file association and
 dirty state. `save_character` saves over the associated file after preserving a
 verified backup in lab saves; `save_character_as` creates a new file and binds it
 to the window. Explicit absolute paths in existing directories are supported in
 attached mode for character/XWear/XRoid input and new output. Copy mode stays in its lab.
-`open_character` opens a lab file after explicit discard; creating a new model
+`open_character` opens a selected `.vroid` after explicit discard; creating a new model
 from an active character uses `new_character` with explicit discard. It follows
 the native exit-to-start-screen callback, waits for exit, then creates the model.
 `detach_open_vroid` releases the connection without
 closing the user's process; its result reports whether background settings were
 restored. `restart_session` also detaches rather than killing an attached process.
+
+| Attached character operation | File and window behavior | Required confirmation |
+|---|---|---|
+| `save_as` | New `.vroid` copy; original association and prior dirty flag preserved | Fresh `expected_model`; no overwrite |
+| `save_character` | Overwrites the associated `.vroid` after a verified backup in lab saves | Fresh `expected_model`; requires an existing associated file |
+| `save_character_as` | New `.vroid`; associates the window and marks the saved character clean | Fresh `expected_model`; no overwrite |
+| `open_character` | Opens the selected `.vroid` and replaces the current character | Fresh `expected_model`, `discard_unsaved=true` |
+| `new_character` | Replaces the current ordinary character with F00 or M00 through the native exit lifecycle | Fresh `expected_model`, `discard_unsaved=true` |
+| `open_current_in_wear` | Saves a new character copy, checks for changes, then loads it in Dress-up | Fresh model/wear tokens, `switch_to_wear=true` |
+
+For attached character/XWear/XRoid file IO, plain filenames resolve under this
+client's lab `saves/`; explicit absolute paths may use existing directories outside
+the lab. New output files never overwrite an existing destination. The path
+exception does not extend to PNG import or ordinary VRM export, which keep their
+lab paths. Copy sessions retain their existing lab path restrictions.
 
 Attachment records the original background flag and a Windows handle to the
 owning MCP host in the target's process-local environment. A second live host
@@ -53,9 +68,10 @@ transitions. Detach restores the original decoder entry for future requests.
 fresh wear token and explicit `discard_unsaved=true`: it loads that file, rather
 than saving or silently transferring the current unsaved model. Close the canvas
 first. `open_current_in_wear` instead saves a new checked `.vroid` copy before
-switching and checks for changes since the snapshot. `import_xwear` reads from
-the lab saves directory; `save_wear_project` creates a new XRoid there and
-associates the window with the resulting file. In attached mode XRoid saving
+switching and checks for changes since the snapshot; pass `switch_to_wear=true`
+and fresh model/wear tokens. `import_xwear` accepts an absolute input path or a
+lab saves filename; `save_wear_project` creates a new XRoid at an absolute path
+or in lab saves and associates the window with the resulting file. In attached mode XRoid saving
 uses the target window's native cache, not the lab profile guard. Existing files
 are not overwritten by copy/Save As operations. Only `save_character` overwrites
 the currently associated character file, preserving its previous bytes in a backup.
@@ -125,8 +141,23 @@ subsequent lease recovery, attached restart, and target-process termination. Bac
 policy is measured before attachment and again after detach and normal EOF.
 Results go to `checks.json`; application and server logs stay under the output.
 
-`tools/check_attached_editing.py` takes the same arguments and a different NEW
-output directory. It covers a preexisting file and unsaved edits, native unsaved
+`tools/check_attached_editing.py` takes the same source/variant arguments and a
+different NEW output directory. Supply a compatible XWear with `--xwear` to include
+the import/save/reopen checks from the complete 25-check run:
+
+```powershell
+& .\.venv\Scripts\python.exe .\tools\check_attached_editing.py `
+  --source "C:\Program Files\VRoid Studio" `
+  --out "D:\VRoid-Attached-Editing-F00" --variant F00 `
+  --xwear "D:\VRoid-Test-Assets\accessory.xwear"
+```
+
+Repeat with `--variant M00` and another new output directory. Omitting `--xwear`
+skips XWear import and XRoid save/reopen; such a run is not the full 25-check result.
+The expanded script covers repeated native new-character replacement, absolute
+Save As/association and character opening, source-preserving copy saves, in-place
+save backups and cold-process face/body persistence, current-character Dress-up
+entry, and optional XWear/XRoid round trips. It also covers preexisting unsaved edits, native unsaved
 dialogs/progress locks, a disabled OS owner, a real Windows file picker and its
 cancellation, repeated texture entry, exact layer
 pixels and Undo/Redo, custom item saving, stale review rejection, interruption
@@ -140,8 +171,15 @@ crash recovery. The file picker is shown by a test helper with the Unity window
 as owner; it is not every VRoid-specific picker or save/overwrite prompt.
 Independent real-profile acceptance remains pending in BETA_TESTING.md.
 
-On the supported 2.14.0 build, F00 and M00 each passed all 17 attached-editing
-checks. The updated F00 lifecycle replay also passed all 18 checks. Offline
-regression reports 545 passed / 1 skipped and nine JS behavior suites; the two
-recovery tools brought the exposed set to 94. All 92 earlier input schemas retain
-their original combined hash (`sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034`).
+On the supported 2.14.0 build, the expanded F00 and M00 runs dated 2026-10-28 each
+passed 25 attached-editing/file-workflow checks, including XWear/XRoid and cold
+character persistence. The separate F00 lifecycle replay passed 18 checks. Earlier
+17-check editing runs remain historical evidence. These are controlled fixtures;
+long-running GC stress, real user profiles and independent-user acceptance remain
+unverified. This documentation update does not rerun native checks.
+
+Current offline regression reports 548 passed / 1 skipped on Python 3.10 and 3.12,
+nine JS behavior suites and a 334-file source manifest. Five file-workflow tools
+expanded the set from 94 to 99, preserving all 94 earlier input schemas. The
+current full toolset hash is
+`sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34`.

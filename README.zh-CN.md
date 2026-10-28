@@ -8,7 +8,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 99 个 MCP 工具 · s
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
-连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可在 lab 中另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定 lab 人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。替换人物须明确允许丢弃当前修改；`new_character` 按原生退出流程完成新建替换。人物、XWear、XRoid 文件流程支持明确的绝对路径。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。新建／打开人物须 `discard_unsaved=true`；`new_character` 按原生退出流程完成新建替换。当前人物转换装须 `switch_to_wear=true`。人物、XWear、XRoid 文件流程支持明确的绝对路径，普通文件名使用 lab 的 saves 目录。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
@@ -206,7 +206,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-当前代码验收为 **545 个 Python 测试通过、1 个跳过、9 组 JavaScript 行为检查通过**；94 工具输入合同保持不变。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
+当前代码验收在 Python 3.10／3.12 均为 **548 个测试通过、1 个跳过**；**9 组 JavaScript 行为检查、99 工具合同与 334 文件源码清单通过**。原有 94 工具输入 schema 保持，新增五个人物／文件流程工具。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 
@@ -216,7 +216,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 结构检查不代表完整 VRM 规范认证，也不代表外观、碰撞或游戏引擎物理验收。
 
-此前代码回归在 Python 3.10／3.12 均为 545 通过／1 跳过。文件流程更新的验证另行记录。2026-10-28 的既有原生记录包含五域检查、F00／M00 各 17 项真实窗口编辑检查、18 项 F00 连接生命周期检查，以及同进程体型→纹理→换装→导出。
+2026-10-28 扩展后的真实窗口编辑与文件流程验收在 F00／M00 各通过 25 项，包含新建、绝对路径另存／打开、原位保存备份与冷重开、当前人物转换装、XWear 导入和 XRoid 保存重开。独立的 F00 连接生命周期验收为 18 项；此前五域检查与同进程体型→纹理→换装→导出保留各自原生证据。文档同步不视为重新运行这些原生流程，复现方式见 [连接说明](ATTACHED_SESSION.md)。
 
 此前公开样例和 10 组 F00 身高／身体比例／上衣矩阵保留为历史证据，30 张保存前后原生视图逐像素一致。2026-10-20 已人工采用三视图作为技术回归基准；角色最终美术采用和独立外测仍待进行，见 [回归范围](REGRESSION.md)。
 

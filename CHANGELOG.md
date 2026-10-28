@@ -11,7 +11,8 @@ is created. Local validation and independent external-user acceptance are separa
 - Added explicit attachment/detachment, ordinary VRM 0.x/1.0 export, native part
   listing/replacement and new custom-item saves, followed by two state-review
   tools: `get_attached_state` and `acknowledge_attached_state`. The 86-tool
-  historical baseline grew first to 92, then to 94; existing inputs are preserved.
+  historical baseline grew first to 92, then to 94; the five file-workflow tools
+  below bring it to 99. All earlier 94 input schemas are preserved.
 - Added `open_character` and `open_current_in_wear`; attached `save_as`,
   `import_xwear`, and new XRoid saving are supported. Character in-place saving
   and new-character replacement were completed with `save_character`,
@@ -59,22 +60,26 @@ is created. Local validation and independent external-user acceptance are separa
 
 ### Validation and remaining scope
 
-- Latest code suite: **545 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
-  suites, source-manifest/provenance and unchanged 94-tool input hash
-  `sha256:1e6188ac193097637bc8fbfad3566e1da1f794210d16283cc777c9ee7cb15208`.
+- Latest code suite: **548 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
+  suites, 334-file source manifest, provenance and the 99-tool input hash
+  `sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34`.
   Both interpreters were checked for this snapshot; earlier counts remain historical.
 - Native evidence dated 2026-10-28: five domains passed; F00/M00 each completed
   20 body-to-texture entries, same-process Dress-up/XRoid/VRM, exact exported
-  texture pixels and cold persistence checks. Attached editing passed 17 checks
-  per variant; updated F00 lifecycle passed 18, including normal/forced host exit,
+  texture pixels and cold persistence checks. The expanded attached editing/file
+  workflow passed 25 checks per variant, including repeated new-character
+  replacement, absolute Save As/open, backup-verified in-place saving and cold
+  persistence, current-character Dress-up entry, XWear import and XRoid save/reopen.
+  The separate F00 lifecycle run passed 18, including normal/forced host exit,
   live-owner refusal and preserved unsaved work. Interrupted-import testing
   verifies queued managed completions after agent unload and cross-client review.
+  Earlier 17-check attached runs remain historical records.
 - Historical public sample and 10-case F00 matrix passed; all 30 saved/cold views
   matched exact RGBA. A three-view technical baseline was explicitly approved on
   2026-10-20; that is not final character-art adoption or independent acceptance.
 - Controlled native fixtures use isolated startup profiles. Real user profiles,
   arbitrary simultaneous manual editing, every native save/overwrite dialog,
-  full M00 parity and OS-crash recovery are not certified. Global visible hair
+  long-running GC stress, full M00 parity and OS-crash recovery are not certified. Global visible hair
   colour is supported; per-strand visible colour is not. Rear-skirt collision
   remains paused/unresolved, and game-engine rendering/physics require separate
   acceptance. Independent external-user testing remains pending.

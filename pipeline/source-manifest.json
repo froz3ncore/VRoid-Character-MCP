@@ -2,7 +2,7 @@
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
  "file_count": 334,
- "total_bytes": 2114336,
+ "total_bytes": 2120607,
  "tool_count": 99,
  "toolset_hash": "sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34",
  "files": [
@@ -13,13 +13,13 @@
   },
   {
    "path": "ATTACHED_SESSION.md",
-   "bytes": 9735,
-   "sha256": "c7fd240434f013d73e67ad35ba2e88ef2f0bc14ef4707f117efc38bc20755803"
+   "bytes": 12417,
+   "sha256": "dacf88e791bb35094df1a9dad8da636bbe5f1ccd76a64f7fc2666f5e32fbca5a"
   },
   {
    "path": "BETA_TESTING.md",
-   "bytes": 5871,
-   "sha256": "a0d661c9cd310d8841812b40544da70cc1c4d01ec1cf9b86c0be98235a957829"
+   "bytes": 6586,
+   "sha256": "bf1b5441612eccc0d0ba02ddb36f2005aea8ab45ba29924d2aedd4c4b106d816"
   },
   {
    "path": "BLENDER_SETUP.zh-CN.md",
@@ -28,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 16142,
-   "sha256": "f7cdca8e7ab60042481036c1038634bef82e325f390340df1cf0b3eb90b4911d"
+   "bytes": 16531,
+   "sha256": "7a027f74907e9c598f4af603033403073bb46f8d2e9ff4d32e03f736e3d2642c"
   },
   {
    "path": "LICENSE",
@@ -39,7 +39,7 @@
   {
    "path": "LICENSING.md",
    "bytes": 3227,
-   "sha256": "e370d07e9f13caaef6bf9cf740fa63e1a396dabe8c1c80a33cfdf886a165f6a8"
+   "sha256": "052d87da840952a2276a7591ac7a23124e61bf31177e9d44324288d84aa6765e"
   },
   {
    "path": "NOTICE",
@@ -53,23 +53,23 @@
   },
   {
    "path": "README.md",
-   "bytes": 13988,
-   "sha256": "37ef3b509a662395686a86f4956091d76f3e23916584e179cd1ea02e3244409c"
+   "bytes": 14190,
+   "sha256": "2f4bbaf9becbba018e5a1ffe587965b584ee6cb52eb72d35c4ecec6fc1bc8ca9"
   },
   {
    "path": "README.zh-CN.md",
-   "bytes": 15986,
-   "sha256": "6666d091db61732a115604f6ca86ff1c428f1142fdc87950c812cacf41aabf2f"
+   "bytes": 16357,
+   "sha256": "92933c14c43998224766d646701fcc6498ccd13a3b44e273c09e5b9fb2b0852e"
   },
   {
    "path": "README.zh-TW.md",
-   "bytes": 10109,
-   "sha256": "053d09004e7a064b2bed42730468cb48269e887d72b1ad82c87a90089c8523ec"
+   "bytes": 10565,
+   "sha256": "98f53854ad7ef859aa6997a09297453719c6669e0dd5feae01a4d527facc4759"
   },
   {
    "path": "RECOVERY.md",
-   "bytes": 12956,
-   "sha256": "c3d821828f93291ecb082799a609d3c1e74490113a718f3c179a9bc3717142f9"
+   "bytes": 13602,
+   "sha256": "b2d828897d1f925da6ebf3681898fdcf5218daa192625dc633b23569b0076bd5"
   },
   {
    "path": "REGRESSION.md",
@@ -78,8 +78,8 @@
   },
   {
    "path": "SCOPE.md",
-   "bytes": 5598,
-   "sha256": "7f683dec425ae5039e921c4c790ed8f6be07f84d644b9448c17ef81419a70a69"
+   "bytes": 6408,
+   "sha256": "9c03f2d13605a924e628a09548af0e2a410fbc1523a538502c66a1e75f5afdfd"
   },
   {
    "path": "UPSTREAM.json",

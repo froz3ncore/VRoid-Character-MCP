@@ -72,10 +72,10 @@ registry key and its own `TEMP`, attaches with Frida, and calls managed methods
 on Unity's main thread. `attach_open_vroid` can explicitly connect an existing
 user-opened process. Edits then affect the user's unsaved model and profile;
 the copy's isolation guard is not loaded. `detach_open_vroid` leaves it running.
-In an attached window, `save_as` saves a new lab copy while preserving the original
+In an attached window, `save_as` saves a new copy while preserving the original
 association and dirty state; `save_character` saves in place with a verified backup,
 and `save_character_as` creates and associates a new file. Compatible
-windows can open lab characters, save the current character copy before Dress-up,
+windows can open characters, save the current character copy before Dress-up,
 import XWear and save a new XRoid, including explicit absolute file paths. New
 characters use `new_character` with explicit discard and native exit sequencing.
 Ordinary VRM export writes under lab/saves. Custom item saves use the current
@@ -196,11 +196,14 @@ own report is not the evidence.
 
 ## Known limitations
 
-Latest code checks: **545 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
-**nine JS suites**, and the unchanged **94-tool** input contract. Native evidence
-from 2026-10-28 covers five domains, 17 attached-editing checks each for F00/M00,
-18 F00 attachment-lifecycle checks, and continuous body/texture/Dress-up editing
-through export. Version/documentation changes do not constitute a new native run.
+Latest code checks: **548 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+**nine JS suites**, **99 tools** and a 334-file source manifest. The earlier 94
+input schemas are unchanged; five character/file-workflow tools were added.
+Native evidence dated 2026-10-28 includes the expanded 25 attached-editing and
+file-workflow checks each for F00/M00, plus the separate 18-check F00 attachment
+lifecycle run. Earlier five-domain and continuous body/texture/Dress-up checks
+through export retain their own evidence. Version/documentation changes do not
+constitute a new native run. See [acceptance scope](SCOPE.md).
 
 The earlier public sample and 10-case F00 matrix remain historical evidence;
 their 30 saved/cold views matched exact RGBA. A three-view technical baseline

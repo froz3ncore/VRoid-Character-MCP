@@ -184,7 +184,14 @@ client first. No saved character files are rewritten by lease recovery.
 `get_attached_state` 取得新鲜的 `recovery_token`，交给 `acknowledge_attached_state`。
 手动编辑、模型或文件关联变化会使旧凭据失效；弹窗／原生任务未结束时无法确认。
 确认只恢复后续编辑，不重试、回滚或认定中断操作成功。记录属于 VRoid 进程，换客户端
-仍可读取；VRoid／系统退出后不保留。详见 ATTACHED_SESSION.md。
+仍可读取；VRoid／系统退出后不保留。详见 [ATTACHED_SESSION.md](ATTACHED_SESSION.md)。
+
+人物文件操作失败时同时核对窗口与磁盘：`save_as` 只生成副本并保留原关联；
+`save_character_as` 另存后才关联新文件，关联失败时新文件可能已经存在；
+`save_character` 原位保存前保留核验过的备份，失败信息会给出原文件与备份路径。
+不要直接覆盖或删除这些文件。`open_current_in_wear` 的切换失败也可能已经生成角色
+副本；先检查返回信息中的路径和实际画面，再按上述流程检查、确认中断记录。
+确认恢复只解除后续编辑限制，不证明原文件保存完整或自动恢复备份。
 
 `tools/run_checks.ps1 -Native` runs read-only domain checks on an exclusive
 prepared lab. Saving, cold reopening and exporting are tested separately by
