@@ -3,7 +3,7 @@
 [English](README.md) · [简体中文](README.zh-CN.md) · **繁體中文**
 
 本地 MCP 伺服器：預設驅動**一份可丟棄的 VRoid Studio 副本**，也可明確連接已開啟的 VRoid；透過
-managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **94 個工具**。
+managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **99 個工具**。
 不使用滑鼠自動化、OCR 或螢幕抓取。
 
 狀態：**0.5.0.dev0 開發快照**（npm 對應 `0.5.0-dev.0`），共 **94 工具**。
@@ -42,8 +42,8 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 `prepare_lab.py` 把支援的 VRoid Studio 安裝複製成一個 lab。預設伺服器啟動那份副本，
 使用獨立 profile、獨立登錄鍵與自己的 `TEMP`，以 Frida 附加，並在 Unity 主執行緒呼叫
 managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯直接作用於真實角色與 profile，
-不載入副本隔離守衛；人物檔案請在 VRoid 中保存。斷開不會關閉視窗。兼容視窗支援貼圖編輯，
-也可明確丟棄未保存修改後從指定檔案進入換裝。普通編輯可匯出 VRM 0.x/1.0；
+不載入副本隔離守衛；`save_as` 在 lab 保存新副本並保留原檔案關聯與未保存標記，`save_character` 原位保存前會保留核驗過的備份，`save_character_as` 可另存並關聯新檔案。
+斷開不會關閉視窗。兼容視窗可打開 lab 人物、保存當前人物副本後進入換裝、匯入 XWear 並保存新 XRoid；`new_character` 依原生退出流程完成新建替換，人物／XWear／XRoid 流程支援明確的絕對路徑。普通編輯可匯出 VRM 0.x/1.0；
 自訂物件保存到該視窗的原生衣櫃，核驗檔案與登記並保留人物檔案關聯及原有未保存標記。
 連接和部件操作詳見 [既有工作階段與普通匯出](ATTACHED_SESSION.md)。
 
@@ -141,7 +141,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manife
 - **逐束發色不可見**：`Level1BaseHair_*` 色彩通道可讀回，但 640×640 渲染 0 像素變化；
   全域 `colors/Hair/All` 則有 24.6% 變化，因此只支援全域發色。
 - **M00** 沒有 F00 的等價覆蓋。
-- **連續編輯與真實視窗保護**：已核構建使用主執行緒原生 PNG 解碼；真實連接使用 VRoid 持有的完成回呼，彈窗與中斷寫入會阻止後續編輯。人物另存、XRoid 保存及 XWear 匯入仍需獨立副本，詳見[連接說明](ATTACHED_SESSION.md)。
+- **連續編輯與真實視窗保護**：已核構建使用主執行緒原生 PNG 解碼；真實連接使用 VRoid 持有的完成回呼，彈窗與中斷寫入會阻止後續編輯。檔案流程與限制詳見[連接說明](ATTACHED_SESSION.md)。
 - **後裙碰撞暫停且未解決**，不會當作不存在。
 - Godot 匯入、材質與物理需要另做引擎端驗證。
 

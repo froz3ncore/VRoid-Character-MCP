@@ -1,6 +1,6 @@
 # External beta acceptance / 外部试用验收
 
-Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **94 tools**.
+Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **99 tools**.
 
 Status: **ready for independent testing; external acceptance pending**. A local
 clean checkout, CI, or another process on the developer's machine is not an
@@ -68,10 +68,9 @@ boundaries explicit. Functional acceptance and character-art adoption are separa
 
 ## Current local evidence / 当前本机证据
 
-Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **94 tools**. The latest code
-suite records **545 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
-suites, and matching tool/schema/source checks. Both interpreters were checked
-for this snapshot; earlier test counts remain historical.
+Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **99 tools**. Earlier
+continuous-editing and attachment evidence was checked on Python 3.10 and 3.12;
+the latest file-flow changes have their own separate validation records.
 
 Native evidence dated 2026-10-28 covers five domains, continuous same-process
 body/texture/Dress-up editing through XRoid/VRM with cold persistence, 17

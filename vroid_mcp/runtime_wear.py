@@ -23,6 +23,7 @@ from .capture_quality import decode_capture, quality_plan
 from .capture_views import is_regional, validate_wear_views
 from .lab_paths import review_folder
 from .wear_paths import wear_destination, wear_input
+from .file_paths import file_input, file_destination
 
 CLIP_ID = re.compile('0x[0-9a-fA-F]+')
 WEAR_TASK_SECONDS = 180
@@ -390,12 +391,13 @@ class WearTools:
                 'report_sha256': hashlib.sha256(encoded).hexdigest()}
 
     # ------------------------------------------------------------- project files
-    async def open_wear_project(self, filename: str, expected_wear: str, discard_unsaved: bool) -> dict:
-        path = wear_input(self.lab, filename, ('.vroid', '.xroid'))
+    async def open_wear_project(self, filename: str, expected_wear: str, discard_unsaved: bool,
+                                snapshot_guard: dict | None = None) -> dict:
+        path = file_input(self.lab, filename, ('.vroid', '.xroid'), getattr(self, 'mode', 'copy') == 'attached')
         async with self.lock:
             await self._wear_task(await self._call('open_wear_project', {
                 'path': str(path), 'expected_wear': expected_wear,
-                'discard_unsaved': discard_unsaved}))
+                'discard_unsaved': discard_unsaved, **(snapshot_guard or {})}))
             status = await self._call('get_wear_status')
             if not status['active']:
                 raise RuntimeError('Dress-up did not become active')
@@ -419,7 +421,7 @@ class WearTools:
                                        'requested state; inspect the copy before further edits')
 
     async def import_xwear(self, filename: str, expected_wear: str) -> dict:
-        path = wear_input(self.lab, filename, ('.xwear',))
+        path = file_input(self.lab, filename, ('.xwear',), getattr(self, 'mode', 'copy') == 'attached')
         async with self.lock:
             before = await self._call('get_wear_status')
             task = await self._call('import_xwear', {'path': str(path), 'expected_wear': expected_wear})
@@ -437,7 +439,7 @@ class WearTools:
                     'source_path': str(path)}
 
     async def save_wear_project(self, filename: str, expected_wear: str) -> dict:
-        destination = wear_destination(self.lab, filename)
+        destination = file_destination(self.lab, filename, '.xroid', getattr(self, 'mode', 'copy') == 'attached')
         staging = destination.parent / ('stage-' + uuid.uuid4().hex + '.xroid')
         async with self.lock:
             task = await self._call('save_wear_project', {'path': str(staging),
@@ -448,9 +450,12 @@ class WearTools:
             with zipfile.ZipFile(staging) as archive:
                 if archive.testzip() is not None:
                     raise RuntimeError('XRoid archive CRC failure')
-            await self._call('wear_clear_save_path', {'expected_wear': expected_wear})
+            if getattr(self, 'mode', 'copy') != 'attached':
+                await self._call('wear_clear_save_path', {'expected_wear': expected_wear})
             # os.rename refuses an existing destination on Windows.
             os.rename(staging, destination)
+            if getattr(self, 'mode', 'copy') == 'attached':
+                await self._call('wear_set_save_path', {'expected_wear': expected_wear, 'path': str(destination)})
             return {'saved': True, 'path': str(destination), 'bytes': destination.stat().st_size,
                     'sha256': hashlib.sha256(destination.read_bytes()).hexdigest(),
                     'wear_token': expected_wear, 'cache_path': task.get('cache_path')}

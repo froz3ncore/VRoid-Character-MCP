@@ -46,6 +46,67 @@ def test_uncertain_attachment_allows_inspection_and_review_but_never_replays(tmp
     assert 'import_texture_layer' not in calls and r.uncertain
 
 
+def test_attached_save_copy_checks_archive_and_never_overwrites(tmp_path):
+    r = Runtime(tmp_path); r.mode = 'attached'
+    async def settle(*args): return {'model_token': 'live'}
+    async def call(op, args):
+        assert op == 'save_as' and args['expected_model'] == 'live'
+        with zipfile.ZipFile(args['path'], 'w') as archive:
+            archive.writestr('model', 'x' * 200)
+        return {'saved': True}
+    r._settle, r._call = settle, call
+    saved = asyncio.run(r.save_as('copy.vroid', 'live'))
+    assert saved['attached_copy'] and zipfile.is_zipfile(saved['path'])
+    with pytest.raises(FileExistsError):
+        asyncio.run(r.save_as('copy.vroid', 'live'))
+
+
+def test_current_to_wear_requires_switch_and_fresh_wear_before_saving():
+    from vroid_mcp import tools_wear
+    registered = {}
+    def register(**kwargs):
+        def wrap(fn): registered[fn.__name__] = fn; return fn
+        return wrap
+    events = []
+    class FakeRuntime:
+        async def wear_status(self): events.append('status'); return {'wear_token': 'fresh'}
+        async def status(self): events.append('model_status'); return {'model_token': 'model', 'mode': 'copy'}
+        async def save_as(self, filename, token): events.append('save'); return {'path': filename}
+        async def open_wear_project(self, filename, token, discard, guard):
+            events.append('open'); assert discard; return {'active': True}
+    tools_wear.register(register, FakeRuntime(), None, None, None)
+    tool = registered['open_current_in_wear']
+    with pytest.raises(ValueError, match='EXPLICIT_SWITCH'):
+        asyncio.run(tool('model', 'fresh', 'copy.vroid'))
+    assert not events
+    with pytest.raises(ValueError, match='STALE_WEAR'):
+        asyncio.run(tool('model', 'old', 'copy.vroid', True))
+    assert events == ['status']
+    events.clear()
+    result = asyncio.run(tool('model', 'fresh', 'copy.vroid', True))
+    assert events == ['status', 'model_status', 'save', 'open'] and result['wear']['active']
+
+
+def test_current_to_wear_does_not_switch_if_character_changes_after_save():
+    from vroid_mcp import tools_wear
+    registered = {}
+    def register(**kwargs):
+        def wrap(fn): registered[fn.__name__] = fn; return fn
+        return wrap
+    class FakeRuntime:
+        checks = 0
+        async def wear_status(self): return {'wear_token': 'fresh'}
+        async def status(self):
+            self.checks += 1
+            return {'model_token': 'model', 'mode': 'attached',
+                    'attached_state': {'history_revision': self.checks, 'file_path': 'original', 'unsaved': True}}
+        async def save_as(self, *args): return {'path': 'copy.vroid'}
+        async def open_wear_project(self, *args): raise AssertionError('must not switch')
+    tools_wear.register(register, FakeRuntime(), None, None, None)
+    with pytest.raises(RuntimeError, match='copy.vroid'):
+        asyncio.run(registered['open_current_in_wear']('model', 'fresh', 'copy.vroid', True))
+
+
 def test_attached_custom_save_uses_native_target_profile_and_keeps_dirty_flag(tmp_path, monkeypatch):
     root = tmp_path/'external-profile'/'custom_items'
     root.mkdir(parents=True)

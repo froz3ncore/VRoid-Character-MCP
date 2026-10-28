@@ -50,8 +50,8 @@ def test_failed_attached_release_reports_background_not_restored(monkeypatch, tm
     assert 'release failed' in result['release_error']
 
 
-@pytest.mark.parametrize('op', ['open_texture_editor', 'open_wear_project', 'save_as',
-                                'open_model', 'new_model', 'save_wear_project', 'import_xwear'])
+@pytest.mark.parametrize('op', ['open_texture_editor', 'open_wear_project',
+                                'open_model', 'new_model'])
 def test_attached_dangerous_transition_refused_before_dispatch(tmp_path, op):
     subject = Runtime(tmp_path)
     subject.mode = 'attached'

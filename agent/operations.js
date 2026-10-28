@@ -527,17 +527,29 @@ globalThis.vroid = (() => {
         const m = modelContext(args.expected_model);
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         const handler = m.main.method('get_ActionHandler').invoke();
+        const previousPath = ATTACHED ? m.file.field('path').value : null;
+        const previousPathText = ATTACHED ? text(previousPath) : null;
+        const previousPathHold = ATTACHED && !previousPath.handle.isNull() ? retain(previousPath) : null;
+        const wasUnsaved = ATTACHED ? handler.method('get_IsUnSaved').invoke() : false;
         const path = Il2Cpp.string(args.path);
         const access = Memory.alloc(1);
         access.writeU8(0);
-        const success = invokeManaged(handler, 'SaveSync', [path.handle, access])
-            .unbox().field('m_value').value;
-        if (!success) throw Error('SAVE_FAILED');
-        // The host publishes the file under a new name itself. Leaving this
-        // session untitled stops a UI autosave from targeting an older file.
-        m.file.field('path').value = Il2Cpp.string('');
-        handler.method('UpdateWindowTitle').invoke();
-        return { saved: true, model_token: m.token };
+        try {
+            const success = invokeManaged(handler, 'SaveSync', [path.handle, access])
+                .unbox().field('m_value').value;
+            if (!success) throw Error('SAVE_FAILED');
+        } finally {
+            // An attached save is a copy; keep the real window's original
+            // association and dirty state even if SaveSync throws.
+            m.file.field('path').value = ATTACHED ? previousPath : Il2Cpp.string('');
+            if (ATTACHED && wasUnsaved) handler.method('set_IsUnSaved').invoke(true);
+            handler.method('UpdateWindowTitle').invoke();
+            if (previousPathHold) previousPathHold.free();
+        }
+        if (ATTACHED && (text(m.file.field('path').value) !== previousPathText ||
+                (wasUnsaved && !handler.method('get_IsUnSaved').invoke())))
+            throw Error('ATTACHED_SAVE_STATE_RESTORE_FAILED');
+        return { saved: true, model_token: m.token, attached_copy: ATTACHED };
     }
 
     function openModel(args) {
@@ -548,6 +560,55 @@ globalThis.vroid = (() => {
         fromXRoid.writeU8(0);
         return rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
             [path.handle, keepPath, fromXRoid]));
+    }
+
+    function replaceWithFile(args) {
+        if (args.discard_unsaved !== true) throw Error('EXPLICIT_DISCARD_REQUIRED');
+        if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
+        modelContext(args.expected_model);
+        const dontSetPath = Memory.alloc(1), fromXRoid = Memory.alloc(1);
+        dontSetPath.writeU8(0); fromXRoid.writeU8(0);
+        const task = rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
+            [Il2Cpp.string(args.path).handle, dontSetPath, fromXRoid]));
+        boundEngine = '';
+        return task;
+    }
+
+    function saveCharacter(args) {
+        if (!ATTACHED || !args.expected_model) throw Error('ATTACHED_MODEL_REQUIRED');
+        const m = modelContext(args.expected_model), handler = m.main.method('get_ActionHandler').invoke();
+        if (text(m.file.field('path').value) !== args.path ||
+                attachedState.snapshot().command_revision !== args.command_revision)
+            throw Error('CHARACTER_CHANGED_BEFORE_SAVE');
+        const access = Memory.alloc(1); access.writeU8(0);
+        const ok = invokeManaged(handler, 'SaveSync', [Il2Cpp.string(args.path).handle, access]).unbox().field('m_value').value;
+        if (!ok) throw Error('SAVE_FAILED');
+        handler.method('set_IsUnSaved').invoke(false);
+        handler.method('UpdateWindowTitle').invoke();
+        return {saved:true, model_token:m.token, path:args.path};
+    }
+
+    function replaceWithNewCharacter(args) {
+        if (args.discard_unsaved !== true) throw Error('EXPLICIT_DISCARD_REQUIRED');
+        if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
+        const m = modelContext(args.expected_model);
+        if (!['F00','M00'].includes(args.variant)) throw Error('UNSUPPORTED_VARIANT');
+        // Use the UI's discard callback: it exits the screen before destroying
+        // its engine. Both early Deinitialize and direct Push are incorrect.
+        invokeManaged(m.root, '<BackToModelSelect>g__BackToStartScreen|103_0');
+        boundEngine = '';
+        return {requested:true, variant:args.variant};
+    }
+
+    function associateCharacterFile(args) {
+        if (!ATTACHED || !args.expected_model) throw Error('ATTACHED_MODEL_REQUIRED');
+        const m=modelContext(args.expected_model);
+        if(attachedState.snapshot().command_revision!==args.command_revision)throw Error('CHARACTER_CHANGED_AFTER_SAVE');
+        m.file.field('path').value=Il2Cpp.string(args.path);
+        const handler=m.main.method('get_ActionHandler').invoke();
+        handler.method('set_IsUnSaved').invoke(false);handler.method('UpdateWindowTitle').invoke();
+        if(text(m.file.field('path').value)!==args.path)throw Error('FILE_ASSOCIATION_READBACK_FAILED');
+        return {path:args.path,model_token:m.token};
     }
 
     // ---------------------------------------------------------------- capture
@@ -742,6 +803,15 @@ globalThis.vroid = (() => {
         new_model: newModel,
         save_as: saveAs,
         open_model: openModel,
+        replace_with_file: replaceWithFile,
+        save_character: saveCharacter,
+        replace_with_new_character: replaceWithNewCharacter,
+        finish_new_character(args) {
+            const screen=mainViewModel().method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
+            if(screen.handle.isNull() || screen.class.type.name!=='VRoid.Studio.StartScreen.ViewModel')throw Error('HOME_SCREEN_CHANGED');
+            return newModel(args);
+        },
+        associate_character_file: associateCharacterFile,
         screenshot,
         gc_check() {
             Il2Cpp.gc.collect(2);
@@ -754,7 +824,7 @@ globalThis.vroid = (() => {
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
         + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
-        + 'preview_expression|replace_part|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
+        + 'preview_expression|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
         + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
 
@@ -792,6 +862,11 @@ globalThis.vroid = (() => {
                 throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
             attachedState.guard(name);
             requireOrdinaryEditing(name, args);
+            if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
+                modelContext(args.expected_model);
+                if (attachedState.snapshot().history_revision !== args.expected_history_revision)
+                    throw Error('CHARACTER_CHANGED_AFTER_SNAPSHOT: inspect and save again');
+            }
             return operations[name](args);
         },
     };

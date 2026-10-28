@@ -1,7 +1,7 @@
 # Existing VRoid sessions, parts and ordinary VRM export
 
 Current source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`),
-**94 tools**. Local native evidence is dated 2026-10-28; independent external-user
+**99 tools**. Local native evidence is dated 2026-10-28; independent external-user
 acceptance remains pending. Version/documentation changes alone do not rerun
 that native evidence.
 
@@ -13,9 +13,16 @@ is not closed unless `discard_copy_unsaved=true` is explicitly supplied; save
 that copy first.
 
 An attached session operates on the user's actual open model and profile. The
-copy's profile guard is **not** installed. Changes use VRoid's native history;
-save from VRoid itself. `save_as`, opening another file and creating a new model
-are refused in attached mode. `detach_open_vroid` releases the connection without
+copy's profile guard is **not** installed. Changes use VRoid's native history.
+`save_as` writes a new lab copy and retains the original file association and
+dirty state. `save_character` saves over the associated file after preserving a
+verified backup in lab saves; `save_character_as` creates a new file and binds it
+to the window. Explicit absolute paths in existing directories are supported in
+attached mode for character/XWear/XRoid input and new output. Copy mode stays in its lab.
+`open_character` opens a lab file after explicit discard; creating a new model
+from an active character uses `new_character` with explicit discard. It follows
+the native exit-to-start-screen callback, waits for exit, then creates the model.
+`detach_open_vroid` releases the connection without
 closing the user's process; its result reports whether background settings were
 restored. `restart_session` also detaches rather than killing an attached process.
 
@@ -42,12 +49,16 @@ Attachment waits for already-running original PNG worker Tasks before enabling
 transitions. Detach restores the original decoder entry for future requests.
 
 `open_wear_project` can switch the attached window into Dress-up using a selected
-`.vroid`/`.xroid` under the client lab's saves directory. It still requires a
+`.vroid`/`.xroid` by absolute path or under the client lab's saves directory. It still requires a
 fresh wear token and explicit `discard_unsaved=true`: it loads that file, rather
 than saving or silently transferring the current unsaved model. Close the canvas
-first. Character `save_as`, `open_model`, `new_model`, XRoid save and XWear import
-remain refused in attached mode because their existing implementations change
-file ownership or depend on the copy's profile guard.
+first. `open_current_in_wear` instead saves a new checked `.vroid` copy before
+switching and checks for changes since the snapshot. `import_xwear` reads from
+the lab saves directory; `save_wear_project` creates a new XRoid there and
+associates the window with the resulting file. In attached mode XRoid saving
+uses the target window's native cache, not the lab profile guard. Existing files
+are not overwritten by copy/Save As operations. Only `save_character` overwrites
+the currently associated character file, preserving its previous bytes in a backup.
 
 Native dialogs, notification dialogs, progress locks and popup blockers refuse
 writes. An active texture canvas refuses geometry and unrelated screen changes.
@@ -132,5 +143,5 @@ Independent real-profile acceptance remains pending in BETA_TESTING.md.
 On the supported 2.14.0 build, F00 and M00 each passed all 17 attached-editing
 checks. The updated F00 lifecycle replay also passed all 18 checks. Offline
 regression reports 545 passed / 1 skipped and nine JS behavior suites; the two
-recovery tools bring the exposed set to 94. All 92 earlier input schemas retain
+recovery tools brought the exposed set to 94. All 92 earlier input schemas retain
 their original combined hash (`sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034`).

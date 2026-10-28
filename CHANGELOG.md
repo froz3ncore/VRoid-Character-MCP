@@ -3,7 +3,7 @@
 ## 0.5.0.dev0 — 2026-10-28 (development snapshot)
 
 Python package/runtime: `0.5.0.dev0`; npm agent/lockfile: `0.5.0-dev.0`.
-The source snapshot exposes **94 tools**. No new stable release or release tag
+The source snapshot exposes **99 tools**. No new stable release or release tag
 is created. Local validation and independent external-user acceptance are separate.
 
 ### Existing-window editing and recovery
@@ -12,11 +12,19 @@ is created. Local validation and independent external-user acceptance are separa
   listing/replacement and new custom-item saves, followed by two state-review
   tools: `get_attached_state` and `acknowledge_attached_state`. The 86-tool
   historical baseline grew first to 92, then to 94; existing inputs are preserved.
+- Added `open_character` and `open_current_in_wear`; attached `save_as`,
+  `import_xwear`, and new XRoid saving are supported. Character in-place saving
+  and new-character replacement were completed with `save_character`,
+  `save_character_as` and `new_character`. The new flow exits through the native
+  start-screen callback before creating the replacement; early deinitialization
+  crashed, and direct initialization skipped the exit lifecycle. Save in place
+  verifies a byte-identical backup first. Attached character/XWear/XRoid IO accepts
+  explicit absolute paths; copy mode retains lab-only paths.
 - Compatible attached windows support texture editing and explicit-discard
   file-based Dress-up entry. Custom items use the target window's native closet
   with file/ZIP/metadata/registration checks, preserving character file association
-  and a prior dirty flag. Character save/new/open, XRoid save and XWear import
-  remain refused when attached; Dress-up entry does not save the unsaved character.
+  and a prior dirty flag. File-based Dress-up entry requires explicit discard;
+  `open_current_in_wear` first saves a new character copy and checks for changes.
 - Native dialogs, notifications, progress locks, popup blockers and incompatible
   canvas operations refuse writes. A disabled Windows owner reports unavailable
   state before RPC submission; the test-owned file picker opens/cancels correctly.

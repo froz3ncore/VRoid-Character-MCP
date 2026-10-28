@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 94,
- "toolset_hash": "sha256:1e6188ac193097637bc8fbfad3566e1da1f794210d16283cc777c9ee7cb15208",
+ "tool_count": 99,
+ "toolset_hash": "sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34",
  "tools": {
   "acknowledge_attached_state": {
    "parameters": [
@@ -574,6 +574,40 @@
     "point"
    ]
   },
+  "new_character": {
+   "parameters": [
+    "discard_unsaved",
+    "expected_model",
+    "variant"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "open_character": {
+   "parameters": [
+    "discard_unsaved",
+    "expected_model",
+    "filename"
+   ],
+   "required": [
+    "expected_model",
+    "filename"
+   ]
+  },
+  "open_current_in_wear": {
+   "parameters": [
+    "expected_model",
+    "expected_wear",
+    "filename",
+    "switch_to_wear"
+   ],
+   "required": [
+    "expected_model",
+    "expected_wear",
+    "filename"
+   ]
+  },
   "open_texture_editor": {
    "parameters": [
     "bake_colors",
@@ -717,6 +751,24 @@
    "required": [
     "expected_model",
     "filename"
+   ]
+  },
+  "save_character": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "save_character_as": {
+   "parameters": [
+    "expected_model",
+    "path"
+   ],
+   "required": [
+    "expected_model",
+    "path"
    ]
   },
   "save_custom_items": {

@@ -38,7 +38,8 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
         const animator=preview?preview.field('_baseModelAnimator').value:null;
         const ready=!!director&&!director.handle.isNull()&&!!animator&&!animator.handle.isNull();
         const hasTime=ready&&director.class.methods.some(m=>m.name==='get_time');
-        return {active:!!e.vm,screen:e.screen,wear_token:e.token,items,animation_playing:playing,
+        const savePath=e.vm?text(e.vm.field('EditContext').value.method('GetCurrentXRoidPath').invoke()):null;
+        return {active:!!e.vm,screen:e.screen,wear_token:e.token,items,animation_playing:playing,save_path:savePath,
             selected_preview_clip:previewOverride?{id:previewOverride.id,name:previewOverride.name}:null,
             animation_ready:playing&&ready,animation_time:hasTime?director.method('get_time').invoke():null,frame:state.frame};
     }
@@ -345,7 +346,12 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
     }
     function scopeSaveCache(args){
         const e=expect(args),cache=e.vm.field('EditContext').value.field('_xRoidSaver').value.field('CacheDirectory').value;
-        const before=text(cache.method('GetDirectoryPath').invoke()),after=remapFolder(before),old=cache.field('_directoryName').value;
+        const before=text(cache.method('GetDirectoryPath').invoke());
+        if(ATTACHED){
+            if(!before)throw Error('WEAR_NATIVE_CACHE_UNAVAILABLE');
+            return {cache_path:before,isolated:false};
+        }
+        const after=remapFolder(before),old=cache.field('_directoryName').value;
         if(!within(after))throw Error('WEAR_CACHE_OUTSIDE_LAB');
         if(norm(before)!==norm(after)){
             cache.field('_directoryName').value=Il2Cpp.string(after);
@@ -709,6 +715,12 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
             }catch(error){restore();throw error;}},
         wear_finish_import(args){const entry=imports.get(args.task_id);if(entry){try{entry.restore();}finally{entry.hold.free();imports.delete(args.task_id);}}return status();},
         wear_clear_save_path(args){const e=expect(args);invokeManaged(e.vm.field('EditContext').value,'UpdateXRoidPath',[Il2Cpp.string('').handle]);return status();},
+        wear_set_save_path(args){const e=expect(args);if(!ATTACHED||!args.path)throw Error('ATTACHED_PATH_REQUIRED');
+            const context=e.vm.field('EditContext').value;
+            invokeManaged(context,'UpdateXRoidPath',[Il2Cpp.string(args.path).handle]);
+            const actual=text(context.method('GetCurrentXRoidPath').invoke());
+            if(actual!==args.path)throw Error('WEAR_SAVE_PATH_READBACK_FAILED: '+actual);
+            return {...status(),save_path:actual};},
         wear_debug(){const e=editor(),context=e.vm.field('EditContext').value,saver=context.field('_xRoidSaver').value;
             return {status:status(),editor:describe(e.vm),context:describe(context),saver:describe(saver),
             saver_cache:describe(saver.field('CacheDirectory').value),

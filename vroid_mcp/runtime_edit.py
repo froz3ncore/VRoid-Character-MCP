@@ -16,9 +16,13 @@ import os
 import pathlib
 import time
 import uuid
+import zipfile
+import shutil
 
 from .color_state import attach_color_readback
 from .lab_paths import save_destination
+from .wear_paths import wear_input
+from .file_paths import file_input, file_destination
 from .parameter_labels import name_parameters
 from .preset_labels import name_catalog, name_preset
 from .preset_previews import decode_thumbnail, validate_request
@@ -308,19 +312,24 @@ class EditTools:
             return name_parameters(await self._call('list_face_params', {'expected_model': expected_model}))
 
     async def save_as(self, filename: str, expected_model: str) -> dict:
-        if getattr(self, 'mode', 'copy') == 'attached':
-            raise ValueError('Save in the attached VRoid; save_as would change its file association')
         async with self.lock:
-            destination = save_destination(self.lab, filename)
+            destination = (file_destination(self.lab, filename, '.vroid', True)
+                           if getattr(self, 'mode', 'copy') == 'attached' else save_destination(self.lab, filename))
             staging = destination.parent / ('stage-' + uuid.uuid4().hex + '.vroid')
             await self._settle()
             await self._call('save_as', {'path': str(staging), 'expected_model': expected_model})
             if not staging.is_file() or staging.stat().st_size < 100:
                 raise RuntimeError('VRoid did not produce a file of a plausible size')
+            if not zipfile.is_zipfile(staging):
+                raise RuntimeError('Native save did not create a VRoid archive')
+            with zipfile.ZipFile(staging) as archive:
+                if archive.testzip() is not None:
+                    raise RuntimeError('VRoid archive CRC failure')
             # os.rename refuses an existing destination on Windows; never os.replace.
             os.rename(staging, destination)
             return {'path': str(destination), 'bytes': destination.stat().st_size,
                     'model_token': expected_model,
+                    'attached_copy': getattr(self, 'mode', 'copy') == 'attached',
                     'sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
 
     async def reopen_for_test(self, path: pathlib.Path) -> dict:
@@ -330,3 +339,96 @@ class EditTools:
         async with self.lock:
             await self._task(await self._call('open_model', {'path': str(resolved)}))
             return await self._settle()
+
+    async def replace_character(self, expected_model: str, discard_unsaved: bool, filename: str) -> dict:
+        if discard_unsaved is not True:
+            raise ValueError('EXPLICIT_DISCARD_REQUIRED')
+        path = file_input(self.lab, filename, ('.vroid',), getattr(self, 'mode', 'copy') == 'attached')
+        if not zipfile.is_zipfile(path):
+            raise ValueError('Invalid VRoid archive')
+        with zipfile.ZipFile(path) as archive:
+            if archive.testzip() is not None:
+                raise ValueError('VRoid archive CRC failure')
+        async with self.lock:
+            await self._settled_for(expected_model)
+            task = await self._call('replace_with_file', {'expected_model': expected_model,
+                'discard_unsaved': True, 'path': str(path)})
+            await self._task(task)
+            result = await self._settle()
+            if result['model_token'] == expected_model:
+                self.uncertain = True
+                raise RuntimeError('CHARACTER_SWITCH_IDENTITY_UNCONFIRMED')
+            return result
+
+    async def save_character(self, expected_model: str) -> dict:
+        if getattr(self, 'mode', 'copy') != 'attached':
+            raise ValueError('ATTACHED_ONLY')
+        from .wear_paths import _physical
+        async with self.lock:
+            state = await self._settled_for(expected_model)
+            ui = state['attached_state']
+            if not ui.get('file_path'):
+                raise ValueError('UNTITLED_CHARACTER: save to a new file first')
+            path = pathlib.Path(ui['file_path'])
+            if not path.is_absolute() or path.suffix.lower() != '.vroid' or not path.is_file():
+                raise ValueError('Associated character must be an existing absolute .vroid file')
+            _physical(path)
+            original = hashlib.sha256(path.read_bytes()).hexdigest()
+            backup = save_destination(self.lab, 'before-save-' + uuid.uuid4().hex + '.vroid')
+            shutil.copyfile(path, backup)
+            if hashlib.sha256(backup.read_bytes()).hexdigest() != original or hashlib.sha256(path.read_bytes()).hexdigest() != original:
+                raise RuntimeError('SOURCE_CHANGED_BEFORE_SAVE')
+            try:
+                await self._call('save_character', {'expected_model': expected_model, 'path': str(path),
+                    'command_revision': ui['command_revision']})
+                with zipfile.ZipFile(path) as archive:
+                    if archive.testzip() is not None:
+                        raise RuntimeError('Saved character CRC failure')
+            except Exception as error:
+                raise RuntimeError('CHARACTER_SAVE_UNCERTAIN: inspect '+str(path)+' and backup '+str(backup)+'; do not retry blindly') from error
+            return {'saved': True, 'path': str(path), 'backup_path': str(backup),
+                'previous_sha256': original, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                'bytes': path.stat().st_size, 'model_token': expected_model}
+
+    async def new_character(self, expected_model: str, variant: str, discard_unsaved: bool) -> dict:
+        if getattr(self, 'mode', 'copy') != 'attached':
+            raise ValueError('ATTACHED_ONLY')
+        if discard_unsaved is not True:
+            raise ValueError('EXPLICIT_DISCARD_REQUIRED')
+        if variant not in ('F00','M00'):
+            raise ValueError('Unsupported variant')
+        async with self.lock:
+            await self._settled_for(expected_model)
+            await self._call('replace_with_new_character', {'expected_model':expected_model,
+                'variant':variant, 'discard_unsaved':True})
+            deadline = time.monotonic() + 60
+            while True:
+                state = await self._call('status')
+                ui = state.get('attached_state', {})
+                if not state.get('model_ready') and ui.get('active_screen') == 'VRoid.Studio.StartScreen.ViewModel':
+                    break
+                if time.monotonic() >= deadline:
+                    self.uncertain = True
+                    raise TimeoutError('Native exit is pending; inspect the window before creating a character')
+                await asyncio.sleep(.1)
+            await self._call('finish_new_character', {'variant':variant})
+            result = await self._settle()
+            if result['model_token'] == expected_model:
+                self.uncertain = True
+                raise RuntimeError('CHARACTER_SWITCH_IDENTITY_UNCONFIRMED')
+            return result
+
+    async def save_character_as(self, expected_model: str, path: str) -> dict:
+        if getattr(self, 'mode', 'copy') != 'attached':
+            raise ValueError('ATTACHED_ONLY')
+        before = await self.status()
+        if before.get('model_token') != expected_model:
+            raise ValueError('STALE_MODEL')
+        saved = await self.save_as(path, expected_model)
+        try:
+            async with self.lock:
+                await self._call('associate_character_file', {'expected_model':expected_model,
+                    'path':saved['path'], 'command_revision':before['attached_state']['command_revision']})
+        except Exception as error:
+            raise RuntimeError('SAVED_FILE_ASSOCIATION_UNCERTAIN: inspect '+saved['path']+' and the window; do not retry blindly') from error
+        return {**saved, 'attached_copy':False, 'associated':True}

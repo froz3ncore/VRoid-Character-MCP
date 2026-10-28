@@ -4,11 +4,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 94 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 99 个 MCP 工具 · stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
-连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载，人物文件请在 VRoid 中自行保存。断开连接不会关闭窗口。兼容窗口支持纹理编辑，也可明确丢弃当前未保存修改后，从指定文件进入换装。普通角色可导出 VRM 0.x/1.0；自定义物品保存到该窗口原生衣柜，核验文件和登记并保留人物文件关联及原有未保存标记。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可在 lab 中另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定 lab 人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。替换人物须明确允许丢弃当前修改；`new_character` 按原生退出流程完成新建替换。人物、XWear、XRoid 文件流程支持明确的绝对路径。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
@@ -64,7 +64,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 94 个 MCP 工具 · s
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [94 个工具参考](tools/TOOLS.md)。
+完整工具名称、参数、前置条件和错误处理见 [99 个工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
@@ -142,7 +142,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **94 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后应能发现 **99 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -216,7 +216,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 结构检查不代表完整 VRM 规范认证，也不代表外观、碰撞或游戏引擎物理验收。
 
-最新代码回归在 Python 3.10／3.12 均为 545 通过／1 跳过。2026-10-28 的原生记录包含五域检查、F00／M00 各 17 项真实窗口编辑检查、18 项 F00 连接生命周期检查，以及同进程体型→纹理→换装→导出。版本与文档调整本身不算一次新的原生验收。
+此前代码回归在 Python 3.10／3.12 均为 545 通过／1 跳过。文件流程更新的验证另行记录。2026-10-28 的既有原生记录包含五域检查、F00／M00 各 17 项真实窗口编辑检查、18 项 F00 连接生命周期检查，以及同进程体型→纹理→换装→导出。
 
 此前公开样例和 10 组 F00 身高／身体比例／上衣矩阵保留为历史证据，30 张保存前后原生视图逐像素一致。2026-10-20 已人工采用三视图作为技术回归基准；角色最终美术采用和独立外测仍待进行，见 [回归范围](REGRESSION.md)。
 
@@ -227,7 +227,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 - **逐束可见发色尚未解决**：部分颜色元素虽能读回，但不驱动可见手绘发丝；目前可靠支持全局发色。
 - **妆容与美甲定位有适用范围**：未知拓扑、共用 UV 或歧义部位会被拒绝，不能宣称任意模型都可自动识别。
 - **M00 覆盖少于 F00**，不承诺同等效果。
-- **真实窗口保护**：使用 VRoid 持有的纹理完成回调；弹窗、进度锁与活动画板会阻止不兼容操作。中断写入后通过 `get_attached_state` 检查，再以新凭据调用 `acknowledge_attached_state`。人物另存、XRoid 保存和 XWear 导入仍需独立副本，详见[连接说明](ATTACHED_SESSION.md)。
+- **真实窗口保护**：使用 VRoid 持有的纹理完成回调；弹窗、进度锁与活动画板会阻止不兼容操作。中断写入后通过 `get_attached_state` 检查，再以新凭据调用 `acknowledge_attached_state`。文件流程及尚未支持的操作详见[连接说明](ATTACHED_SESSION.md)。
 - **后裙碰撞暂停且未解决**；截图里的服装仍是制作中候选。
 - 原生批量编辑不是事务；发生部分成功或结果不确定时，先检查状态，不盲目重复写入。
 - Godot 导入、MToon 最终外观、物理和游戏集成需要单独验证。
@@ -236,7 +236,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 94 个工具与参数。
+- [工具参考](tools/TOOLS.md)：完整的 99 个工具与参数。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。

@@ -3,11 +3,11 @@
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 A local MCP server that normally drives **one disposable copy of VRoid Studio** through
-the application's own managed API, with optional attachment to an existing session. It exposes 94 tools for character
+the application's own managed API, with optional attachment to an existing session. It exposes 99 tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **94 tools**.
+Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **99 tools**.
 Local code and controlled native checks have passed; independent external-user
 acceptance is pending. This snapshot has no new stable release or release tag.
 Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).
@@ -72,8 +72,12 @@ registry key and its own `TEMP`, attaches with Frida, and calls managed methods
 on Unity's main thread. `attach_open_vroid` can explicitly connect an existing
 user-opened process. Edits then affect the user's unsaved model and profile;
 the copy's isolation guard is not loaded. `detach_open_vroid` leaves it running.
-Save character files in VRoid itself. Compatible attached windows support texture
-editing and file-based Dress-up entry with explicit discard of unsaved work.
+In an attached window, `save_as` saves a new lab copy while preserving the original
+association and dirty state; `save_character` saves in place with a verified backup,
+and `save_character_as` creates and associates a new file. Compatible
+windows can open lab characters, save the current character copy before Dress-up,
+import XWear and save a new XRoid, including explicit absolute file paths. New
+characters use `new_character` with explicit discard and native exit sequencing.
 Ordinary VRM export writes under lab/saves. Custom item saves use the current
 window's native closet, verify new files and registration, and preserve its
 character filename and prior dirty state. Interrupted edits require state review.
@@ -255,7 +259,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 94 tools |
+| `tools/TOOLS.md` | generated reference for all 99 tools |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

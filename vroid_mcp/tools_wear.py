@@ -31,13 +31,50 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=destructive)
     async def open_wear_project(filename: str, expected_wear: str, discard_unsaved: bool = False) -> dict:
-        """Open a .vroid base or .xroid assembly from this lab's saves/ directory in Dress-up.
+        """Open a .vroid base or .xroid assembly in Dress-up.
+
+        Attached sessions accept absolute input paths; plain filenames and copy
+        sessions use this lab's saves/ directory.
 
         This replaces whatever the disposable copy currently holds, so it requires
         discard_unsaved=true. Returns a new wear token and the native items once
         the load task has finished.
         """
         return await runtime.open_wear_project(filename, expected_wear, discard_unsaved)
+
+    @ready_tool(annotations=destructive)
+    async def open_current_in_wear(expected_model: str, expected_wear: str, filename: str,
+                                   switch_to_wear: bool = False) -> dict:
+        """Save the current character to a new .vroid and open that copy in Dress-up.
+
+        Requires switch_to_wear=true. This changes screens and replaces the
+        current edit session after saving; close any active texture canvas first.
+        The original associated file is not overwritten. If the transition fails,
+        inspect the window and the named saved file before attempting anything else.
+        """
+        if not switch_to_wear:
+            raise ValueError('EXPLICIT_SWITCH_TO_WEAR_REQUIRED')
+        current_wear = await runtime.wear_status()
+        if current_wear['wear_token'] != expected_wear:
+            raise ValueError('STALE_WEAR: call get_wear_status')
+        before = await runtime.status()
+        if before.get('model_token') != expected_model:
+            raise ValueError('STALE_MODEL: list parameters again')
+        saved = await runtime.save_as(filename, expected_model)
+        try:
+            guard = None
+            if before.get('mode') == 'attached':
+                after = await runtime.status()
+                old, new = before['attached_state'], after['attached_state']
+                if (after.get('model_token') != expected_model or
+                        any(old.get(k) != new.get(k) for k in ('history_revision', 'file_path', 'unsaved'))):
+                    raise RuntimeError('CHARACTER_CHANGED_DURING_SNAPSHOT')
+                guard = {'expected_model': expected_model, 'expected_history_revision': new['history_revision']}
+            opened = await runtime.open_wear_project(filename, expected_wear, True, guard)
+        except Exception as error:
+            raise RuntimeError('SAVED_COPY_TRANSITION_UNCERTAIN: inspect the window and saved copy at '
+                               + saved['path'] + '; do not retry blindly') from error
+        return {'saved_character': saved, 'wear': opened}
 
     @ready_tool(annotations=read)
     async def get_wear_snapshot(expected_wear: str) -> dict:
@@ -232,10 +269,12 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def import_xwear(filename: str, expected_wear: str) -> dict:
-        """Import a .xwear from this lab's saves/ and return the verified new item ids.
+        """Import a .xwear and return verified new item ids.
+
+        Attached sessions also accept an absolute input path; otherwise use lab saves/.
 
         Nothing is fitted automatically and no body geometry is deleted. Fit-alert
-        options changed in the disposable profile are restored afterwards. Relist
+        options changed in the target profile are restored afterwards. Relist
         with the new wear token.
         """
         return await runtime.import_xwear(filename, expected_wear)
@@ -279,7 +318,10 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def save_wear_project(filename: str, expected_wear: str) -> dict:
-        """Save the assembly as an XRoid archive under saves/ without overwriting.
+        """Save the assembly as a new XRoid archive without overwriting.
+
+        Attached sessions accept absolute paths in existing directories;
+        otherwise use a filename under lab saves/.
 
         Requires stopped animation. The archive is verified and its hash returned.
         A successful save proves persistence, not VRM or Godot readiness.

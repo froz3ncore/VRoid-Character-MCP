@@ -10,7 +10,7 @@ import json
 from typing import Literal
 
 from mcp.server.fastmcp.utilities.types import Image
-from mcp.types import ImageContent, TextContent
+from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import Field
 
 from .tool_models import FaceChange, ParameterChange
@@ -207,5 +207,49 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def save_as(expected_model: str, filename: str) -> dict:
-        """Save a new .vroid file under the lab's saves/ folder; an existing file is never overwritten."""
+        """Save a new .vroid copy; an existing file is never overwritten.
+
+        In an attached window this makes a copy and preserves the original
+        character file association and unsaved flag; it does not save in place.
+        Attached windows accept absolute paths in existing directories; plain
+        filenames and copy sessions use lab saves/.
+        """
         return await runtime.save_as(filename, expected_model)
+
+    @ready_tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False))
+    async def open_character(expected_model: str, filename: str, discard_unsaved: bool = False) -> dict:
+        """Open a .vroid in ordinary editing, using a lab filename or an attached absolute path.
+
+        Requires discard_unsaved=true and replaces the current character. Save
+        any work first; the opened file becomes the window's associated file.
+        """
+        return await runtime.replace_character(expected_model, discard_unsaved, filename=filename)
+
+    @ready_tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False))
+    async def save_character(expected_model: str) -> dict:
+        """Save the attached character over its associated .vroid using native SaveSync.
+
+        First preserves the original bytes in a new lab backup. Requires an
+        existing associated file; untitled characters must use save_character_as first.
+        Failure is uncertain: inspect the original and backup before another save.
+        """
+        return await runtime.save_character(expected_model)
+
+    @ready_tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False))
+    async def new_character(expected_model: str, variant: Literal['F00','M00'] = 'F00',
+                            discard_unsaved: bool = False) -> dict:
+        """Replace the attached ordinary character through the native new-character transition.
+
+        Requires discard_unsaved=true. Save current work before replacement.
+        """
+        return await runtime.new_character(expected_model, variant, discard_unsaved)
+
+    @ready_tool(annotations=edit)
+    async def save_character_as(expected_model: str, path: str) -> dict:
+        """Save the attached character to a new .vroid and associate the window with it.
+
+        Accepts an absolute path in an existing directory, or a lab saves filename.
+        Never overwrites. If the character changes before association, inspect the
+        new file and window before retrying.
+        """
+        return await runtime.save_character_as(expected_model, path)

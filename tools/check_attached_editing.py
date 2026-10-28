@@ -119,7 +119,7 @@ print('selected' if result else 'cancelled',flush=True)
 '''
 
 
-async def check(source: Path, out: Path, variant: str):
+async def check(source: Path, out: Path, variant: str, xwear: Path | None = None):
     if out.exists():
         raise FileExistsError('Use a NEW output directory')
     prepare_lab.check_directories(source.resolve(), out.resolve())
@@ -176,8 +176,18 @@ async def check(source: Path, out: Path, variant: str):
             if asyncio.get_running_loop().time() > deadline: raise TimeoutError('fixture not ready')
             await asyncio.sleep(.1)
         await fixture_call('new_model', {'variant': variant})
-        state = await controller._settle()
-        original_file = target/'saves'/'manual-source.vroid'
+        # A busy first frame can reject a queued read without executing it.
+        # Retry only that read, never the model creation request.
+        deadline = asyncio.get_running_loop().time() + 90
+        while True:
+            try:
+                state = await controller._settle()
+                break
+            except Exception as error:
+                if 'MAIN_THREAD_TIMEOUT: not executed' not in str(error) or asyncio.get_running_loop().time() >= deadline:
+                    raise
+                await asyncio.sleep(.5)
+        original_file = lab/'saves'/'manual-source.vroid'
         original_file.parent.mkdir(exist_ok=True)
         await fixture_call('manual_save', {'path': str(original_file)})
         token = state['model_token']
@@ -201,6 +211,49 @@ async def check(source: Path, out: Path, variant: str):
                     token = attached['model_token']
                     assert attached['png_decoder']['mode']=='unity_owned_callbacks'
                     passed('adopt_unsaved_manual_state_and_managed_png_decoder')
+                    await call('new_character', {'expected_model':token}, 'EXPLICIT_DISCARD_REQUIRED')
+                    for next_variant in ('M00','F00',variant):
+                        changed=await call('new_character',{'expected_model':token,'variant':next_variant,'discard_unsaved':True})
+                        assert changed['model_token']!=token and alive()
+                        token=changed['model_token']
+                    passed('repeated_native_new_character_transition_same_pid')
+                    external=target/'external-files';external.mkdir(exist_ok=True)
+                    associated=await call('save_character_as',{'expected_model':token,'path':str(external/'new-character.vroid')})
+                    assert associated['associated'] and Path(associated['path']).is_file()
+                    assert (await call('get_status'))['attached_state']['file_path']==associated['path']
+                    absolute_opened=await call('open_character',{'expected_model':token,'filename':associated['path'],'discard_unsaved':True})
+                    token=absolute_opened['model_token']
+                    assert absolute_opened['attached_state']['file_path']==associated['path']
+                    passed('untitled_save_as_absolute_path_and_association',associated)
+                    await call('open_character',{'expected_model':token,'filename':'manual-source.vroid'},'EXPLICIT_DISCARD_REQUIRED')
+                    opened=await call('open_character',{'expected_model':token,'filename':'manual-source.vroid','discard_unsaved':True})
+                    assert opened['model_token']!=token and opened['attached_state']['file_path']==str(original_file),opened
+                    token=opened['model_token']
+                    face=await call('list_face_params')
+                    assert abs(next(p['value'] for p in face['parameters'] if p['id']=='face/FaceSet/006')-.4)>1e-4
+                    await call('set_body_params',{'expected_model':token,'changes':[{'id':'body/WholeBody/002','value':.15}]})
+                    await call('set_face_params',{'expected_model':token,'changes':[{'id':'face/FaceSet/006','value':.4}]})
+                    passed('open_character_explicit_discard_and_fresh_identity')
+                    saved_copy=await call('save_as',{'expected_model':token,'filename':'attached-copy.vroid'})
+                    preserved=(await call('get_status'))['attached_state']
+                    assert saved_copy['attached_copy'] and Path(saved_copy['path']).is_file()
+                    assert preserved['file_path']==str(original_file) and preserved['unsaved'],preserved
+                    assert hashlib.sha256(original_file.read_bytes()).hexdigest()==source_hash
+                    passed('attached_save_copy_preserves_source_association_and_dirty',saved_copy)
+                    old_hash=source_hash
+                    overwritten=await call('save_character',{'expected_model':token})
+                    assert overwritten['path']==str(original_file)
+                    assert hashlib.sha256(Path(overwritten['backup_path']).read_bytes()).hexdigest()==old_hash
+                    source_hash=hashlib.sha256(original_file.read_bytes()).hexdigest()
+                    assert source_hash!=old_hash
+                    clean=(await call('get_status'))['attached_state']
+                    assert not clean['unsaved'] and clean['file_path']==str(original_file)
+                    reopened=await call('open_character',{'expected_model':token,'filename':'manual-source.vroid','discard_unsaved':True})
+                    token=reopened['model_token']
+                    face=await call('list_face_params')
+                    assert abs(next(p['value'] for p in face['parameters'] if p['id']=='face/FaceSet/006')-.4)<1e-6
+                    await call('set_face_params',{'expected_model':token,'changes':[{'id':'face/FaceSet/006','value':.3}]})
+                    passed('in_place_save_backup_clean_flag_and_reload',overwritten)
                     await fixture_call('progress_start')
                     await call('set_face_params', {'expected_model':token,'changes':[{'id':'face/FaceSet/006','value':.9}]}, 'ATTACHED_UI_BLOCKED')
                     await fixture_call('progress_finish')
@@ -394,9 +447,26 @@ async def check(source: Path, out: Path, variant: str):
                     await call('open_wear_project',{'filename':'wear-source.vroid','expected_wear':wear['wear_token'],'discard_unsaved':False},'EXPLICIT_DISCARD_REQUIRED')
                     review=await call('get_attached_state');await call('acknowledge_attached_state',{'recovery_token':review['recovery_token']})
                     wear=await call('get_wear_status')
-                    opened=await call('open_wear_project',{'filename':'wear-source.vroid','expected_wear':wear['wear_token'],'discard_unsaved':True})
+                    model=(await call('get_status'))['model_token']
+                    switched=await call('open_current_in_wear',{'expected_model':model,'expected_wear':wear['wear_token'],'filename':'current-to-wear.vroid','switch_to_wear':True})
+                    assert Path(switched['saved_character']['path']).is_file()
+                    opened=switched['wear']
                     assert opened['active'] and alive()
-                    passed('texture_then_dress_up_same_pid_requires_explicit_discard')
+                    passed('unsaved_current_saved_then_opened_in_dress_up',switched['saved_character'])
+                    if xwear is not None:
+                        shutil.copyfile(xwear, external/'attached-input.xwear')
+                        imported=await call('import_xwear',{'filename':str(external/'attached-input.xwear'),'expected_wear':opened['wear_token']})
+                        assert len(imported['added_item_ids']) and alive()
+                        reread=await call('get_wear_status')
+                        assert all(any(item['id']==item_id for item in reread['items']) for item_id in imported['added_item_ids'])
+                        passed('attached_xwear_import_readback', {'added_item_ids': imported['added_item_ids'], 'items':reread['items']})
+                        saved=await call('save_wear_project',{'filename':str(external/'attached-assembly.xroid'),'expected_wear':reread['wear_token']})
+                        assert Path(saved['path']).is_file() and alive()
+                        associated=await call('get_wear_status')
+                        assert associated['save_path']==saved['path'],associated
+                        opened=await call('open_wear_project',{'filename':saved['path'],'expected_wear':reread['wear_token'],'discard_unsaved':True})
+                        assert opened['active'] and len(opened['items'])==len(reread['items']),opened
+                        passed('attached_xroid_save_reopen_retains_wearables',saved)
                     await call('detach_open_vroid')
         assert hashlib.sha256(original_file.read_bytes()).hexdigest()==source_hash
         report['passed']=True
@@ -415,6 +485,21 @@ async def check(source: Path, out: Path, variant: str):
             try:guard_session.detach()
             except frida.InvalidOperationError:pass
         (out/'checks.json').write_text(json.dumps(report,indent=2),encoding='utf8')
+    if report.get('passed'):
+        cold=Runtime(target)
+        try:
+            await asyncio.to_thread(cold.start)
+            await cold.initialize(model_file=original_file)
+            face=await cold.list_face_params()
+            body=await cold.list_params('body')
+            assert abs(next(p['value'] for p in face['parameters'] if p['id']=='face/FaceSet/006')-.4)<1e-6
+            assert abs(next(p['value'] for p in body['parameters'] if p['id']=='body/WholeBody/002')-.15)<1e-6
+            passed('in_place_save_cold_process_face_body_persistence')
+        except BaseException as error:
+            report.update(passed=False,cold_error=repr(error));raise
+        finally:
+            await asyncio.to_thread(cold.close)
+            (out/'checks.json').write_text(json.dumps(report,indent=2),encoding='utf8')
     return report
 
 
@@ -423,5 +508,6 @@ if __name__=='__main__':
     parser.add_argument('--source',required=True,type=Path)
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--variant',choices=['F00','M00'],default='F00')
+    parser.add_argument('--xwear', type=Path)
     args=parser.parse_args()
-    asyncio.run(check(args.source,args.out,args.variant))
+    asyncio.run(check(args.source,args.out,args.variant,args.xwear))
