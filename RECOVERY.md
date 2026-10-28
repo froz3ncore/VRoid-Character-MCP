@@ -89,7 +89,8 @@ it is not sufficient evidence of a fatal mesh-cache defect.
 
 当前已核构建的独立副本可连续改体型、编辑纹理及进入换装；不用通过重开进程规避本次
 已复现的 PNG 解码崩溃。每帧最多处理四个解码请求，仍转发原生错误回调；内部失败会
-阻止后续操作，不把失败当成功。连接真实窗口没有安装该解码替换，相关限制仍保留。
+阻止后续操作，不把失败当成功。兼容的真实窗口连接使用 VRoid 自己持有的完成回调；
+已提交回调不依赖 MCP 存活。连接时等待旧解码任务结束，模态弹窗会阻止写入。
 更新源码后需正常关闭旧 MCP 服务并重新载入 agent；先保存需保留的修改。
 
 Reproduce through real MCP stdio on an exclusive prepared lab:
@@ -174,6 +175,13 @@ client first. No saved character files are rewritten by lease recovery.
 后台设置在重新连接前可能仍为开启。不要重放结果未确认的写入；新连接需要新 token。
 仍在运行的另一服务不会被抢占，请先通过原客户端断开。该恢复不覆盖旧版无记录的连接、
 操作中途丢失的结果或系统崩溃。
+
+若中断发生在真实窗口写入中，`get_status.attached_state.pending_edit` 会保留工具名称及
+派发次数，并阻止新写入。先用只读工具核对参数、图层和新增文件，再调用
+`get_attached_state` 取得新鲜的 `recovery_token`，交给 `acknowledge_attached_state`。
+手动编辑、模型或文件关联变化会使旧凭据失效；弹窗／原生任务未结束时无法确认。
+确认只恢复后续编辑，不重试、回滚或认定中断操作成功。记录属于 VRoid 进程，换客户端
+仍可读取；VRoid／系统退出后不保留。详见 ATTACHED_SESSION.md。
 
 `tools/run_checks.ps1 -Native` runs read-only domain checks on an exclusive
 prepared lab. Saving, cold reopening and exporting are tested separately by

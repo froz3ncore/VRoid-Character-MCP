@@ -3,7 +3,7 @@
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 A local MCP server that normally drives **one disposable copy of VRoid Studio** through
-the application's own managed API, with optional attachment to an existing session. It exposes 92 tools for character
+the application's own managed API, with optional attachment to an existing session. It exposes 94 tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
@@ -15,7 +15,8 @@ separate work. See [SCOPE.md](SCOPE.md).
 Validated copies support body, texture and Dress-up editing in one process.
 Native PNG decoding runs on Unity's main thread with deferred callbacks to avoid
 the reproduced asynchronous buffer-lifetime crash. Transitions wait for pending
-callbacks; attached windows keep their conservative restrictions. See [recovery](RECOVERY.md).
+callbacks. Attached windows use Unity-owned completions that survive host exit;
+dialogs and interrupted edits have explicit guards. See [recovery](RECOVERY.md).
 
 ## In action
 
@@ -71,10 +72,11 @@ registry key and its own `TEMP`, attaches with Frida, and calls managed methods
 on Unity's main thread. `attach_open_vroid` can explicitly connect an existing
 user-opened process. Edits then affect the user's unsaved model and profile;
 the copy's isolation guard is not loaded. `detach_open_vroid` leaves it running.
-Save in VRoid itself. Because the preceding manual edit history is unknown,
-entering the texture editor or switching into Dress-up is refused in attached mode.
-Ordinary VRM export writes under lab/saves. Isolated copies can save new custom
-items with file and closet checks; attached sessions refuse custom-item saves.
+Save character files in VRoid itself. Compatible attached windows support texture
+editing and file-based Dress-up entry with explicit discard of unsaved work.
+Ordinary VRM export writes under lab/saves. Custom item saves use the current
+window's native closet, verify new files and registration, and preserve its
+character filename and prior dirty state. Interrupted edits require state review.
 See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 
 - `agent/profile_guard.js` — remaps the machine profile into the lab and refuses
@@ -205,8 +207,9 @@ acceptance remain pending. See [regression scope](REGRESSION.md).
   channels reads back but changes 0 of 640x640 rendered pixels; global hair
   colour (`colors/Hair/All`) changes 24.6%. Only global colour is supported.
 - **M00** has not received the coverage F00 has.
-- **Continuous editing requires the validated decoder.** Copies expose its state
-  in `get_status.png_decoder`; attached sessions retain their restrictions.
+- **Continuous editing requires the validated decoder.** Its state appears in
+  `get_status.png_decoder`. Attached sessions use Unity-owned callbacks and block
+  writes during dialogs or until interrupted edits have been reviewed.
 - **Rear-skirt collision is paused and unresolved**; it is not assumed away.
 - Godot import, materials and physics require separate engine-side validation.
 
@@ -247,7 +250,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 92 tools |
+| `tools/TOOLS.md` | generated reference for all 94 tools |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

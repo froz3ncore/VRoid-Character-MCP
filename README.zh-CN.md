@@ -4,11 +4,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 92 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 94 个 MCP 工具 · stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
-连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载，请在 VRoid 中自行保存。断开连接不会关闭该窗口。由于连接前的手动编辑历史无法确认，连接模式禁止进入纹理编辑器和切换进入换装；这些步骤请在独立副本中进行。普通角色可导出 VRM 0.x/1.0；独立副本支持保存新的自定义物品并核验文件和衣柜登记，连接真实会话时仍拒绝该保存。
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载，人物文件请在 VRoid 中自行保存。断开连接不会关闭窗口。兼容窗口支持纹理编辑，也可明确丢弃当前未保存修改后，从指定文件进入换装。普通角色可导出 VRM 0.x/1.0；自定义物品保存到该窗口原生衣柜，核验文件和登记并保留人物文件关联及原有未保存标记。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
@@ -64,7 +64,7 @@ Windows · VRoid Studio 2.14.0 · 92 个 MCP 工具 · stdio · MIT
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [92 个工具参考](tools/TOOLS.md)。
+完整工具名称、参数、前置条件和错误处理见 [94 个工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
@@ -142,7 +142,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **92 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后应能发现 **94 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -227,7 +227,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 - **逐束可见发色尚未解决**：部分颜色元素虽能读回，但不驱动可见手绘发丝；目前可靠支持全局发色。
 - **妆容与美甲定位有适用范围**：未知拓扑、共用 UV 或歧义部位会被拒绝，不能宣称任意模型都可自动识别。
 - **M00 覆盖少于 F00**，不承诺同等效果。
-- **连接真实窗口仍有限制**：未加载副本的解码修复，编辑历史未知，继续拒绝进入纹理画板及切换进入换装。
+- **真实窗口保护**：使用 VRoid 持有的纹理完成回调；弹窗、进度锁与活动画板会阻止不兼容操作。中断写入后通过 `get_attached_state` 检查，再以新凭据调用 `acknowledge_attached_state`。人物另存、XRoid 保存和 XWear 导入仍需独立副本，详见[连接说明](ATTACHED_SESSION.md)。
 - **后裙碰撞暂停且未解决**；截图里的服装仍是制作中候选。
 - 原生批量编辑不是事务；发生部分成功或结果不确定时，先检查状态，不盲目重复写入。
 - Godot 导入、MToon 最终外观、物理和游戏集成需要单独验证。
@@ -236,7 +236,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 92 个工具与参数。
+- [工具参考](tools/TOOLS.md)：完整的 94 个工具与参数。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。

@@ -89,7 +89,10 @@ cold persistence check. Use tools/check_continuous_editing.py. The earlier faile
 run remains a failure; independent-user acceptance is still pending.
 
 上段为历史失败与旧规避。本次修复后，已验证独立副本可在同一进程连续编辑及导出；
-真实连接模式仍保留限制。外部用户仍需独立复验，不能把开发者本机通过当成外测通过。
+真实连接模式另有受控验收：tools/check_attached_editing.py 检查既有未保存状态、原生弹窗、
+禁用 Windows 主窗口、纹理像素与撤销、自定义物品以及编辑中断后的回调／操作记录恢复。
+该测试使用独立启动 profile；已核对测试文件选择器打开／取消，真实用户 profile、任意原生保存／覆盖弹窗、
+任意复杂人机同时编辑和系统崩溃仍需独立验收。外部用户仍需独立复验，不能把开发者本机通过当成外测通过。
 
 The Windows workflow runs unit tests, MCP input-schema checks, JS behaviour and
 source-manifest verification on clean hosted checkouts. It retains reports on

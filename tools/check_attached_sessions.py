@@ -141,9 +141,7 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
                     redone = await call('list_face_params')
                     assert abs(next(p['value'] for p in redone['parameters'] if p['id'] == 'face/FaceSet/006') - .5) < 1e-6
                     passed('native_undo_redo_preserves_history')
-                    for name, args in [('open_texture_editor', {'expected_model': token, 'region_id': 'unused'}),
-                                       ('save_custom_items', {'expected_model': token, 'types': ['Iris']})]:
-                        await call(name, args, error='ATTACHED_')
+                    await call('save_as', {'expected_model': token, 'filename': 'refused.vroid'}, error='file association')
                     passed('unsafe_attached_operations_refused')
                     detached = await call('detach_open_vroid')
                     assert detached['release']['background_restored'] and alive()

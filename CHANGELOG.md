@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — attached-window editing and interrupted-edit review
+
+- Enabled texture entry/layer editing and explicit-discard file-based Dress-up
+  entry on compatible attached windows. Late attachment uses native main-thread
+  PNG decoding with Unity-owned completion delegates; pending completions survive
+  agent unload. Existing original decoder workers must finish before transitions.
+- Enabled new custom item saves into the target window's native closet, with
+  ZIP/metadata/registration validation and preserved character file ownership and
+  prior dirty state. Character save, XRoid save and XWear import remain guarded.
+- Added native dialog/progress/popup and active-canvas guards, plus a disabled
+  Windows-owner preflight that reports unavailable state without RPC submission.
+- Added process-local edit receipts and get_attached_state /
+  acknowledge_attached_state. Interrupted edits remain readable but block writes
+  until a fresh, unchanged state has been inspected and acknowledged; no replay.
+- Added a reproducible external-window editing checker with fixture-only
+  interruption injection and separate host-side recovery/profile regressions.
+  Existing tool inputs remain unchanged; two recovery tools bring the set to 94.
+- On the supported build, F00/M00 each passed 17 external-window editing checks,
+  including a real Windows file dialog's open/cancel lifecycle and pending PNG
+  completions after forced host exit. Updated F00 lifecycle passed 18 checks.
+
 ## Unreleased — same-process native PNG decode lifetime fix
 
 - Reproduced the historical transition access violation at the same binary

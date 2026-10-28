@@ -32,7 +32,10 @@ INSTRUCTIONS = (
     'This server normally drives one disposable VRoid Studio copy through its managed API. '
     'attach_open_vroid explicitly switches to an existing user-opened process; edits then affect '
     'the real unsaved session and its own profile, and the lab guard is not loaded. '
-    'detach_open_vroid leaves that process running. Save attached work in VRoid itself. '
+    'detach_open_vroid leaves that process running. Save attached character files in VRoid itself; '
+    'save_custom_items writes new items to that window\'s native closet. Attached texture entry '
+    'uses Unity-owned callbacks that survive host exit. Dialogs block writes. An interrupted '
+    'edit requires get_attached_state, inspection, and acknowledge_attached_state before resuming. '
     'Start with list_face_params and pass the model_token it returns as expected_model. '
     'list_parameters covers the face, body, clothing, colours, expressions, general, hair, '
     'hair-bone, accessory and photo domains: hair needs a category and a node scope, an '
@@ -102,7 +105,33 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             async def ready(*args, **kwargs):
                 async with session_gate:
                     await initialize_runtime()
-                    return await function(*args, **kwargs)
+                    current = runtime.current
+                    edit = options.get('annotations') and not options['annotations'].readOnlyHint
+                    receipt = None
+                    if current.mode == 'attached' and edit:
+                        receipt = await current._call('attached_edit_begin', {'tool': function.__name__})
+                    try:
+                        result = await function(*args, **kwargs)
+                    except BaseException:
+                        if receipt:
+                            try:
+                                finished = await current._call('attached_edit_finish', {
+                                    'id': receipt['id'], 'success': False, 'uncertain': current.uncertain})
+                                current.uncertain |= finished['needs_review']
+                            except BaseException:
+                                current.uncertain = True
+                        raise
+                    if receipt:
+                        if isinstance(result, dict) and result.get('ok') is False:
+                            current.uncertain = True
+                        try:
+                            finished = await current._call('attached_edit_finish', {
+                                'id': receipt['id'], 'success': not current.uncertain, 'uncertain': current.uncertain})
+                            current.uncertain |= finished['needs_review']
+                        except BaseException:
+                            current.uncertain = True
+                            raise
+                    return result
             return mcp.tool(**options)(ready)
         return register
 
@@ -113,7 +142,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         Edits act on that real session, including its unsaved model. If the MCP
         copy is running, explicitly set discard_copy_unsaved after saving it.
         Multiple candidate processes require a PID. Other MCP labs are excluded.
-        Attached mode does not load the lab isolation guard; save in VRoid itself.
+        Attached mode does not load the lab isolation guard. Save character files
+        in VRoid itself; custom item saves use the target window's profile.
         """
         async with session_gate:
             candidates = await asyncio.to_thread(bridge.find_open_vroid, lab)
@@ -193,6 +223,33 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         except Exception as error:  # tool enumeration must never hide model state
             status['toolset_error'] = str(error)
         return status
+
+    @mcp.tool(annotations=READ_ONLY)
+    async def get_attached_state() -> dict:
+        """Inspect the attached window and any interrupted edit, producing a fresh recovery token.
+
+        Inspect parameters, layers and created files before acknowledging an
+        interrupted operation. This never retries or reverses the operation.
+        Dialogs and active native work must finish before review.
+        """
+        async with session_gate:
+            if runtime.current.mode != 'attached':
+                raise RuntimeError('ATTACHED_ONLY')
+            return await runtime.current._call('attached_review')
+
+    @mcp.tool(annotations=EDIT)
+    async def acknowledge_attached_state(recovery_token: str) -> dict:
+        """Resume attached edits after reviewing the actual state and interrupted tool.
+
+        Use the fresh token from get_attached_state. A changed model, history,
+        file association or busy state invalidates it. No operation is replayed.
+        """
+        async with session_gate:
+            if runtime.current.mode != 'attached':
+                raise RuntimeError('ATTACHED_ONLY')
+            result = await runtime.current._call('attached_acknowledge', {'recovery_token': recovery_token})
+            runtime.current.uncertain = False
+            return result
 
     for module in (tools_wear, tools_parameters, tools_hair, tools_accessories, tools_capture, tools_ordinary):
         module.register(ready_tool, runtime, lab, READ_ONLY, EDIT)

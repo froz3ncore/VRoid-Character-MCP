@@ -21,8 +21,7 @@ WEAR_RESTART_REQUIRED = (
 
 
 def decoder_enabled(subject) -> bool:
-    return (getattr(subject, 'mode', 'copy') == 'copy'
-            and getattr(subject, 'native_png_decoder_ready', False))
+    return bool(getattr(subject, 'native_png_decoder_ready', False))
 
 
 def before_call(subject, operation: str, args: dict) -> None:
@@ -57,7 +56,7 @@ def after_call(subject, operation: str, args: dict, result) -> None:
 def status(subject, token: str | None) -> dict:
     if decoder_enabled(subject):
         return {'requires_cold_reopen': False, 'reason': None,
-                'scope': 'Validated copy uses native synchronous PNG decode with deferred callbacks.'}
+                'scope': 'Verified native synchronous PNG decode with deferred callbacks.'}
     blocked = token in getattr(subject, 'body_edited_tokens', set())
     return {'requires_cold_reopen': blocked,
             'reason': 'BODY_EDIT_IN_THIS_SESSION' if blocked else None,
@@ -68,7 +67,7 @@ def status(subject, token: str | None) -> dict:
 def wear_status(subject) -> dict:
     if decoder_enabled(subject):
         return {'requires_new_process': False, 'reason': None,
-                'scope': 'Validated copy uses native synchronous PNG decode with deferred callbacks.'}
+                'scope': 'Verified native synchronous PNG decode with deferred callbacks.'}
     blocked = getattr(subject, 'texture_editor_entered', False)
     return {'requires_new_process': blocked,
             'reason': 'TEXTURE_EDITOR_ENTERED_IN_THIS_PROCESS' if blocked else None,

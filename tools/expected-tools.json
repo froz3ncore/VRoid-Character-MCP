@@ -1,8 +1,16 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 92,
- "toolset_hash": "sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034",
+ "tool_count": 94,
+ "toolset_hash": "sha256:1e6188ac193097637bc8fbfad3566e1da1f794210d16283cc777c9ee7cb15208",
  "tools": {
+  "acknowledge_attached_state": {
+   "parameters": [
+    "recovery_token"
+   ],
+   "required": [
+    "recovery_token"
+   ]
+  },
   "add_shoe_template": {
    "parameters": [
     "expected_model",
@@ -274,6 +282,10 @@
    "required": [
     "expected_model"
    ]
+  },
+  "get_attached_state": {
+   "parameters": [],
+   "required": []
   },
   "get_height": {
    "parameters": [],

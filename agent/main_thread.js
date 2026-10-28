@@ -227,6 +227,8 @@ function adoptRunning() {
         setBackground(value) { application.method('set_runInBackground').invoke(value); },
     });
     const lease = bridge.attachmentLease.acquire();
+    bridge.pngDecoder = installAttachedPngDecoder({cls: nativeClass, retain,
+        mainThread: () => bridge.mainThread});
     bridge.backgroundHook = Interceptor.attach(binding, {onEnter(args) { args[0] = ptr(1); }});
     for (const hook of bridge.pumpHooks) hook.detach();
     bridge.pumpHooks = [];
@@ -234,6 +236,7 @@ function adoptRunning() {
 }
 
 function releaseAttached() {
+    if (bridge.pngDecoder) { bridge.pngDecoder.release(); bridge.pngDecoder = null; }
     if (bridge.backgroundHook) bridge.backgroundHook.detach();
     bridge.backgroundHook = null;
     if (bridge.attachmentLease) {

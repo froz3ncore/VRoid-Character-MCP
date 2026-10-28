@@ -25,11 +25,12 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def save_custom_items(expected_model: str, types: list[str] | None = None) -> dict:
-        """Save worn parts as new custom items in the isolated copy's closet.
+        """Save worn parts as new custom items in the current VRoid profile's closet.
 
         types selects unique names from list_parts savable_types; None saves all.
         Verifies new files, ZIP integrity, metadata and native closet registration.
-        Existing items are never overwritten. Attached sessions are refused.
+        Existing items are never overwritten. Attached mode uses that real
+        window's profile and preserves its character file association/dirty flag.
         Partial/uncertain saves are not rolled back; inspect files before retrying.
         """
         return await runtime.save_custom_items(expected_model, types)

@@ -4,15 +4,15 @@
 角色层（正式 v22 资产、鞋、坐姿、VRM 内容检查）不在本文件范围内，只作为工具层的端到端验收场景。
 
 历史基线：`91fb34c` / `checkpoint-toolset-20261019`，85 工具。
-当前开发版：92 工具。公开主仓库为 `froz3ncore/VRoid-Character-MCP`，默认 `main` 使用独立历史；旧开发历史仅在本地保留。新功能适配了后续 MIT 授权的上游版本，第三方许可和声明见 LICENSE／LICENSING.md／NOTICE／UPSTREAM.json。
+当前开发版：94 工具。公开主仓库为 `froz3ncore/VRoid-Character-MCP`，默认 `main` 使用独立历史；旧开发历史仅在本地保留。新功能适配了后续 MIT 授权的上游版本，第三方许可和声明见 LICENSE／LICENSING.md／NOTICE／UPSTREAM.json。
 
-新增连接现有 VRoid、普通编辑 VRM 0.x/1.0 导出、模型部件查看及替换。连接时操作真实会话，文件及衣柜仍属于用户；因为连接前的纹理和体型编辑历史不可知，连接模式禁止进入纹理编辑器及切换进入换装。独立副本支持保存新的自定义物品并核验文件与衣柜登记，真实连接模式仍拒绝该保存。详见工具参考。
+新增连接现有 VRoid、普通编辑 VRM 0.x/1.0 导出、模型部件查看及替换。兼容真实窗口支持纹理编辑、明确丢弃修改后的文件式换装入口及保存新自定义物品；保留原人物文件关联和未保存标记。原生弹窗／进度及 Windows 禁用主窗口会阻止写入。中断后保留进程内操作记录，检查实际状态并以新凭据确认后继续，不自动重放。人物另存、XRoid 保存及 XWear 导入仍拒绝。详见 ATTACHED_SESSION.md。
 
 ## 必须做（Must）
 
 2026-10-28 连续编辑更新：独立副本的异步 PNG 写入崩溃路径已通过主线程原生解码、
 输入/结果持有及延后回调修复；已验证副本不再要求体型→纹理→换装之间重开进程。
-见 RECOVERY.md 与 tools/check_continuous_editing.py。连接真实窗口仍保留历史未知限制。
+见 RECOVERY.md 与 tools/check_continuous_editing.py。真实窗口使用 Unity 持有的完成回调，验收脚本为 tools/check_attached_editing.py。
 
 后续可复现与恢复改进已加入开发树：`tools/doctor.py`、公开自制配件样例、体型编辑后
 画板冷重开守卫、区域图像比较与身高／原生上衣矩阵。说明见 RECOVERY.md、PUBLIC_SAMPLE.md、

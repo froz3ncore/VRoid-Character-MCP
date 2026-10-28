@@ -24,7 +24,7 @@ from typing import Any
 
 import frida
 
-from . import closet_guard, lab_lock, edit_sequence
+from . import closet_guard, lab_lock, edit_sequence, attached_ui
 from .supported_builds import validate_assembly
 
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
@@ -35,6 +35,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_MODULES = (
     'attachment_lease.js',
     'native_png_decoder.js',
+    'attached_png_decoder.js',
     'main_thread.js',
     'parameter_semantics.js',
     'color_state.js',
@@ -46,6 +47,7 @@ AGENT_MODULES = (
     'body_reference.js',
     'preset_previews.js',
     'ordinary_extensions.js',
+    'attached_state.js',
     'operations.js',
 )
 GUARD_MODULE = 'profile_guard.js'
@@ -226,7 +228,20 @@ async def adopt(subject) -> dict:
             raise TimeoutError('Attached bridge did not become ready')
         await asyncio.sleep(.2)
     try:
-        return await asyncio.wait_for(asyncio.to_thread(subject.script.exports_sync.adopt), 30)
+        result = await asyncio.wait_for(asyncio.to_thread(subject.script.exports_sync.adopt), 30)
+        deadline = time.monotonic() + 30
+        while True:
+            png = await call(subject, 'native_png_status')
+            if png.get('fatal') or not png.get('installed'):
+                raise RuntimeError('ATTACHED_PNG_DECODER_UNAVAILABLE: ' + str(png))
+            if not png['pending']:
+                subject.native_png_decoder_ready = True
+                state = await call(subject, 'status')
+                subject.uncertain = bool(state.get('attached_state', {}).get('pending_edit'))
+                return result
+            if time.monotonic() > deadline:
+                raise TimeoutError('Previous native PNG workers still running; attachment is not ready for edits')
+            await asyncio.sleep(.1)
     except asyncio.TimeoutError:
         subject.uncertain = True
         raise TimeoutError('VRoid main thread did not respond; detach and retry after focusing the window')
@@ -237,12 +252,23 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         if getattr(subject, 'mode', 'copy') == 'attached':
             raise RuntimeError('ATTACHED_VROID_DISCONNECTED: detach or attach again')
         raise RuntimeError('COPY_DISCONNECTED: restart the MCP server')
-    if subject.uncertain and operation != 'status':
+    attached = getattr(subject, 'mode', 'copy') == 'attached'
+    inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
+        'status', 'native_png_status', 'task_status', 'custom_item_state', 'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
+    if subject.uncertain and operation != 'status' and not (attached and inspectable):
+        if attached:
+            raise RuntimeError('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state and actual parameters, layers and files before acknowledge_attached_state; do not retry the interrupted tool')
         raise RuntimeError('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
     timeout = SLOW_OPERATIONS.get(operation, DEFAULT_TIMEOUT_SECONDS)
     payload = args or {}
     if getattr(subject, 'mode', 'copy') == 'attached':
-        if operation in {'open_texture_editor', 'open_wear_project'}:
+        window = attached_ui.window_state(getattr(subject, 'pid', None))
+        if window['blocked']:
+            if operation == 'status':
+                return {'model_ready': False, 'pid': subject.pid, 'current_state_unavailable': True,
+                        'reason': 'ATTACHED_OS_MODAL_BLOCKED', 'window_state': window}
+            raise RuntimeError('ATTACHED_OS_MODAL_BLOCKED: finish the open Windows dialog in VRoid first; nothing dispatched')
+        if operation in {'open_texture_editor', 'open_wear_project'} and not getattr(subject, 'native_png_decoder_ready', False):
             raise RuntimeError('ATTACHED_HISTORY_UNKNOWN: prior manual body and texture edits cannot be verified; use a fresh isolated copy for this transition')
         if operation in {'save_as', 'open_model', 'new_model', 'save_wear_project', 'wear_clear_save_path', 'import_xwear'}:
             raise RuntimeError('ATTACHED_FILE_OPERATION_REFUSED: save in VRoid; file operations belong to the isolated copy')
@@ -348,8 +374,11 @@ async def status(subject) -> dict:
             return disconnected_status(subject)
         if result.get('png_decoder', {}).get('fatal'):
             subject.uncertain = True
+        ui = result.get('attached_state', {})
+        ui_blocked = bool(result.get('current_state_unavailable') or ui.get('dialog') or ui.get('notification')
+                          or ui.get('progress_locked') or ui.get('popup_blocked'))
         result.update(connected=True, mode=getattr(subject, 'mode', 'copy'), target=getattr(subject, 'target', None),
-                      writes_blocked=subject.uncertain, lab=str(subject.lab),
+                      writes_blocked=subject.uncertain or ui_blocked, lab=str(subject.lab),
                       crash_guard=subject.crash_guard,
                       wear_transition_guard=edit_sequence.wear_status(subject),
                       texture_editor_guard=edit_sequence.status(subject, result.get('model_token')))

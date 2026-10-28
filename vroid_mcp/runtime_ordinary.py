@@ -79,8 +79,8 @@ class OrdinaryTools:
             return {'model_token': expected_model, 'part_id': part_id, 'replaced': True}
 
     async def save_custom_items(self, expected_model, types=None):
-        if self.mode == 'attached':
-            raise RuntimeError('ATTACHED_CUSTOM_ITEM_SAVE_UNAVAILABLE: save in an isolated copy first')
+        if self.mode == 'attached' and not getattr(self, 'native_png_decoder_ready', False):
+            raise RuntimeError('ATTACHED_CUSTOM_ITEM_SAVE_UNAVAILABLE: verified attachment is required')
         if types is not None and (not isinstance(types, list) or not types or
                                   any(not isinstance(t, str) or not t for t in types) or len(set(types)) != len(types)):
             raise ValueError('types must be a nonempty list of unique savable type names')
@@ -91,7 +91,8 @@ class OrdinaryTools:
             snapshot = await self._call('custom_item_state', args)
             root = pathlib.Path(snapshot['base_path']).resolve()
             profile = (self.lab / 'profile').resolve()
-            if not root.is_relative_to(profile) or root == profile:
+            attached = self.mode == 'attached'
+            if (not attached and (not root.is_relative_to(profile) or root == profile)) or not root.is_dir():
                 raise RuntimeError('CUSTOM_ITEM_PROFILE_MISMATCH')
             parts = snapshot['parts']
             if types is not None:
@@ -102,12 +103,15 @@ class OrdinaryTools:
                 raise ValueError('No savable parts in the current model')
             saved = []
             known = {p.resolve() for p in root.rglob('*.vroidcustomitem')}
+            known.update(pathlib.Path(item['path']).resolve() for item in snapshot['files'])
             try:
                 for part in parts:
                     await self._call('save_custom_item', {**args, 'part_id': part['id']})
                     deadline = time.monotonic() + 30
                     while True:
                         current = await self._call('custom_item_state', args)
+                        if pathlib.Path(current['base_path']).resolve() != root:
+                            raise RuntimeError('CUSTOM_ITEM_PROFILE_CHANGED')
                         matches = []
                         for item in current['files']:
                             path = pathlib.Path(item['path']).resolve()
@@ -135,10 +139,15 @@ class OrdinaryTools:
                         if time.monotonic() > deadline:
                             raise TimeoutError('CUSTOM_ITEM_SAVE_UNCONFIRMED: inspect closet; do not retry blindly')
                         await asyncio.sleep(.3)
+                if attached:
+                    await self._settle()
+                    await self._call('preserve_attached_unsaved', {**args,
+                        'source_file_path': snapshot['source_file_path'], 'was_unsaved': snapshot['unsaved']})
             except BaseException:
                 self.uncertain = True
                 raise
-            return {'model_token': expected_model, 'saved': saved, 'profile_scope': 'lab profile',
+            return {'model_token': expected_model, 'saved': saved,
+                    'profile_scope': 'attached VRoid profile' if attached else 'lab profile',
                     'verified': 'ZIP integrity, metadata and native closet registration; cold reopen is separate'}
 
     async def export_vrm(self, expected_model, filename, version=1, title=None, author=None):

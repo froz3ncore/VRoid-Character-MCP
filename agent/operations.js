@@ -34,6 +34,7 @@ globalThis.vroid = (() => {
     const parameterMetadata = createParameterSemantics({ text });
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
     const captureFraming = createCaptureFraming({ core, text });
+    const attachedState = createAttachedState({main: mainViewModel, text, state});
 
     // ---------------------------------------------------------------- session
     function mainViewModel() {
@@ -73,6 +74,7 @@ globalThis.vroid = (() => {
             focused: core('Application').method('get_isFocused').invoke(),
             model_ready: false,
             png_decoder: state.pngDecoder,
+            ...(ATTACHED ? {attached_state: attachedState.snapshot()} : {}),
         };
         try {
             const m = modelContext();
@@ -707,6 +709,7 @@ globalThis.vroid = (() => {
     const operations = {
         ...textureApi.operations,
         ...ordinary.operations,
+        ...attachedState.operations,
         native_png_status: () => state.pngDecoder,
         ...presetPreviews.operations,
         ...bodyReference.operations,
@@ -751,7 +754,7 @@ globalThis.vroid = (() => {
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
         + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
-        + 'preview_expression|replace_part|save_custom_items|enter_vrm_export)$');
+        + 'preview_expression|replace_part|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
         + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
 
@@ -787,6 +790,7 @@ globalThis.vroid = (() => {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
                 throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
+            attachedState.guard(name);
             requireOrdinaryEditing(name, args);
             return operations[name](args);
         },

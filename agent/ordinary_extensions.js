@@ -14,7 +14,9 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         }} finally {it.method('Dispose').invoke();}
         const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();
         const parts=listParts(args).parts.filter(p=>allowed.method('Contains').invoke(Il2Cpp.string(p.group_type)));
-        return {model_token:m.token,base_path:text(registry.field('_basePath').value),parts,files};
+        return {model_token:m.token,base_path:text(registry.field('_basePath').value),parts,files,
+            source_file_path:text(m.file.field('path').value),
+            unsaved:m.main.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke()};
     }
     function saveCustomItem(args) {
         if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
@@ -191,6 +193,15 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
     }
     return {operations:{list_parts:listParts, replace_part:replacePart,
         custom_item_state:customItemState, save_custom_item:saveCustomItem,
+        preserve_attached_unsaved(args) {
+            if(!ATTACHED)throw Error('ATTACHED_ONLY');
+            const m=model(args.expected_model);
+            if(text(m.file.field('path').value)!==args.source_file_path)throw Error('ATTACHED_SOURCE_FILE_CHANGED');
+            // Saving a closet item does not save the associated character file.
+            // Never force a clean flag: concurrent new edits must stay dirty.
+            if(args.was_unsaved)m.main.method('get_ActionHandler').invoke().method('set_IsUnSaved').invoke(true);
+            return {preserved:true};
+        },
         vrm_export_state:vrmExportState,
         enter_vrm_export:enterVrmExport, leave_vrm_export:leaveVrmExport,
         start_vrm_export:startVrmExport, vrm_export_status:vrmExportStatus}};

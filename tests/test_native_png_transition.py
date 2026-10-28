@@ -36,12 +36,11 @@ def test_failed_png_pipeline_never_enters_transition(tmp_path, state):
     assert calls == ['native_png_status'] and subject.uncertain
 
 
-def test_unverified_and_attached_sessions_keep_existing_guard(tmp_path):
+def test_unverified_sessions_keep_guard_and_verified_attachment_can_transition(tmp_path):
     subject = Runtime(tmp_path)
     subject.body_edited_tokens.add('live')
     with pytest.raises(RuntimeError, match='REOPEN_REQUIRED'):
         edit_sequence.before_call(subject, 'open_texture_editor', {'expected_model': 'live'})
     subject.native_png_decoder_ready = True
     subject.mode = 'attached'
-    with pytest.raises(RuntimeError, match='REOPEN_REQUIRED'):
-        edit_sequence.before_call(subject, 'open_texture_editor', {'expected_model': 'live'})
+    edit_sequence.before_call(subject, 'open_texture_editor', {'expected_model': 'live'})
