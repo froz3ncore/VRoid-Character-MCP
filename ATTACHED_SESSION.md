@@ -40,3 +40,31 @@ override only the output name and author. Output is first staged, structurally
 checked for the requested VRM extension, and then published without overwriting
 an existing filename. A timed-out native export is uncertain: do not repeat it
 blindly. Container checks are not complete VRM, visual or engine validation.
+
+## Reproduce attachment lifecycle checks
+
+Run this against a supported installation and a **new** output directory:
+
+```powershell
+& .\.venv\Scripts\python.exe .\tools\check_attached_sessions.py `
+  --source "C:\Program Files\VRoid Studio" `
+  --out "D:\VRoid-Attachment-Check-F00" --variant F00
+```
+
+Use `--variant M00` with another new output directory for the second model type.
+The script copies and hashes the source installation, creates an isolated test
+profile, and drives a test-owned external process through the real MCP stdio
+interface. It never selects an existing user window. The startup fixture guard
+belongs to the test; the attached MCP agent itself still has no profile guard.
+
+Native checks cover home-screen attachment, creating a model after attachment,
+same-PID idempotence, face edits and Undo/Redo, refused operations, detach and
+reattach with unsaved edits, stale-token refusal, normal client EOF cleanup,
+new-client recovery, attached restart, and target-process termination. Background
+policy is measured before attachment and again after detach and normal EOF.
+Results go to `checks.json`; application and server logs stay under the output.
+
+F00 and M00 passed these lifecycle checks on the supported 2.14.0 build. This
+does not establish full M00 editing coverage, modal-dialog handling, multiple
+human users, or recovery after forcibly killing the MCP server or the host OS.
+Independent real-profile acceptance remains pending in BETA_TESTING.md.

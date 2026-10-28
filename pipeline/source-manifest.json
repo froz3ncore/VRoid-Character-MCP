@@ -1,8 +1,8 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 318,
- "total_bytes": 1955761,
+ "file_count": 320,
+ "total_bytes": 1973624,
  "tool_count": 92,
  "toolset_hash": "sha256:a6cf58ccc25f4db7b224500d9806d75acf277baf034f57a33e90a108339e8034",
  "files": [
@@ -13,8 +13,8 @@
   },
   {
    "path": "ATTACHED_SESSION.md",
-   "bytes": 2843,
-   "sha256": "ca242af1e22234924ae65c4da88645fe50fbec962058163ef83730004123c7ff"
+   "bytes": 4322,
+   "sha256": "a69bf1cb373dc28f4fcfb4af49e31d6dd7809bd4d370ea4ff18f03160377f774"
   },
   {
    "path": "BETA_TESTING.md",
@@ -28,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 15255,
-   "sha256": "8c5832aad4aca3bc3bfa61ac8bcd9345912b09ce449b05314225c21e0763698c"
+   "bytes": 16100,
+   "sha256": "6a268c0fb47756a0d989c25b17f51778470dba14b61ce997e893669fd7130bd7"
   },
   {
    "path": "LICENSE",
@@ -1077,6 +1077,11 @@
    "sha256": "21394a04b4af650f748d0729c27ceba313b1d9a2f2ca074ee7fcf477a8710961"
   },
   {
+   "path": "tests/test_attached_lifecycle.py",
+   "bytes": 4211,
+   "sha256": "4850a9022852181dfc3667487d3c0c23109c64f047c5f4b47ddf88ee12789201"
+  },
+  {
    "path": "tests/test_body_reference.py",
    "bytes": 1394,
    "sha256": "3793f39c75f31c100d39a7e38d26846570de48610a4e43fe368b554579cd70d8"
@@ -1290,6 +1295,11 @@
    "path": "tools/build_sample_asset.py",
    "bytes": 3784,
    "sha256": "caa80538176719f1340b5787abc53fbb6ee09a95cf41336061dac6ec5feb3fbc"
+  },
+  {
+   "path": "tools/check_attached_sessions.py",
+   "bytes": 11328,
+   "sha256": "91f1afd34739e574902856ce286e297eb7853b1f180866d12fc875a7714ca25a"
   },
   {
    "path": "tools/check_edit_sequence.py",

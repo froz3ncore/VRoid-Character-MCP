@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — attachment lifecycle acceptance
+
+- Added a repeatable native attachment checker using a new copied installation,
+  an isolated startup profile and real MCP stdio calls. Both F00 and M00 pass
+  home-screen attachment, model discovery, edit/Undo/Redo, repeat attachment,
+  detach/reattach, stale-token refusal, normal client EOF, new-client recovery,
+  attached restart and target-exit checks. Background policy is independently
+  observed before attachment and after release.
+- Added public session-entry regression tests for multiple-process selection,
+  unsupported-build preflight, explicit copy discard, failed-adoption cleanup
+  and retry, and idempotent attachment. Runtime behavior and tool schemas are
+  unchanged. Forced server termination and independent-user acceptance remain
+  unverified; see ATTACHED_SESSION.md.
+
 ## Unreleased — existing sessions, model parts and ordinary VRM export
 
 - Optional attachment to an already-open supported VRoid process; detach leaves
