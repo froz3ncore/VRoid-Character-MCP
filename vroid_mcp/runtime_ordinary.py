@@ -8,6 +8,8 @@ import os
 import struct
 import time
 import uuid
+import pathlib
+import zipfile
 
 from .wear_paths import wear_destination
 
@@ -44,7 +46,11 @@ class OrdinaryTools:
         async with self.lock:
             await self._require_live_model(expected_model)
             await self._settle()
-            return await self._call('list_parts', {'expected_model': expected_model})
+            result = await self._call('list_parts', {'expected_model': expected_model})
+            closet = await self._call('custom_item_state', {'expected_model': expected_model})
+            result['custom_items'] = closet['files']
+            result['savable_types'] = sorted({p['type'] for p in closet['parts']})
+            return result
 
     async def replace_part(self, expected_model, part_id):
         async with self.lock:
@@ -74,9 +80,67 @@ class OrdinaryTools:
             return {'model_token': expected_model, 'part_id': part_id, 'replaced': True}
 
     async def save_custom_items(self, expected_model, types=None):
-        raise RuntimeError('CUSTOM_ITEM_SAVE_UNAVAILABLE: the native request did not produce a '
-                           'verifiable saved item in the isolated test. Use the VRoid interface '
-                           'and verify the item in its closet; no save was attempted by MCP.')
+        if self.mode == 'attached':
+            raise RuntimeError('ATTACHED_CUSTOM_ITEM_SAVE_UNAVAILABLE: save in an isolated copy first')
+        if types is not None and (not isinstance(types, list) or not types or
+                                  any(not isinstance(t, str) or not t for t in types) or len(set(types)) != len(types)):
+            raise ValueError('types must be a nonempty list of unique savable type names')
+        async with self.lock:
+            await self._require_live_model(expected_model)
+            await self._settle()
+            args = {'expected_model': expected_model}
+            snapshot = await self._call('custom_item_state', args)
+            root = pathlib.Path(snapshot['base_path']).resolve()
+            profile = (self.lab / 'profile').resolve()
+            if not root.is_relative_to(profile) or root == profile:
+                raise RuntimeError('CUSTOM_ITEM_PROFILE_MISMATCH')
+            parts = snapshot['parts']
+            if types is not None:
+                parts = [p for p in parts if p['type'] in types]
+                if sorted(p['type'] for p in parts) != sorted(types):
+                    raise ValueError('Unknown or ambiguous savable type; use list_parts savable_types')
+            if not parts:
+                raise ValueError('No savable parts in the current model')
+            saved = []
+            known = {p.resolve() for p in root.rglob('*.vroidcustomitem')}
+            try:
+                for part in parts:
+                    await self._call('save_custom_item', {**args, 'part_id': part['id']})
+                    deadline = time.monotonic() + 30
+                    while True:
+                        current = await self._call('custom_item_state', args)
+                        matches = []
+                        for item in current['files']:
+                            path = pathlib.Path(item['path']).resolve()
+                            if path in known or item['group_type'] != part['group_type']:
+                                continue
+                            if not path.is_relative_to(root):
+                                raise RuntimeError('CUSTOM_ITEM_PATH_OUTSIDE_PROFILE')
+                            if path.is_file():
+                                matches.append((path, item))
+                        if len(matches) > 1:
+                            raise RuntimeError('CUSTOM_ITEM_SAVE_AMBIGUOUS')
+                        if matches:
+                            path, item = matches[0]
+                            with zipfile.ZipFile(path) as archive:
+                                if archive.testzip() is not None:
+                                    raise RuntimeError('CUSTOM_ITEM_ARCHIVE_CORRUPT')
+                                meta = json.loads(archive.read('v1customitem/meta.json'))
+                                if (meta['rootTransferableGroupId'] != item['id'] or
+                                        meta['rootTransferableGroupTypeId'] != part['group_type']):
+                                    raise RuntimeError('CUSTOM_ITEM_METADATA_MISMATCH')
+                            saved.append({**item, 'type': part['type'], 'bytes': path.stat().st_size,
+                                          'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
+                            known.add(path)
+                            break
+                        if time.monotonic() > deadline:
+                            raise TimeoutError('CUSTOM_ITEM_SAVE_UNCONFIRMED: inspect closet; do not retry blindly')
+                        await asyncio.sleep(.3)
+            except BaseException:
+                self.uncertain = True
+                raise
+            return {'model_token': expected_model, 'saved': saved, 'profile_scope': 'lab profile',
+                    'verified': 'ZIP integrity, metadata and native closet registration; cold reopen is separate'}
 
     async def export_vrm(self, expected_model, filename, version=1, title=None, author=None):
         if type(version) is not int or version not in (0, 1):

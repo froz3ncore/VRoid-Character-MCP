@@ -326,7 +326,8 @@ Save a new .vroid file under the lab's saves/ folder; an existing file is never 
 
 List active native model parts with resource IDs and custom/modified flags.
 
-Pass the fresh model_token. Built-in IDs may be used with replace_part.
+Includes registered closet custom_items and savable_types. Pass the fresh
+model_token; listed built-in or registered custom IDs work with replace_part.
 
 ### `replace_part`
 
@@ -335,10 +336,10 @@ Pass the fresh model_token. Built-in IDs may be used with replace_part.
   - `expected_model` — string (**required**)
   - `part_id` — string (**required**)
 
-Replace one catalog-verified built-in transferable group using native history.
+Replace one built-in or registered closet part using the native loader.
 
-Closet custom IDs and unknown or old-version IDs are refused because the
-native loader can crash. Relist parts and parameters after replacement.
+Registered custom IDs use native custom-item import. Unknown or old-version
+IDs are refused. Relist parts and parameters after replacement.
 A fresh process is required before entering the texture editor afterwards.
 
 ### `save_custom_items`
@@ -348,10 +349,12 @@ A fresh process is required before entering the texture editor afterwards.
   - `expected_model` — string (**required**)
   - `types` — list[string] | null (optional, default null)
 
-Unavailable: save worn parts as custom items in VRoid's own interface.
+Save worn parts as new custom items in the isolated copy's closet.
 
-The native save request has not produced a verifiable saved item in an
-isolated test. This tool refuses before sending any native save request.
+types selects unique names from list_parts savable_types; None saves all.
+Verifies new files, ZIP integrity, metadata and native closet registration.
+Existing items are never overwritten. Attached sessions are refused.
+Partial/uncertain saves are not rolled back; inspect files before retrying.
 
 ### `export_vrm`
 

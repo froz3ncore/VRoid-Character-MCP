@@ -2,6 +2,34 @@
 // commit baaa94e2fdc0419c68cb83b0ecc0b61fcc5661dd (MIT).
 // See licenses/karylcode-upstream-20261023.txt.
 function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain, state}) {
+    function customItemState(args) {
+        if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
+        const m=model(args.expected_model),registry=m.root.field('_customItemRegistry').value;
+        const files=[],it=registry.field('_pathToFileCustomItemModels').value.method('get_Values').invoke().method('GetEnumerator').invoke();
+        try { while(it.method('MoveNext').invoke()) {
+            const f=it.method('get_Current').invoke();
+            files.push({id:text(f.method('get_TransferableGroupId').invoke()),
+                group_type:text(f.method('get_TransferableGroupTypeId').invoke()),
+                path:text(f.method('get_FilePath').invoke()),name:text(f.method('get_DisplayName').invoke())});
+        }} finally {it.method('Dispose').invoke();}
+        const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();
+        const parts=listParts(args).parts.filter(p=>allowed.method('Contains').invoke(Il2Cpp.string(p.group_type)));
+        return {model_token:m.token,base_path:text(registry.field('_basePath').value),parts,files};
+    }
+    function saveCustomItem(args) {
+        if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
+        const m=model(args.expected_model),snapshot=customItemState(args);
+        if(!snapshot.parts.some(p=>p.id===args.part_id))throw Error('CUSTOM_ITEM_NOT_SAVABLE');
+        const registry=m.root.field('_customItemRegistry').value;
+        const meta=cls('VRoid.Studio','VRoid.Studio.Saving.VRoidCustomItemFileMetaData')
+            .method('CreateWithVRoidFileMetaData').invoke(m.engine.method('get_VRoidFileMetaData').invoke());
+        const thumbnail=m.engine.method('CaptureThumbnail').invoke(
+            cls('VRoidCore','VRoidCore.Common.Container.EncodedThumbnailType').field('Png').value);
+        // false requests a new item, never overwrite. The returned bool is not a persistence receipt.
+        cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemSaveUtil').method('SaveCustomItem')
+            .invoke(registry,m.context,meta,Il2Cpp.string(args.part_id),false,NULL,NULL,thumbnail);
+        return {requested:true,frame:state.frame};
+    }
     function listParts(args) {
         if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
         // Every active transferable group: what the model is built from, by native id and resource.
@@ -40,6 +68,19 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
         if(typeof args.part_id!=='string'||!args.part_id.endsWith('.transferablegroup'))throw Error('PART_ID_REQUIRED: a *.transferablegroup id');
         const m=model(args.expected_model);
+        const custom=customItemState(args).files.find(f=>f.id===args.part_id);
+        if(custom){
+            const c=cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemOptionViewModel');
+            const option=Il2Cpp.gc.choose(c).find(o=>{
+                const context=o.field('_context').value,item=o.field('_model').value;
+                return !context.handle.isNull()&&context.handle.equals(m.context.handle)&&!item.handle.isNull()
+                    &&text(item.method('get_TransferableGroupId').invoke())===args.part_id;
+            });
+            if(!option)throw Error('CUSTOM_ITEM_OPTION_NOT_READY: reopen the model and list parts again');
+            const enabled=Memory.alloc(1);enabled.writeU8(1);
+            invokeManaged(option,'set_IsSelected',[enabled]);
+            return {requested:true,part_id:args.part_id,frame:state.frame};
+        }
         // An id missing from the asset catalog (e.g. from a file made with an older VRoid, or a custom
         // item id) makes the native loader throw outside any handler and VRoid crashes: refuse it here.
         const registry=Il2Cpp.gc.choose(cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemRegistry'))[0];
@@ -149,6 +190,7 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         return {running:false,done,failed,progress};
     }
     return {operations:{list_parts:listParts, replace_part:replacePart,
+        custom_item_state:customItemState, save_custom_item:saveCustomItem,
         vrm_export_state:vrmExportState,
         enter_vrm_export:enterVrmExport, leave_vrm_export:leaveVrmExport,
         start_vrm_export:startVrmExport, vrm_export_status:vrmExportStatus}};

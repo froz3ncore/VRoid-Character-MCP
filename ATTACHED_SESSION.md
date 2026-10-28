@@ -22,12 +22,16 @@ For those operations, save and reopen in an isolated copy.
 
 Obtain the current model token with `list_face_params`. `list_parts` enumerates
 active transferable groups, their type, native ID and resource identity.
-`replace_part` accepts only built-in IDs present in the current asset catalog;
-unknown and closet custom IDs are rejected before the native loader. Already
+`list_parts` also returns registered closet `custom_items` and `savable_types`.
+`replace_part` accepts catalog-verified built-ins and registered closet IDs; unknown
+IDs are rejected before the native loader. Custom items use native closet selection. Already
 active parts are reported as a no-op. After replacement, re-list parts and
 parameters; a cold reopen is required before texture editing. `save_custom_items`
-is disabled: in an isolated test, the native request did not produce a verifiable
-saved item. It refuses before sending a save request; use VRoid's own interface.
+saves new items into the isolated copy profile, optionally restricted to unique
+`types` from `savable_types`. It verifies new files, ZIP integrity, root metadata
+and native closet registration. Existing items are never overwritten. Attached
+sessions are refused. Failed or partial batches are uncertain: inspect the closet
+before retrying. Save results include file paths, IDs, sizes and SHA-256 hashes.
 
 `export_vrm` exports an ordinary edit model in VRM 0.x (`version=0`) or 1.0
 (`version=1`) to a new filename in `lab/saves`. It uses the model's existing

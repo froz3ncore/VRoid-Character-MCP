@@ -88,14 +88,53 @@ def test_screenshot_empty_and_stale_token_never_prepare_capture(tmp_path):
     assert calls == []
 
 
-def test_custom_item_save_is_refused_without_native_dispatch(tmp_path):
+def test_attached_custom_item_save_is_refused_without_native_dispatch(tmp_path):
+    subject = Runtime(tmp_path)
+    subject.mode = 'attached'
+    calls = []
+    async def call(op, args=None): calls.append(op)
+    subject._call = call
+    with pytest.raises(RuntimeError, match='ATTACHED_CUSTOM_ITEM_SAVE_UNAVAILABLE'):
+        asyncio.run(subject.save_custom_items('live', ['Iris']))
+    assert calls == []
+
+
+@pytest.mark.parametrize('types', [[], ['Iris', 'Iris'], [''], 'Iris'])
+def test_invalid_custom_types_never_dispatch(tmp_path, types):
     subject = Runtime(tmp_path)
     calls = []
     async def call(op, args=None): calls.append(op)
     subject._call = call
-    with pytest.raises(RuntimeError, match='CUSTOM_ITEM_SAVE_UNAVAILABLE'):
-        asyncio.run(subject.save_custom_items('live', ['Iris']))
+    with pytest.raises(ValueError):
+        asyncio.run(subject.save_custom_items('live', types))
     assert calls == []
+
+
+def test_custom_save_verifies_file_and_registry_instead_of_native_return(tmp_path):
+    import zipfile
+    root = tmp_path / 'profile' / 'custom_items'
+    root.mkdir(parents=True)
+    target = root / 'new.vroidcustomitem'
+    subject = Runtime(tmp_path)
+    item = {'id': 'custom-id', 'group_type': 'native.Iris', 'path': str(target)}
+    calls = []
+    async def settle(*args): pass
+    async def call(op, args=None):
+        calls.append(op)
+        if op == 'status': return {'model_ready': True, 'model_token': 'live'}
+        if op == 'custom_item_state':
+            return {'base_path': str(root), 'parts': [{'id': 'active', 'type': 'Iris', 'group_type': 'native.Iris'}],
+                    'files': [item] if target.exists() else []}
+        if op == 'save_custom_item':
+            with zipfile.ZipFile(target, 'w') as z:
+                z.writestr('v1customitem/meta.json', json.dumps({'rootTransferableGroupId': 'custom-id',
+                            'rootTransferableGroupTypeId': 'native.Iris'}))
+            return {'requested': True}  # not a persistence assertion
+        raise AssertionError(op)
+    subject._settle, subject._call = settle, call
+    result = asyncio.run(subject.save_custom_items('live', ['Iris']))
+    assert result['saved'][0]['sha256'] and result['saved'][0]['bytes'] > 0
+    assert calls.count('save_custom_item') == 1
 
 
 def write_glb(path, extension):

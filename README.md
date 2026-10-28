@@ -72,8 +72,9 @@ user-opened process. Edits then affect the user's unsaved model and profile;
 the copy's isolation guard is not loaded. `detach_open_vroid` leaves it running.
 Save in VRoid itself. Because the preceding manual edit history is unknown,
 entering the texture editor or switching into Dress-up is refused in attached mode.
-Ordinary VRM export writes under lab/saves. `save_custom_items` is disabled until
-its persistence can be verified. See [existing sessions and ordinary export](ATTACHED_SESSION.md).
+Ordinary VRM export writes under lab/saves. Isolated copies can save new custom
+items with file and closet checks; attached sessions refuse custom-item saves.
+See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 
 - `agent/profile_guard.js` — remaps the machine profile into the lab and refuses
   writes, copies or child processes that point outside it.

@@ -7,26 +7,29 @@ def register(ready_tool, runtime, lab, read, edit):
     async def list_parts(expected_model: str) -> dict:
         """List active native model parts with resource IDs and custom/modified flags.
 
-        Pass the fresh model_token. Built-in IDs may be used with replace_part.
+        Includes registered closet custom_items and savable_types. Pass the fresh
+        model_token; listed built-in or registered custom IDs work with replace_part.
         """
         return await runtime.list_parts(expected_model)
 
     @ready_tool(annotations=edit)
     async def replace_part(expected_model: str, part_id: str) -> dict:
-        """Replace one catalog-verified built-in transferable group using native history.
+        """Replace one built-in or registered closet part using the native loader.
 
-        Closet custom IDs and unknown or old-version IDs are refused because the
-        native loader can crash. Relist parts and parameters after replacement.
+        Registered custom IDs use native custom-item import. Unknown or old-version
+        IDs are refused. Relist parts and parameters after replacement.
         A fresh process is required before entering the texture editor afterwards.
         """
         return await runtime.replace_part(expected_model, part_id)
 
     @ready_tool(annotations=edit)
     async def save_custom_items(expected_model: str, types: list[str] | None = None) -> dict:
-        """Unavailable: save worn parts as custom items in VRoid's own interface.
+        """Save worn parts as new custom items in the isolated copy's closet.
 
-        The native save request has not produced a verifiable saved item in an
-        isolated test. This tool refuses before sending any native save request.
+        types selects unique names from list_parts savable_types; None saves all.
+        Verifies new files, ZIP integrity, metadata and native closet registration.
+        Existing items are never overwritten. Attached sessions are refused.
+        Partial/uncertain saves are not rolled back; inspect files before retrying.
         """
         return await runtime.save_custom_items(expected_model, types)
 

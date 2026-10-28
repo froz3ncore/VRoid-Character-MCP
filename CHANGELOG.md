@@ -8,7 +8,9 @@
 - Ordinary editing exports VRM 0.x or 1.0 with existing native permissions and
   optional output title/author; new filenames are staged and checked. Active
   transferable parts can be listed and catalog-verified built-in parts replaced.
-  Custom-item save is disabled until persistence can be verified.
+  Custom-item save verifies new files, ZIP integrity, root metadata and native
+  closet registration in isolated copies; attached sessions remain refused.
+  Registered custom IDs are listed with parts and use native closet selection.
 - Extended the profile guard and default native-call interception based on the
   later MIT-licensed Karylcode upstream; see LICENSE notices and ATTACHED_SESSION.md.
   Process-local guards remain narrower than an OS sandbox.
