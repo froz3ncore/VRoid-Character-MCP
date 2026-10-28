@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vroid-character-mcp"
-version = "0.4.1.dev0"
+version = "0.5.0.dev0"
 description = "MCP server for native VRoid Studio character parameters, textures and Dress-up assembly"
 readme = "README.md"
 requires-python = ">=3.10"

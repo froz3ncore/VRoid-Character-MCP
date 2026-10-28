@@ -1,5 +1,7 @@
 # External beta acceptance / 外部试用验收
 
+Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **94 tools**.
+
 Status: **ready for independent testing; external acceptance pending**. A local
 clean checkout, CI, or another process on the developer's machine is not an
 independent user's reproduction. No stable release is certified by this page.
@@ -64,47 +66,42 @@ boundaries explicit. Functional acceptance and character-art adoption are separa
 产物。发型影响身高测量、M00 范围、逐束可见发色、裙摆碰撞和引擎物理边界继续保留。工具验收
 与角色最终美术采用分别记录。
 
+## Current local evidence / 当前本机证据
+
+Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **94 tools**. The latest code
+suite records **545 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
+suites, and matching tool/schema/source checks. Both interpreters were checked
+for this snapshot; earlier test counts remain historical.
+
+Native evidence dated 2026-10-28 covers five domains, continuous same-process
+body/texture/Dress-up editing through XRoid/VRM with cold persistence, 17
+attached-editing checks each for F00/M00, and 18 updated F00 lifecycle checks.
+The test-owned Windows file picker opens/cancels; interrupted PNG completions
+survive agent unload and a different client can review the surviving edit receipt.
+Use `tools/check_continuous_editing.py`, `tools/check_attached_editing.py` and
+`tools/check_attached_sessions.py` with their documented new/exclusive directories.
+
+当前已核构建的同进程解码崩溃路径已修复；旧失败报告保留为失败记录。真实连接验收使用
+独立启动 profile，已检查原生未保存弹窗、进度锁、Windows 文件选择器打开／取消和服务
+强退后的恢复。真实用户 profile、任意复杂人机同时编辑、所有保存／覆盖弹窗和系统崩溃
+仍需独立验收。版本／文档修改仅重跑离线检查，不等同于重新运行这些原生流程。
+
+The earlier public sample and 10-case F00 matrix retain their own dated evidence.
+A three-view technical regression baseline was explicitly adopted on 2026-10-20;
+final character art and independent-user acceptance are still pending. See
+[REGRESSION.md](REGRESSION.md) for the controlled baseline's scope.
+
 ## CI scope / 持续集成范围
 
-Historical native verification (before the decoder fix): the corrected hair-first height tests passed at
-151.8 / 157.8 / 165.8 cm with unchanged live height and scale after cold reopen.
-An additional same-process chain passed texture persistence checks, then crashed
-in native code while opening Dress-up (`script has been destroyed`). Opening the
-same hash-verified saved model in a fresh process, without texture-editor entry,
-completed XWear assembly, XRoid save and independently parsed VRM export. The
-same-process transition remains unresolved; this run is not a full E2E pass.
-The current workaround refuses that transition after confirmed texture entry;
-the sample and matrix use a separate fresh process for Dress-up/export.
+The Windows workflow defines Python 3.10/3.12 jobs for unit tests, MCP input
+schemas, JS behavior and source-manifest verification on clean hosted checkouts.
+It contains no VRoid and does not run native/visual E2E. A workflow file or a local
+pass does not establish that CI ran for a newer commit.
 
-本轮先换发型再校准的三个身高目标均保持；额外同进程链路在纹理核验后进入换装时
-发生原生崩溃。相同哈希底模在新进程中、不进入纹理编辑器时，装配、保存和 VRM
-独立解析通过。原崩溃尚未定位，不把该次完整 E2E 标成通过。
-当前守卫会提前拒绝同进程切换；公开样例与矩阵把换装和导出放在新的独立进程中。
+The historical Python 3.12 import failure was fixed in `182a0d1` and its recorded
+[run](https://github.com/froz3ncore/VRoid-Character-MCP/actions/runs/39386293369)
+passed. Later commits need their own CI result; this page does not transfer that
+old result to the current revision.
 
-2026-10-28 superseding result: the reproduced async PNG buffer-writing failure
-is addressed in managed copies by main-thread native decoding and deferred
-callbacks. F00 and M00 each passed 20 body-to-texture entries, same-process
-Dress-up/XRoid/VRM export, exact renderer-to-VRM face-texture pixels and a later
-cold persistence check. Use tools/check_continuous_editing.py. The earlier failed
-run remains a failure; independent-user acceptance is still pending.
-
-上段为历史失败与旧规避。本次修复后，已验证独立副本可在同一进程连续编辑及导出；
-真实连接模式另有受控验收：tools/check_attached_editing.py 检查既有未保存状态、原生弹窗、
-禁用 Windows 主窗口、纹理像素与撤销、自定义物品以及编辑中断后的回调／操作记录恢复。
-该测试使用独立启动 profile；已核对测试文件选择器打开／取消，真实用户 profile、任意原生保存／覆盖弹窗、
-任意复杂人机同时编辑和系统崩溃仍需独立验收。外部用户仍需独立复验，不能把开发者本机通过当成外测通过。
-
-The Windows workflow runs unit tests, MCP input-schema checks, JS behaviour and
-source-manifest verification on clean hosted checkouts. It retains reports on
-failure as well as success. It does not contain VRoid or run native/visual E2E.
-Workflow setup follows [GitHub's Python testing documentation](https://docs.github.com/en/actions/tutorials/build-and-test-code/python).
-
-CI 是离线代码回归；原生副本、VRoid 保存和截图仍需要独立的本机／外部验收。工作流
-文件存在不等于已经在 GitHub 上执行通过。
-
-The Python 3.12 backport-import failure was reproduced locally and fixed.
-[Run 39386293369](https://github.com/froz3ncore/VRoid-Character-MCP/actions/runs/39386293369)
-passed for the CI/transition fix (`182a0d1`); later commits require their own
-Actions result. Current local 3.10/3.12 checks report 502 passed / 1 skipped.
-The fresh public sample and expanded 10-case native matrix also passed; human
-baseline approval and independent-user acceptance remain pending.
+CI 是离线代码回归；原生运行、保存重开和视觉检查需要相应本机或外部证据。技术基准已
+采用不等于外测通过，工作流存在也不等于当前提交的远程执行通过。

@@ -1,5 +1,8 @@
 # Installation diagnostics and recovery / 安装诊断与恢复
 
+Current source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **94 tools**.
+Current capabilities and dated acceptance scope: [SCOPE.md](SCOPE.md).
+
 Run from the repository with the **same Python interpreter used by the MCP
 client**. Diagnostics use the standard library, so missing Python packages can
 be reported before the server imports them.

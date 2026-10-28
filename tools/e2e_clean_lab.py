@@ -250,11 +250,9 @@ async def phase_edit(call, lab: pathlib.Path, steps: Steps, capture_reviews: boo
         steps.record('apply scenario clothing preset', {'preset_id': scenario['clothing_preset_id'],
                                                        'changed': selected.get('changed')})
 
-    # The texture editor is opened before any body parameter changes: in this
-    # build, entering it right after a height change makes the native texture
-    # editor touch an empty Body overlay mesh and the process dies, which would
-    # be a harness failure rather than a tool-layer failure. The order is
-    # recorded in the report so the deviation is explicit.
+    # Preserve the sample's established makeup-first sequence. Verified PNG
+    # decoders now permit body-first editing; check_continuous_editing.py tests
+    # that transition separately. Empty overlay warnings were not its root cause.
     steps.current = 'makeup layer'
     regions = (await call('list_texture_regions', {'expected_model': token}))['regions']
     cheek = next((r for r in regions if r['part'] == 'Cheek'), None)
@@ -430,8 +428,8 @@ async def phase_reopen(call, lab: pathlib.Path, facts: dict, steps: Steps,
 
 async def phase_wear(call, lab: pathlib.Path, facts: dict, steps: Steps,
                      capture_reviews: bool = False) -> None:
-    # The texture-verification process has exited. Never carry its native
-    # editor state into Dress-up or silently discard an edited in-memory model.
+    # Use the saved artifact in another process to prove persistence independently.
+    # Same-process transition coverage lives in check_continuous_editing.py.
     source = pathlib.Path(facts['base_model'])
     if source != lab / 'saves' / facts['base_filename'] or sha256(source) != facts['base_sha256']:
         raise RuntimeError('Saved base changed before the separate Dress-up process')
@@ -503,11 +501,11 @@ def main() -> int:
     report = {'schema': 'vroid-clean-lab-e2e-v1', 'started': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
               'source': str(source), 'lab': str(lab), 'xwear': str(xwear), 'manual_file_edits': False,
               'code_changes_during_run': False,
-              'sequence_note': 'The makeup layer is created before the height change: entering the native '
-                               'texture editor immediately after a body height change makes this VRoid build '
-                               'touch an empty Body overlay mesh and the process dies. Hair precedes final '
+              'sequence_note': 'This persistence sample retains makeup before height edits. Verified native PNG '
+                               'decoders support body-first continuous editing, tested separately by '
+                               'check_continuous_editing.py. Hair precedes final '
                                'live-height calibration. Cold texture verification and Dress-up use separate '
-                               'processes to avoid an unresolved native transition crash; no in-memory edits '
+                               'processes to verify saved-state persistence independently; no in-memory edits '
                                'are silently discarded.'}
 
     def finish(code: int) -> int:

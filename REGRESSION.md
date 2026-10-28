@@ -9,7 +9,17 @@ not save the input. The source model and application hashes are recorded.
 
 使用空闲的已准备副本及其 `saves/` 内的 `.vroid`。脚本启动专用进程，先采集正面、
 背面和面部，再锁定第一次的取景复采，比较解码后的 RGBA。输入模型不保存，记录其
-哈希和应用二进制哈希。结果是静态复采证据，基准仍等待人工确认。
+哈希和应用二进制哈希。新采集本身只是静态复采证据，不能自动成为已采用基准。
+
+The maintainer explicitly approved a three-view, 512×512 F00 technical baseline
+on 2026-10-20 (`body_front`, `body_back`, `face_front`). Its approval fixes the
+model/build/render conditions and hashes; the package remains local. This is
+technical regression approval, not final character art or independent acceptance.
+Other machines or changed capture conditions need their own reviewed baseline.
+
+2026-10-20 已人工采用 512×512 的 F00 正面／背面／面部三视图作为技术基准；采用记录
+固定模型、构建、渲染条件与哈希，完整包保留在本机。这不等于角色最终美术采用或外测通过。
+其他机器或采集条件改变时，需要另行评审对应基准。
 
 ```powershell
 & .\.venv\Scripts\python.exe .\tools\check_visual_capture.py `
@@ -84,8 +94,10 @@ checks face/layer and live-height/scale persistence, imports the
 sample accessory, saves assembly, exports VRM, independently parses it and
 captures native views. Existing app/saves are not replaced. The first failure
 stops the matrix; partial reports are retained. The input XWear hash is checked.
-Cold texture verification and Dress-up/export run in separate processes; the
-native same-process transition remains guarded rather than claimed fixed.
+Cold texture verification and Dress-up/export still run in separate processes
+to test saved-state persistence independently. Same-process transition coverage
+is supplied separately by `tools/check_continuous_editing.py`; verified decoders
+no longer require the old process boundary. See [RECOVERY.md](RECOVERY.md).
 
 矩阵是“3 个身高目标 × 2 件实际原生上衣”，每组均走保存、冷重开、配件导入和导出。
 它不覆盖 M00、任意体型比例、未知拓扑或复杂外部裙装。旧版所谓约 1.4 cm 重开漂移

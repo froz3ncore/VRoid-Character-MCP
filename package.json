@@ -1,6 +1,6 @@
 {
   "name": "vroid-character-mcp-agent",
-  "version": "0.4.1-dev.0",
+  "version": "0.5.0-dev.0",
   "private": true,
   "description": "Frida agent bundle for the VRoid Character MCP server",
   "dependencies": {

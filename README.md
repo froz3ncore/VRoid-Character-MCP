@@ -7,10 +7,10 @@ the application's own managed API, with optional attachment to an existing sessi
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.4.1 development**. The earlier 86-tool baseline was verified end to
-end on a clean lab; the new attached-session and ordinary-export features are
-under independent verification. Character art and sitting-skirt fit remain
-separate work. See [SCOPE.md](SCOPE.md).
+Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **94 tools**.
+Local code and controlled native checks have passed; independent external-user
+acceptance is pending. This snapshot has no new stable release or release tag.
+Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).
 
 Validated copies support body, texture and Dress-up editing in one process.
 Native PNG decoding runs on Unity's main thread with deferred callbacks to avoid
@@ -192,11 +192,16 @@ own report is not the evidence.
 
 ## Known limitations
 
-Current development validation: **502 Python tests passed / 1 skipped** on
-Python 3.10 and 3.12, six JS suites, a 79.1 s fresh-lab public sample and a
-10-case height/proportion/Tops matrix. All 30 saved/cold rendered views matched
-exact RGBA. These are tool checks; human baseline approval and external-user
-acceptance remain pending. See [regression scope](REGRESSION.md).
+Latest code checks: **545 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+**nine JS suites**, and the unchanged **94-tool** input contract. Native evidence
+from 2026-10-28 covers five domains, 17 attached-editing checks each for F00/M00,
+18 F00 attachment-lifecycle checks, and continuous body/texture/Dress-up editing
+through export. Version/documentation changes do not constitute a new native run.
+
+The earlier public sample and 10-case F00 matrix remain historical evidence;
+their 30 saved/cold views matched exact RGBA. A three-view technical baseline
+was explicitly approved on 2026-10-20; it is not final-art adoption. Independent
+external-user acceptance remains pending. See [regression scope](REGRESSION.md).
 
 - **Calibrate height after styling.** Hair changes the native measured height.
   The earlier ~1.4 cm "reopen drift" compared a pre-hair value with a post-hair

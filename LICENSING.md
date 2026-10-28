@@ -16,8 +16,9 @@ paths recorded in [UPSTREAM.json](UPSTREAM.json) are now rewritten, removed or
 reduced to declarative configuration, and `tools/check_provenance.py` measures
 that claim rather than asserting it: it compares every baseline blob with the
 current file (ordered line matching) and separately searches the whole source
-tree for inherited lines that were moved into new modules. Both passes are
-were empty at the original rewrite audit; see the recorded results in REWRITE.md.
+tree for inherited lines that were moved into new modules. No path exceeded the
+rewrite threshold and no cross-file moved-code findings remained at the original
+audit; see the recorded results in REWRITE.md.
 
 Upstream subsequently added an MIT licence in October 2026. The later commit
 `baaa94e2fdc0419c68cb83b0ecc0b61fcc5661dd` is the source for parts of the
@@ -27,10 +28,11 @@ Its copyright and MIT text are retained in
 The old baseline's former licensing status is not a statement about the licence
 of the later revision.
 
-The rewrite was behaviour-driven: the published tool contract (86 tools and
+The historical rewrite was behaviour-driven: its then-published tool contract (86 tools and
 their JSON schemas) was captured before each step and compared afterwards, with
 unit tests, the read-only native domain check and a clean-lab run to an exported
-VRM as the other gates. `REWRITE.md` records the order and the gates.
+VRM as the other gates. `REWRITE.md` records the order and the gates. The current
+94-tool development contract and acceptance scope are described in [SCOPE.md](SCOPE.md).
 
 ## What the licence covers
 

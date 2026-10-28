@@ -6,8 +6,10 @@ The generated Blender source is retained alongside the XWear. It is a test
 fixture, not finished clothing or a visual-fit benchmark.
 
 The workflow uses separate processes for editing/saving, cold texture verification,
-and Dress-up/export. This avoids an unresolved native texture-to-Dress-up crash;
-it does not discard unsaved work or automatically retry an uncertain write.
+and Dress-up/export to verify saved-state persistence independently. The reproduced
+transition crash has been addressed for verified decoders; same-process evidence
+is provided by `tools/check_continuous_editing.py`. The sample does not discard
+unsaved work or automatically retry an uncertain write.
 
 样例会自行生成一个橙色小配件，并保留 `.blend` 源文件和 XWear，不依赖历史展示中的
 私人角色或服装。这个配件用于检验蒙皮、导入与导出，不代表成品服装或贴合验收。
@@ -33,13 +35,13 @@ repository and source installation. No live Blender session is used.
 ```
 
 The command checks the installation, generates the asset, prepares the lab, then
-starts two successive MCP-owned VRoid processes. It creates a native base model,
+starts successive MCP-owned VRoid processes for those separate phases. It creates a native base model,
 adds a Cheek layer, changes a face parameter and height, applies a native hair
 preset, saves, cold reopens, checks layer PNG and parameter persistence, imports
 the generated accessory in Dress-up, saves `.xroid`, exports VRM and parses it
 independently. It also captures the edited model, reopened model and assembly.
 
-命令依次预检、生成配件、准备新副本，再用前后两个进程完成底模→妆容→参数／身高→
+命令依次预检、生成配件、准备新副本，再用各阶段独立进程完成底模→妆容→参数／身高→
 发型→保存→冷重开→换装导入→保存装配→VRM 导出→独立解析，并保留编辑后、重开后及
 装配的原生截图。冷重开会核对妆容 PNG 哈希，不能仅凭图层名称判定成功。
 

@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 94 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 94 个 MCP 工具 · stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
@@ -12,7 +12,7 @@ Windows · VRoid Studio 2.14.0 · 94 个 MCP 工具 · stdio · MIT
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
-当前为 **0.4.1 开发版**。工具功能与角色美术分别验收：可以完成操作、保存重开和导出，不代表服装已经没有穿插，或已完成游戏引擎中的物理验证。
+当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未创建新的稳定版或发布标签。本机代码和受控原生验收通过，独立外测仍待进行。工具功能与角色美术分别验收：可以完成操作、保存重开和导出，不代表服装已无穿插或已完成游戏引擎物理验证。
 
 ## 效果展示
 
@@ -206,7 +206,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-0.4.1 的既有验收记录为 **445 个 Python 测试通过、1 个跳过、5 组 JavaScript 行为检查通过**，并完成干净副本上的保存、重开、换装与 VRM 导出链路。该记录与限制见 [CHANGELOG.md](CHANGELOG.md) 和 [SCOPE.md](SCOPE.md)。
+当前代码验收为 **545 个 Python 测试通过、1 个跳过、9 组 JavaScript 行为检查通过**；94 工具输入合同保持不变。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 
@@ -216,9 +216,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 结构检查不代表完整 VRM 规范认证，也不代表外观、碰撞或游戏引擎物理验收。
 
-当前开发树离线验证：Python 3.10／3.12 均为 **502 通过、1 跳过**，六组 JS 通过；
-新副本公开样例 79.1 秒、10 组身高／身体比例／上衣矩阵 793.5 秒通过。30 张保存前后
-原生视图逐像素一致。人工基准确认与独立用户外测仍待进行，见 [回归范围](REGRESSION.md)。
+最新代码回归在 Python 3.10／3.12 均为 545 通过／1 跳过。2026-10-28 的原生记录包含五域检查、F00／M00 各 17 项真实窗口编辑检查、18 项 F00 连接生命周期检查，以及同进程体型→纹理→换装→导出。版本与文档调整本身不算一次新的原生验收。
+
+此前公开样例和 10 组 F00 身高／身体比例／上衣矩阵保留为历史证据，30 张保存前后原生视图逐像素一致。2026-10-20 已人工采用三视图作为技术回归基准；角色最终美术采用和独立外测仍待进行，见 [回归范围](REGRESSION.md)。
 
 ## 已知限制
 

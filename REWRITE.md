@@ -1,8 +1,12 @@
 # Rewrite plan: from fork to independent source
 
+This is the historical 0.4.1 rewrite ledger (completed 2026-10-20). Its 86-tool
+gate describes that snapshot. Current development has 94 tools; later additive
+features use their own input-contract checks. Current status is in [SCOPE.md](SCOPE.md).
+
 The upstream project this repository started from,
-[Karylcode/VRoid-MCP](https://github.com/Karylcode/VRoid-MCP), is public but
-carries **no license**: GitHub reports `license: null` and the baseline commit
+[Karylcode/VRoid-MCP](https://github.com/Karylcode/VRoid-MCP), was public with
+**no license at the recorded baseline**: GitHub then reported `license: null` and the baseline commit
 `9b264d3` contains no LICENSE, COPYING or NOTICE file. Public visibility is not
 a license grant, so every inherited line is "all rights reserved" material and
 cannot be relicensed or redistributed.
@@ -10,7 +14,9 @@ cannot be relicensed or redistributed.
 Adding a license file cannot fix that. The only honest route is to **replace
 the inherited implementation**: rebuild the same behaviour from the recorded
 contract (tool schemas, tests, documented native behaviour) and stop shipping
-inherited text. This file is the ledger for that work.
+inherited text. This file is the ledger for that work. Upstream subsequently
+licensed a later revision under MIT; the later adaptations and retained licence
+are described in [LICENSING.md](LICENSING.md).
 
 ## What "rewritten" means here
 

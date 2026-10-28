@@ -1,138 +1,82 @@
 # Changelog
 
-## Unreleased — attached-window editing and interrupted-edit review
+## 0.5.0.dev0 — 2026-10-28 (development snapshot)
 
-- Enabled texture entry/layer editing and explicit-discard file-based Dress-up
-  entry on compatible attached windows. Late attachment uses native main-thread
-  PNG decoding with Unity-owned completion delegates; pending completions survive
-  agent unload. Existing original decoder workers must finish before transitions.
-- Enabled new custom item saves into the target window's native closet, with
-  ZIP/metadata/registration validation and preserved character file ownership and
-  prior dirty state. Character save, XRoid save and XWear import remain guarded.
-- Added native dialog/progress/popup and active-canvas guards, plus a disabled
-  Windows-owner preflight that reports unavailable state without RPC submission.
-- Added process-local edit receipts and get_attached_state /
-  acknowledge_attached_state. Interrupted edits remain readable but block writes
-  until a fresh, unchanged state has been inspected and acknowledged; no replay.
-- Added a reproducible external-window editing checker with fixture-only
-  interruption injection and separate host-side recovery/profile regressions.
-  Existing tool inputs remain unchanged; two recovery tools bring the set to 94.
-- On the supported build, F00/M00 each passed 17 external-window editing checks,
-  including a real Windows file dialog's open/cancel lifecycle and pending PNG
-  completions after forced host exit. Updated F00 lifecycle passed 18 checks.
+Python package/runtime: `0.5.0.dev0`; npm agent/lockfile: `0.5.0-dev.0`.
+The source snapshot exposes **94 tools**. No new stable release or release tag
+is created. Local validation and independent external-user acceptance are separate.
 
-## Unreleased — same-process native PNG decode lifetime fix
+### Existing-window editing and recovery
 
-- Reproduced the historical transition access violation at the same binary
-  offsets and mapped it to PNGUtil's background decode closure writing a
-  NativeArray view of Texture2D storage. Empty Mesh Collider warnings also
-  occur in passing runs and are not treated as proof of that crash's cause.
-- Managed copies replace that async entry with the native synchronous decoder
-  on Unity's main thread, retaining inputs/results and deferring original
-  callbacks. Four requests per frame bound the batch; native errors are forwarded
-  and infrastructure failures block further operations. No installation files
-  or pixel resampling are involved.
-- Verified copies await pending callbacks at transitions and no longer require
-  process restarts between body, texture and Dress-up editing. Attached windows
-  retain their existing restrictions. Added real-MCP continuous-editing acceptance
-  through XRoid/VRM with exact texture pixels and a separate persistence check.
+- Added explicit attachment/detachment, ordinary VRM 0.x/1.0 export, native part
+  listing/replacement and new custom-item saves, followed by two state-review
+  tools: `get_attached_state` and `acknowledge_attached_state`. The 86-tool
+  historical baseline grew first to 92, then to 94; existing inputs are preserved.
+- Compatible attached windows support texture editing and explicit-discard
+  file-based Dress-up entry. Custom items use the target window's native closet
+  with file/ZIP/metadata/registration checks, preserving character file association
+  and a prior dirty flag. Character save/new/open, XRoid save and XWear import
+  remain refused when attached; Dress-up entry does not save the unsaved character.
+- Native dialogs, notifications, progress locks, popup blockers and incompatible
+  canvas operations refuse writes. A disabled Windows owner reports unavailable
+  state before RPC submission; the test-owned file picker opens/cancels correctly.
+- A target-process lease restores background state on normal detach and recovers
+  a verified dead host on reconnect; another live host is refused. Edit receipts
+  survive host exit, including attachment from another client lab. Reads remain
+  available; an unchanged reviewed state must be acknowledged before resuming.
+  No interrupted operation is replayed or certified by acknowledgment. Background
+  restoration requires reconnect/detach after forced exit; receipts do not survive
+  VRoid or Windows exit.
 
-## Unreleased — forced attachment-host exit recovery
+### Continuous editing and reproducibility
 
-- Fixed background state remaining enabled across a killed host and later
-  detach. Attachment now holds a process-local lease with the original flag
-  and a Windows process handle, and recovers a verified dead owner's state on
-  the next attachment. Another live owner is refused. No model/profile files
-  store this lease. Release also removes its message-pump hooks.
-- Recovery happens on reattachment; it does not run automatically at host death
-  and does not establish the outcome of interrupted edits or exports. Agents
-  predating the lease cannot supply a recovery record.
-- F00 and M00 each pass 18 native lifecycle checks including forced termination
-  of the actual Python host, preserved confirmed unsaved edits, recovered
-  original background state, and refusal of another live host. Added JS lease
-  regressions for crash takeover, valid ownership and initialization failures.
+- Mapped the reproduced native access violation to PNGUtil's worker writing a
+  NativeArray view into Texture2D storage. Empty Mesh Collider warnings also occur
+  in successful runs and are not treated as proof of a fatal mesh-cache defect.
+- Owned copies use native synchronous PNG decoding on Unity's main thread,
+  retain inputs/results and defer original callbacks (four requests per frame).
+  Attached windows post native completion closures owned by Unity, with GC-safe
+  references, so queued completions survive agent unload. Legacy workers must
+  finish before attached transitions; no installation binaries are modified.
+- Verified decoders allow same-process body/texture/Dress-up editing; fallback
+  guards remain for unverified sessions. Public-sample/matrix process separation
+  now verifies persistence independently, rather than indicating an unfixed crash.
+- Height calibration uses live measurement after styling. The earlier ~1.4 cm
+  comparison mixed pre-hair and post-hair models; saved/cold live height and scale
+  are checked separately. Added diagnostics, generated public accessory sample,
+  native capture comparison and bounded F00 height/proportion/Tops matrix.
+- Unified package metadata, three READMEs, scope/recovery/acceptance descriptions
+  and generated tool reference. Reclassified the recovery tools under session
+  tools. The tool reference now includes its source version.
 
-## Unreleased — attachment lifecycle acceptance
+### Validation and remaining scope
 
-- Added a repeatable native attachment checker using a new copied installation,
-  an isolated startup profile and real MCP stdio calls. Both F00 and M00 pass
-  home-screen attachment, model discovery, edit/Undo/Redo, repeat attachment,
-  detach/reattach, stale-token refusal, normal client EOF, new-client recovery,
-  attached restart and target-exit checks. Background policy is independently
-  observed before attachment and after release.
-- Added public session-entry regression tests for multiple-process selection,
-  unsupported-build preflight, explicit copy discard, failed-adoption cleanup
-  and retry, and idempotent attachment. Runtime behavior and tool schemas are
-  unchanged. Forced server termination and independent-user acceptance remain
-  unverified; see ATTACHED_SESSION.md.
+- Latest code suite: **545 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
+  suites, source-manifest/provenance and unchanged 94-tool input hash
+  `sha256:1e6188ac193097637bc8fbfad3566e1da1f794210d16283cc777c9ee7cb15208`.
+  Both interpreters were checked for this snapshot; earlier counts remain historical.
+- Native evidence dated 2026-10-28: five domains passed; F00/M00 each completed
+  20 body-to-texture entries, same-process Dress-up/XRoid/VRM, exact exported
+  texture pixels and cold persistence checks. Attached editing passed 17 checks
+  per variant; updated F00 lifecycle passed 18, including normal/forced host exit,
+  live-owner refusal and preserved unsaved work. Interrupted-import testing
+  verifies queued managed completions after agent unload and cross-client review.
+- Historical public sample and 10-case F00 matrix passed; all 30 saved/cold views
+  matched exact RGBA. A three-view technical baseline was explicitly approved on
+  2026-10-20; that is not final character-art adoption or independent acceptance.
+- Controlled native fixtures use isolated startup profiles. Real user profiles,
+  arbitrary simultaneous manual editing, every native save/overwrite dialog,
+  full M00 parity and OS-crash recovery are not certified. Global visible hair
+  colour is supported; per-strand visible colour is not. Rear-skirt collision
+  remains paused/unresolved, and game-engine rendering/physics require separate
+  acceptance. Independent external-user testing remains pending.
+- This version/documentation update runs offline checks; it does not claim the
+  dated native/sample/matrix evidence was rerun on the metadata-only changes.
 
-## Unreleased — existing sessions, model parts and ordinary VRM export
+## Historical versions
 
-- Optional attachment to an already-open supported VRoid process; detach leaves
-  it running and reports background-setting restoration. Copy ownership, real
-  user profiles, known native transition limits and unsaved edits are explicit.
-- Ordinary editing exports VRM 0.x or 1.0 with existing native permissions and
-  optional output title/author; new filenames are staged and checked. Active
-  transferable parts can be listed and catalog-verified built-in parts replaced.
-  Custom-item save verifies new files, ZIP integrity, root metadata and native
-  closet registration in isolated copies; attached sessions remain refused.
-  Registered custom IDs are listed with parts and use native closet selection.
-- Extended the profile guard and default native-call interception based on the
-  later MIT-licensed Karylcode upstream; see LICENSE notices and ATTACHED_SESSION.md.
-  Process-local guards remain narrower than an OS sandbox.
-- Empty and stale model tokens are rejected before screenshot preparation.
-- Six new tools extend the 86-tool baseline to 92; the contract change is intentional.
-
-## Unreleased — reproducibility and recovery
-
-- Verified follow-up: 502 Python tests passed / 1 skipped on Python 3.10 and
-  3.12; six JS suites; unchanged 86-tool input contract. A new public sample
-  completed in 79.1 s. The 10-case height/proportion/Tops matrix completed in
-  793.5 s with live height, scale, authored proportions and makeup preserved;
-  independent VRM findings empty. All 30 saved/cold rendered views matched
-  exact RGBA. Human golden-image approval and two independent users remain pending.
-- Python 3.12 CI fix: exception-group regression uses the built-in type on
-  Python 3.11+ and the existing transport backport on Python 3.10, preserving
-  the nested-error assertion without adding an unnecessary runtime dependency.
-- Optional F00 proportion matrix adds two shoulder/torso/leg/waist profiles with
-  both native Tops (10 total cases), including cold parameter-persistence checks.
-- Conservative texture-to-Dress-up boundary: confirmed texture entry blocks
-  later `open_wear_project` in that process. Saving/reads remain available;
-  the public sample and matrix verify saved textures and perform assembly in
-  separate processes. The intermittent native crash root cause remains open.
-- Corrected the earlier ~1.4 cm "save/reopen height drift" diagnosis: the old
-  E2E calibrated before changing hair, then compared different styled models.
-  Controlled measurements show the change before save and unchanged live height
-  and body scale after cold reopen. Historical reports below retain their original
-  numbers; their persistence interpretation is superseded by this correction.
-- Height solver now uses live `GetBodyHeight` rather than cached `BodyHeightValue`.
-  E2E applies hair before calibration, compares pre-save/post-save/cold live height
-  within 0.05 cm and scale within 1e-6, replacing the misleading 2 cm allowance.
-  Added a reproducible four-case native order/persistence diagnostic.
-- Standard-library installation doctor with bounded async/import probes, exact
-  build checks and non-rewriting lock inspection. Diagnostic mode never clears
-  registry keys, even when the runtime auto-clear environment variable is set.
-- Public sample with original generated badge geometry, retained Blender source,
-  PNG cold-reopen checks, native views and VRM export; no private outfit inputs.
-- E2E temporary files now belong to the lab, for both parent and child processes.
-- Confirmed body edits now block known-dangerous texture-editor entry until a
-  cold reopen; saving and reading remain available. This is a conservative
-  workaround for VRoid's native overlay cache.
-- Fixed parameter adapter regressions found by real multi-view capture: a local
-  colour model shadowed the model accessor, and batch colour validation received
-  the wrong entry shape. Added a composed adapter regression.
-- Regional render comparison with PNG integrity, camera/GPU compatibility gates,
-  whole-image and named rectangle metrics, difference images and portable HTML.
-- Bounded F00 height/top integration matrix and Windows offline CI workflow.
-  External-user acceptance and human golden-image approval remain pending.
-- Native follow-up: three corrected height targets retained live measurements
-  and scale across cold reopen. An additional same-process texture-check to
-  Dress-up transition crashed in native code and remains unresolved; a fresh
-  process opened the same saved model and completed assembly/save/VRM parsing.
-  The failed same-process run is not counted as a complete E2E pass.
-
-The MCP input contract remains 86 tools; hairstyle-dependent height measurement, limited M00 and
-hair-colour coverage, paused skirt collision and engine-validation limits remain.
+The entries below describe their recorded snapshots. Their tool counts, test
+counts, licence state and limitations do not describe the current development tree.
 
 ## 0.4.1 — 2026-10-20
 
@@ -191,7 +135,7 @@ equivalent coverage; rear-skirt collision stays paused and unresolved.
 - Made the source manifest portable across Git LF/CRLF checkout conversion:
   v2 hashes normalized LF bytes; historical v1 checks keep exact-byte semantics.
 
-## 0.4.1 development — local validation, publication pending
+## Historical precursor to 0.4.1 — 2026-10-19 (publication then pending)
 
 - Added guarded existing-layer visibility/opacity editing, native history,
   stale-metadata checks and idempotent zero-command updates.
