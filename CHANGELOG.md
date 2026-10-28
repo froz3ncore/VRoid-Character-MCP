@@ -3,7 +3,7 @@
 ## 0.5.0.dev0 — 2026-10-28 (development snapshot)
 
 Python package/runtime: `0.5.0.dev0`; npm agent/lockfile: `0.5.0-dev.0`.
-The source snapshot exposes **99 tools**. No new stable release or release tag
+The source snapshot exposes **103 tools**. No new stable release or release tag
 is created. Local validation and independent external-user acceptance are separate.
 
 ### Existing-window editing and recovery
@@ -12,7 +12,8 @@ is created. Local validation and independent external-user acceptance are separa
   listing/replacement and new custom-item saves, followed by two state-review
   tools: `get_attached_state` and `acknowledge_attached_state`. The 86-tool
   historical baseline grew first to 92, then to 94; the five file-workflow tools
-  below bring it to 99. All earlier 94 input schemas are preserved.
+  below brought it to 99. Four raster-layer tools now bring it to 103, preserving
+  all earlier 99 input schemas.
 - Added `open_character` and `open_current_in_wear`; attached `save_as`,
   `import_xwear`, and new XRoid saving are supported. Character in-place saving
   and new-character replacement were completed with `save_character`,
@@ -37,6 +38,23 @@ is created. Local validation and independent external-user acceptance are separa
   restoration requires reconnect/detach after forced exit; receipts do not survive
   VRoid or Windows exit.
 
+### Native raster-layer management
+
+- Added `rename_texture_layer`, `delete_texture_layer`, `reorder_texture_layers`
+  and `set_texture_layer_blend`. Matching-canvas checks and native-boundary
+  metadata checks guard each edit; deletion/order also require a current image
+  stack hash. Complete bottom-to-top permutations preserve other layers and
+  reject duplicate, missing or foreign-image IDs. Last-layer deletion is refused.
+- `list_texture_layers` now returns per-image order/hash data and the native UI's
+  26 composition modes. Native history handles Undo/Redo, same-value changes
+  create no command, and source PNG pixels are preserved. See
+  [TEXTURE_LAYERS.md](TEXTURE_LAYERS.md) for use and reproduction.
+- F00/M00 each passed 11 layer-specific checks through real MCP stdio, including
+  actual renderer composition changes and cold-reopened names/order/blend/pixels.
+  Group/folder editing is unfinished: native data types and snapshot experiments
+  did not establish a usable history command. The four new tools reject grouped
+  image roots; experimental group code remains outside the product.
+
 ### Continuous editing and reproducibility
 
 - Mapped the reproduced native access violation to PNGUtil's worker writing a
@@ -60,14 +78,14 @@ is created. Local validation and independent external-user acceptance are separa
 
 ### Validation and remaining scope
 
-- Latest code suite: **548 passed / 1 skipped on Python 3.10 and 3.12**, nine JS behavior
-  suites, 334-file source manifest, provenance and the 99-tool input hash
-  `sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34`.
+- Latest code suite: **564 passed / 1 skipped on Python 3.10 and 3.12**, ten JS behavior
+  suites, 340-file source manifest, provenance and the 103-tool input hash
+  `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
   Both interpreters were checked for this snapshot; earlier counts remain historical.
 - Native evidence dated 2026-10-28: five domains passed; F00/M00 each completed
   20 body-to-texture entries, same-process Dress-up/XRoid/VRM, exact exported
   texture pixels and cold persistence checks. The expanded attached editing/file
-  workflow passed 25 checks per variant, including repeated new-character
+  workflow passed 26 checks per variant, including repeated new-character
   replacement, absolute Save As/open, backup-verified in-place saving and cold
   persistence, current-character Dress-up entry, XWear import and XRoid save/reopen.
   The separate F00 lifecycle run passed 18, including normal/forced host exit,
@@ -83,8 +101,9 @@ is created. Local validation and independent external-user acceptance are separa
   colour is supported; per-strand visible colour is not. Rear-skirt collision
   remains paused/unresolved, and game-engine rendering/physics require separate
   acceptance. Independent external-user testing remains pending.
-- This version/documentation update runs offline checks; it does not claim the
-  dated native/sample/matrix evidence was rerun on the metadata-only changes.
+- Layer-specific and expanded attached runs have their own dated records.
+  Documentation-only edits do not imply that all earlier native/sample/matrix
+  evidence was rerun for this snapshot.
 
 ## Historical versions
 

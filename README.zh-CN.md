@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 99 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
@@ -58,13 +58,13 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 99 个 MCP 工具 · s
 | 脸与身体 | 读取和调整五官、脸型、体型、身高等原生参数；修改后读回核对 |
 | 发型与发束 | 应用已有预设，创建手绘发束组，读取和移动控制点，复制发束，调整形状与发骨参数，指派已有共享发材质 |
 | 颜色 | 调整眼睛、皮肤、眉睫与全局发色；逐束可见发色仍有限制 |
-| 贴图与图层 | 列出真实部位、渲染器和图层；打开对应画板；导出 PNG、UV 与表面数据；导入 PNG 为新图层；调整既有层显隐和透明度 |
+| 贴图与图层 | 列出真实部位、渲染器和图层；打开对应画板；导出 PNG、UV 与表面数据；导入 PNG 为新图层；显隐、透明度、重命名、删除、排序及 26 种原生混合模式 |
 | 局部妆容 | 在腮红、唇缘、眼皮、眉毛和眼下皮肤遮罩内预览并绘制软硬印章、连续笔触；保留原图层 |
 | 美甲 | 根据手指骨骼与实际甲面生成十指 UV 遮罩，再进行局部贴图绘制与近景检查 |
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [99 个工具参考](tools/TOOLS.md)。
+完整工具名称、参数、前置条件和错误处理见 [103 个工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
@@ -142,7 +142,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **99 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后应能发现 **103 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -185,6 +185,8 @@ Blender 4.2+ 可在 `Preferences → Get Extensions` 搜索 **VRM format**。本
 
 已有图层显隐与透明度通过 `set_texture_layer_state` 调整，需要新鲜的 `state_sha256`。妆容配方 CLI 见 `tools/replay_makeup_recipe.py --help`；它只接受匹配的底模与遮罩，不会自动适配不同脸型。
 
+图层管理新增 `rename_texture_layer`、`delete_texture_layer`、`reorder_texture_layers`、`set_texture_layer_blend`。先重新列层，使用图层 `state_sha256`；删除／排序还需要同一图像的 `stack_sha256`。排序提交该图像从底到顶的完整 `layer_ids`，最后一层禁止删除。混合模式使用返回的原生 ID。四项操作支持原生撤销／重做，不自动保存；原生分组仍未实现，遇到组树会拒绝这四项修改。详见 [图层管理与验证](TEXTURE_LAYERS.md)。
+
 ### 装配服装并导出
 
 `get_wear_status` → `open_wear_project` → `import_xwear` → `set_wear_fit` → `save_wear_project` → `export_wear_vrm`。
@@ -206,7 +208,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-当前代码验收在 Python 3.10／3.12 均为 **548 个测试通过、1 个跳过**；**9 组 JavaScript 行为检查、99 工具合同与 334 文件源码清单通过**。原有 94 工具输入 schema 保持，新增五个人物／文件流程工具。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
+当前代码验收在 Python 3.10／3.12 均为 **564 个测试通过、1 个跳过**；**10 组 JavaScript 行为检查、103 工具合同与 340 文件源码清单通过**。原有 99 工具输入 schema 保持，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 
@@ -216,7 +218,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 结构检查不代表完整 VRM 规范认证，也不代表外观、碰撞或游戏引擎物理验收。
 
-2026-10-28 扩展后的真实窗口编辑与文件流程验收在 F00／M00 各通过 25 项，包含新建、绝对路径另存／打开、原位保存备份与冷重开、当前人物转换装、XWear 导入和 XRoid 保存重开。独立的 F00 连接生命周期验收为 18 项；此前五域检查与同进程体型→纹理→换装→导出保留各自原生证据。文档同步不视为重新运行这些原生流程，复现方式见 [连接说明](ATTACHED_SESSION.md)。
+2026-10-28 扩展后的真实窗口编辑与文件流程验收在 F00／M00 各通过 26 项，包含新建、绝对路径另存／打开、原位保存备份与冷重开、当前人物转换装、XWear 导入和 XRoid 保存重开。独立的 F00 连接生命周期验收为 18 项；此前五域检查与同进程体型→纹理→换装→导出保留各自原生证据。文档同步不视为重新运行这些原生流程，复现方式见 [连接说明](ATTACHED_SESSION.md)。
 
 此前公开样例和 10 组 F00 身高／身体比例／上衣矩阵保留为历史证据，30 张保存前后原生视图逐像素一致。2026-10-20 已人工采用三视图作为技术回归基准；角色最终美术采用和独立外测仍待进行，见 [回归范围](REGRESSION.md)。
 
@@ -236,7 +238,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 99 个工具与参数。
+- [工具参考](tools/TOOLS.md)：完整的 103 个工具与参数。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。

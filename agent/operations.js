@@ -822,7 +822,7 @@ globalThis.vroid = (() => {
     // ---------------------------------------------------------------- dispatch
     const EDIT_OPERATION = new RegExp('^(set_(face|body|clothing)_params|apply_.*preset|add_shoe_template|'
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
-        + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|'
+        + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
         + 'preview_expression|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'

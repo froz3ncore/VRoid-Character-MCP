@@ -1,7 +1,7 @@
 # Existing VRoid sessions, parts and ordinary VRM export
 
 Current source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`),
-**99 tools**. Local native evidence is dated 2026-10-28; independent external-user
+**103 tools**. Local native evidence is dated 2026-10-28; independent external-user
 acceptance remains pending. Version/documentation changes alone do not rerun
 that native evidence.
 
@@ -62,6 +62,12 @@ completion closure to Unity's managed synchronization context. Submitted callbac
 retain their textures independently of the agent and can finish after host exit.
 Attachment waits for already-running original PNG worker Tasks before enabling
 transitions. Detach restores the original decoder entry for future requests.
+
+Raster-layer rename/delete/order and native blend modes work in the matching
+open canvas. Fresh layer/stack hashes guard edits; native Undo/Redo is retained.
+Group/folder editing is unfinished and grouped image roots are refused by these
+four tools. See [TEXTURE_LAYERS.md](TEXTURE_LAYERS.md) for the bottom-to-top order,
+26 composition modes, deletion protection and native reproduction command.
 
 `open_wear_project` can switch the attached window into Dress-up using a selected
 `.vroid`/`.xroid` by absolute path or under the client lab's saves directory. It still requires a
@@ -143,7 +149,7 @@ Results go to `checks.json`; application and server logs stay under the output.
 
 `tools/check_attached_editing.py` takes the same source/variant arguments and a
 different NEW output directory. Supply a compatible XWear with `--xwear` to include
-the import/save/reopen checks from the complete 25-check run:
+the import/save/reopen checks from the complete 26-check run:
 
 ```powershell
 & .\.venv\Scripts\python.exe .\tools\check_attached_editing.py `
@@ -153,7 +159,7 @@ the import/save/reopen checks from the complete 25-check run:
 ```
 
 Repeat with `--variant M00` and another new output directory. Omitting `--xwear`
-skips XWear import and XRoid save/reopen; such a run is not the full 25-check result.
+skips XWear import and XRoid save/reopen; such a run is not the full 26-check result.
 The expanded script covers repeated native new-character replacement, absolute
 Save As/association and character opening, source-preserving copy saves, in-place
 save backups and cold-process face/body persistence, current-character Dress-up
@@ -172,14 +178,15 @@ as owner; it is not every VRoid-specific picker or save/overwrite prompt.
 Independent real-profile acceptance remains pending in BETA_TESTING.md.
 
 On the supported 2.14.0 build, the expanded F00 and M00 runs dated 2026-10-28 each
-passed 25 attached-editing/file-workflow checks, including XWear/XRoid and cold
+passed 26 attached-editing/file-workflow checks, including XWear/XRoid and cold
 character persistence. The separate F00 lifecycle replay passed 18 checks. Earlier
-17-check editing runs remain historical evidence. These are controlled fixtures;
+17- and 25-check editing runs remain historical evidence. These are controlled fixtures;
 long-running GC stress, real user profiles and independent-user acceptance remain
-unverified. This documentation update does not rerun native checks.
+unverified. Documentation-only changes do not constitute additional native evidence.
 
-Current offline regression reports 548 passed / 1 skipped on Python 3.10 and 3.12,
-nine JS behavior suites and a 334-file source manifest. Five file-workflow tools
-expanded the set from 94 to 99, preserving all 94 earlier input schemas. The
+Current offline regression reports 564 passed / 1 skipped on Python 3.10 and 3.12,
+ten JS behavior suites and a 340-file source manifest. Five file-workflow tools
+expanded the set from 94 to 99; four layer tools now bring it to 103, preserving
+all 99 earlier input schemas. The
 current full toolset hash is
-`sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34`.
+`sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.

@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 vm.runInThisContext(fs.readFileSync('agent/attached_state.js','utf8'));
-let environment=null, enabledDialog=false, busy=false, currentModel='model-1';
+let environment=null, enabledDialog=false, busy=false, currentModel='model-1', activeScreen='EditRoot';
 const nullHandle={isNull:()=>true,toString:()=> '0x0'};
 const handle=s=>({isNull:()=>false,toString:()=>s});
 const hooks=[];
@@ -24,7 +24,7 @@ const engine=object({get_Context:()=>object({get_IsCommandExecutable:()=>!busy,
     get_ActiveModel:()=>object({}, {}, currentModel)})},{},'engine');
 const file=object({}, {engine,path:'source.vroid'},'file');
 const main=()=>object({
-    get_GlobalBus:()=>object({get_ScreenNavigation:()=>object({get_ActiveScreen:()=>object({}, {}, 'EditRoot')})}),
+    get_GlobalBus:()=>object({get_ScreenNavigation:()=>object({get_ActiveScreen:()=>object({}, {}, activeScreen)})}),
     get_DialogProviderViewModel:()=>object({get_Dialog:()=>enabledDialog?object({}, {}, 'UnsavedDialog'):nil,
         get_ActiveNotificationDialog:()=>nil}),
     get_ProgressProviderViewModel:()=>object({get_IsLocking:()=>busy}),
@@ -58,4 +58,11 @@ assert.throws(()=>api.operations.attached_acknowledge({recovery_token:fresh.reco
 // Rejection before any mutation clears the new receipt without claiming work.
 const rejected=api.operations.attached_edit_begin({tool:'save_custom_items'});
 assert.equal(api.operations.attached_edit_finish({id:rejected.id,success:false,uncertain:false}).needs_review,false);
+activeScreen='VRoid.Studio.TextureEditorScreen.ViewModel';
+for(const name of ['rename_texture_layer','delete_texture_layer','reorder_texture_layers','set_texture_layer_blend']) {
+    const edit=api.operations.attached_edit_begin({tool:name});
+    api.guard(name);
+    assert.equal(api.operations.attached_edit_finish({id:edit.id,success:true,uncertain:false}).needs_review,false);
+}
+assert.throws(()=>api.guard('set_body_params'),/CLOSE_TEXTURE_EDITOR_FIRST/);
 console.log('attached state guards, cross-host receipt and stale review checks passed');

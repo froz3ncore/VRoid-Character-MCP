@@ -32,7 +32,7 @@ The historical rewrite was behaviour-driven: its then-published tool contract (8
 their JSON schemas) was captured before each step and compared afterwards, with
 unit tests, the read-only native domain check and a clean-lab run to an exported
 VRM as the other gates. `REWRITE.md` records the order and the gates. The current
-99-tool development contract and acceptance scope are described in [SCOPE.md](SCOPE.md).
+103-tool development contract and acceptance scope are described in [SCOPE.md](SCOPE.md).
 
 ## What the licence covers
 

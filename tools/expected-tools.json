@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 99,
- "toolset_hash": "sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34",
+ "tool_count": 103,
+ "toolset_hash": "sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d",
  "tools": {
   "acknowledge_attached_state": {
    "parameters": [
@@ -141,6 +141,22 @@
    ],
    "required": [
     "expected_model"
+   ]
+  },
+  "delete_texture_layer": {
+   "parameters": [
+    "expected_model",
+    "expected_stack_sha256",
+    "expected_state_sha256",
+    "layer_id",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "expected_stack_sha256",
+    "expected_state_sha256",
+    "layer_id",
+    "region_id"
    ]
   },
   "detach_open_vroid": {
@@ -719,6 +735,38 @@
     "expected_model"
    ]
   },
+  "rename_texture_layer": {
+   "parameters": [
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "name",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "name",
+    "region_id"
+   ]
+  },
+  "reorder_texture_layers": {
+   "parameters": [
+    "expected_model",
+    "expected_stack_sha256",
+    "image_id",
+    "layer_ids",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "expected_stack_sha256",
+    "image_id",
+    "layer_ids",
+    "region_id"
+   ]
+  },
   "replace_part": {
    "parameters": [
     "expected_model",
@@ -924,6 +972,22 @@
    "required": [
     "expected_model",
     "mode"
+   ]
+  },
+  "set_texture_layer_blend": {
+   "parameters": [
+    "composition_mode",
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "region_id"
+   ],
+   "required": [
+    "composition_mode",
+    "expected_model",
+    "expected_state_sha256",
+    "layer_id",
+    "region_id"
    ]
   },
   "set_texture_layer_state": {

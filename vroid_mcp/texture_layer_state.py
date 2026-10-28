@@ -7,7 +7,18 @@ def metadata(layer):return {key:layer.get(key) for key in STATE_FIELDS}
 def state_digest(layer):return hashlib.sha256(json.dumps(metadata(layer),sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
 def describe_layers(result):
     for layer in result['layers']:layer['state_sha256']=state_digest(layer)
+    images={}
+    for layer in result['layers']:
+        if 'image' not in layer:continue
+        key=json.dumps(layer['image'],separators=(',',':'),ensure_ascii=False)
+        images.setdefault(key,[]).append(layer)
+    result['images']=[{'image_id':key,'image':rows[0]['image'],'order':'bottom_to_top',
+                      'layer_ids':[row['layer_id'] for row in rows],
+                      'stack_sha256':stack_digest(rows)} for key,rows in images.items()]
     return result
+
+def stack_digest(layers):
+    return hashlib.sha256(json.dumps([metadata(layer) for layer in layers],sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
 
 def register_layer_state_tools(ready_tool,runtime,read,edit):
     @ready_tool(annotations=edit)

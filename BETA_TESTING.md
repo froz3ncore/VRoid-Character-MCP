@@ -1,6 +1,6 @@
 # External beta acceptance / 外部试用验收
 
-Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **99 tools**.
+Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **103 tools**.
 
 Status: **ready for independent testing; external acceptance pending**. A local
 clean checkout, CI, or another process on the developer's machine is not an
@@ -68,15 +68,21 @@ boundaries explicit. Functional acceptance and character-art adoption are separa
 
 ## Current local evidence / 当前本机证据
 
-Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **99 tools**. Current offline
-regression on Python 3.10 and 3.12 reports **548 passed / 1 skipped**, nine JS
-behavior suites and a 334-file source manifest. Five character/file-workflow
-tools were added without changing the earlier 94 input schemas. The current hash
-is `sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34`.
+Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **103 tools**. Current offline
+regression on Python 3.10 and 3.12 reports **564 passed / 1 skipped**, ten JS
+behavior suites and a 340-file source manifest. Four raster-layer tools
+were added without changing the earlier 99 input schemas. The current hash
+is `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
+
+Dedicated raster-layer checks passed 11 cases each for F00/M00 through real MCP
+stdio: native Undo/Redo, 26 blend-mode writes/readback, actual composition changes
+for ordering and representative blending, unchanged source pixels and cold
+persistence. Native grouping is unfinished. Reproduce with
+`tools/check_texture_layers.py`; see [TEXTURE_LAYERS.md](TEXTURE_LAYERS.md).
 
 Native evidence dated 2026-10-28 covers five domains, continuous same-process
 body/texture/Dress-up editing through XRoid/VRM with cold persistence. Expanded
-attached-editing/file-workflow runs passed 25 checks each for F00/M00, including
+attached-editing/file-workflow runs passed 26 checks each for F00/M00, including
 new-character replacement, absolute Save As/open, in-place save backup and cold
 character persistence, current-character Dress-up entry and XWear/XRoid round
 trips. The separate F00 lifecycle run passed 18 checks; earlier 17-check editing
@@ -86,7 +92,7 @@ survive agent unload and a different client can review the surviving edit receip
 Use `tools/check_continuous_editing.py`, `tools/check_attached_editing.py` and
 `tools/check_attached_sessions.py` with their documented new/exclusive directories.
 Pass `--xwear <compatible-accessory.xwear>` to `check_attached_editing.py` for
-the complete 25-check run; omitting it skips XWear import and XRoid save/reopen.
+the complete 26-check run; omitting it skips XWear import and XRoid save/reopen.
 See [ATTACHED_SESSION.md](ATTACHED_SESSION.md) for the command and file semantics.
 
 当前已核构建的同进程解码崩溃路径已修复；旧失败报告保留为失败记录。真实连接验收使用

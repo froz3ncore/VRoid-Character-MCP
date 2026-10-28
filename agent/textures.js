@@ -87,7 +87,9 @@ globalThis.createTextureApi=H=>{
    rows.push({path:p,raw,data:{layer_id:JSON.stringify([pathData(image).transferable_id,pathData(image).image_id,stringProp(p,'NodeId')]),image:pathData(image),node_id:stringProp(p,'NodeId'),...description}});
   }return rows;
  }
+ const management=createLayerManagementApi({identity,region,imagePaths,layerRows,pathKey,nativeFieldOfType,stringProp,cls,invokeManaged,seq});
  return {operations:{
+  ...management.operations,
   export_renderer_texture(args){const m=identity(args),name=args.mesh_name,slot=args.material_slot;
    if(!['Face','Body','Hand','Foot'].includes(name)||!Number.isInteger(slot)||slot<0||slot>15)throw Error('INVALID_NATIVE_TEXTURE_TARGET');
    const origin=m.face.method('GetFaceSMR').invoke().method('get_transform').invoke().method('get_parent').invoke(),found=[];
@@ -281,7 +283,7 @@ globalThis.createTextureApi=H=>{
     if(e.value.tryMethod('get_ImageId'))bindings.push({native_key:e.key,image_id:stringProp(e.value,'ImageId'),native_type:e.value.class.type.name});
    return {region_id:r.key,native_type:type,part:type.split('.').pop(),image_bindings:bindings,editable_images:imagePaths(m,r).map(pathData),uv_mapping_status:'not_yet_exported'};
   })};},
-  list_texture_layers(args){const m=identity(args),r=region(m,args.region_id);return {model_token:m.token,region_id:r.key,layers:layerRows(m,r).map(x=>x.data)};},
+  list_texture_layers(args){const m=identity(args),r=region(m,args.region_id);return {model_token:m.token,region_id:r.key,layers:layerRows(m,r).map(x=>x.data),composition_modes:management.describeModes(),folder_editing_supported:false};},
   export_texture_layer(args){const m=identity(args),r=region(m,args.region_id),row=layerRows(m,r).find(l=>l.data.layer_id===args.layer_id);if(!row)throw Error('UNKNOWN_TEXTURE_LAYER');
    const texture=row.raw.method('CreateTexture2D').invoke();
    try{const width=texture.method('get_width').invoke(),height=texture.method('get_height').invoke(),rgba=row.raw.method('ComposeTiles',0).invoke(),yes=Memory.alloc(1);yes.writeU8(1);

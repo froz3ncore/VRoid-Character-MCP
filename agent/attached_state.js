@@ -45,7 +45,7 @@ function createAttachedState({main, text, state}) {
         if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked)
             throw Error('ATTACHED_UI_BLOCKED: close the dialog or finish the manual operation in VRoid first');
         if (s.active_screen === 'VRoid.Studio.TextureEditorScreen.ViewModel' && !name.startsWith('attached_')
-            && !/^(close_texture_editor|open_texture_editor|import_texture_layer|set_texture_layer_state|undo|redo|capture_texture_|pick_texture_)/.test(name))
+            && !/^(close_texture_editor|open_texture_editor|import_texture_layer|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|undo|redo|capture_texture_|pick_texture_)/.test(name))
             throw Error('CLOSE_TEXTURE_EDITOR_FIRST: finish the active canvas before changing model or screen');
         if (!name.startsWith('attached_')) review = null;
         const r = receipt();

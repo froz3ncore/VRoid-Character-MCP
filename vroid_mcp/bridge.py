@@ -42,6 +42,7 @@ AGENT_MODULES = (
     'capture_quality.js',
     'capture_framing.js',
     'parameters.js',
+    'texture_layers.js',
     'textures.js',
     'wear.js',
     'body_reference.js',

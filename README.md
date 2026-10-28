@@ -3,11 +3,11 @@
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 A local MCP server that normally drives **one disposable copy of VRoid Studio** through
-the application's own managed API, with optional attachment to an existing session. It exposes 99 tools for character
+the application's own managed API, with optional attachment to an existing session. It exposes 103 tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **99 tools**.
+Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **103 tools**.
 Local code and controlled native checks have passed; independent external-user
 acceptance is pending. This snapshot has no new stable release or release tag.
 Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).
@@ -169,6 +169,9 @@ of ordinary editing and has its own token.
 Textures and makeup are native too: list regions and layers, open the matching
 canvas, and add PNG layers or bounded stamps through native history. Those tools
 refuse to run while a Dress-up assembly is open.
+Raster layers also support guarded rename/delete/order and all 26 native blend
+modes, with native Undo/Redo. Order is bottom to top; folder editing is unfinished.
+See [layer management](TEXTURE_LAYERS.md) for fresh tokens, stack hashes and checks.
 
 ## Verify a checkout
 
@@ -196,10 +199,12 @@ own report is not the evidence.
 
 ## Known limitations
 
-Latest code checks: **548 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
-**nine JS suites**, **99 tools** and a 334-file source manifest. The earlier 94
-input schemas are unchanged; five character/file-workflow tools were added.
-Native evidence dated 2026-10-28 includes the expanded 25 attached-editing and
+Latest code checks: **564 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+**ten JS suites**, **103 tools** and a 340-file source manifest. The earlier 99
+input schemas are unchanged; four raster-layer tools were added. F00 and M00
+each passed 11 dedicated layer checks, including cold persistence and actual
+renderer composition changes. The grouping boundary is documented separately.
+Native evidence dated 2026-10-28 includes the expanded 26 attached-editing and
 file-workflow checks each for F00/M00, plus the separate 18-check F00 attachment
 lifecycle run. Earlier five-domain and continuous body/texture/Dress-up checks
 through export retain their own evidence. Version/documentation changes do not
@@ -262,7 +267,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 99 tools |
+| `tools/TOOLS.md` | generated reference for all 103 tools |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

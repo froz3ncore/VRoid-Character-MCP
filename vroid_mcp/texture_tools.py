@@ -5,11 +5,13 @@ from .texture_input import read_texture_input
 from .texture_targets import register_texture_targets
 from .makeup_tools import register_makeup_tools
 from .texture_layer_state import describe_layers,register_layer_state_tools
+from .texture_layer_management import register_layer_management_tools
 
 def register_texture_tools(ready_tool,runtime,lab,read,edit):
     register_texture_targets(ready_tool,runtime,lab,read)
     register_makeup_tools(ready_tool,runtime,lab,read,edit)
     register_layer_state_tools(ready_tool,runtime,read,edit)
+    register_layer_management_tools(ready_tool,runtime,read,edit)
     @ready_tool(annotations=read)
     async def inspect_texture_renderers(expected_model: str) -> dict:
         """Read actual Face/Body/Hand/Foot material slots, texture identities and UV transforms. Identical instance IDs in one sample prove texture sharing."""
@@ -22,7 +24,7 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
 
     @ready_tool(annotations=read)
     async def list_texture_layers(expected_model: str, region_id: str) -> dict:
-        """List native editable raster layers with state_sha256 tokens for guarded existing-layer edits. Tokens change when layer identity/name/visibility/opacity/blend metadata changes; relist after Undo/Redo or reopening."""
+        """List native raster layers, state_sha256 tokens, per-image layer_ids/stack_sha256 and supported composition_modes. Keep returned enumeration order when editing a stack; relist after Undo/Redo, import or reopening. Native folder editing is not exposed."""
         return describe_layers(await runtime.parameter_call('list_texture_layers',{'expected_model':expected_model,'region_id':region_id}))
 
     @ready_tool(annotations=read)

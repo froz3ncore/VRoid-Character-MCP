@@ -26,6 +26,7 @@ from vroid_mcp import bridge, attached_ui
 from vroid_mcp.runtime import Runtime
 from vroid_mcp.texture_mapping import png_rgba
 from vroid_mcp.bounded_paint import decode_rgba_png
+from check_texture_layers import exercise as exercise_layers
 
 FIXTURE_RPC = r'''
 rpc.exports.fixture = (name,args={}) => schedule(() => {
@@ -329,6 +330,8 @@ async def check(source: Path, out: Path, variant: str, xwear: Path | None = None
                     exported=await call('export_texture_layer',{'expected_model':token,'region_id':region['region_id'],'layer_id':marker['layer_id']})
                     assert decode_rgba_png(Path(exported['path']).read_bytes())[2]==bytes(rgba)
                     passed('texture_layer_exact_pixels_and_native_undo_redo')
+                    management=await exercise_layers(call,lab,token,region['region_id'],'attached-layer-check',render=True)
+                    passed('native_layer_management_rename_delete_order_26_blends_and_pixel_preservation',management['checks'])
                     # Refusal after dispatch is intentionally reviewable, not
                     # guessed to have left a complex canvas unchanged.
                     await call('set_body_params',{'expected_model':token,'changes':[{'id':'body/WholeBody/002','value':.2}]},'CLOSE_TEXTURE_EDITOR_FIRST')

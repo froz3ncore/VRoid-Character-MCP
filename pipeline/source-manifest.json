@@ -1,10 +1,10 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Assets, renders and native evidence stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 334,
- "total_bytes": 2120607,
- "tool_count": 99,
- "toolset_hash": "sha256:1d3022489c6ec413d57310cb7e3251a3128847a12faabd331766032ab286be34",
+ "file_count": 340,
+ "total_bytes": 2168478,
+ "tool_count": 103,
+ "toolset_hash": "sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d",
  "files": [
   {
    "path": ".github/workflows/checks.yml",
@@ -13,13 +13,13 @@
   },
   {
    "path": "ATTACHED_SESSION.md",
-   "bytes": 12417,
-   "sha256": "dacf88e791bb35094df1a9dad8da636bbe5f1ccd76a64f7fc2666f5e32fbca5a"
+   "bytes": 12878,
+   "sha256": "88c37118f74f41f17e2ee7354988a668393f5755491c2604610f173b83b9a863"
   },
   {
    "path": "BETA_TESTING.md",
-   "bytes": 6586,
-   "sha256": "bf1b5441612eccc0d0ba02ddb36f2005aea8ab45ba29924d2aedd4c4b106d816"
+   "bytes": 6951,
+   "sha256": "48cec115132c8267ecb4ed5bddfdf7de7e8fd4038d362fa223ad5d9c2d4c484c"
   },
   {
    "path": "BLENDER_SETUP.zh-CN.md",
@@ -28,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 16531,
-   "sha256": "7a027f74907e9c598f4af603033403073bb46f8d2e9ff4d32e03f736e3d2642c"
+   "bytes": 17724,
+   "sha256": "d7d1523238e4540ece2d76c0d27a58ed1d2cd4a50cf42f1895bfef3a6e9f9483"
   },
   {
    "path": "LICENSE",
@@ -38,8 +38,8 @@
   },
   {
    "path": "LICENSING.md",
-   "bytes": 3227,
-   "sha256": "052d87da840952a2276a7591ac7a23124e61bf31177e9d44324288d84aa6765e"
+   "bytes": 3228,
+   "sha256": "f66f1f3204982baddb0af90b11c75aa8e8f63e7bf92c2abc29d68115a3e7b90f"
   },
   {
    "path": "NOTICE",
@@ -53,23 +53,23 @@
   },
   {
    "path": "README.md",
-   "bytes": 14190,
-   "sha256": "2f4bbaf9becbba018e5a1ffe587965b584ee6cb52eb72d35c4ecec6fc1bc8ca9"
+   "bytes": 14597,
+   "sha256": "8939abcce7fb7a2d484ae5a9d2520da08e96db6909731e2495bcc2050b36c2c9"
   },
   {
    "path": "README.zh-CN.md",
-   "bytes": 16357,
-   "sha256": "92933c14c43998224766d646701fcc6498ccd13a3b44e273c09e5b9fb2b0852e"
+   "bytes": 17036,
+   "sha256": "3d65d3d2dc40724912cc022113025262e60be443ad231afb850bd349aab67732"
   },
   {
    "path": "README.zh-TW.md",
-   "bytes": 10565,
-   "sha256": "98f53854ad7ef859aa6997a09297453719c6669e0dd5feae01a4d527facc4759"
+   "bytes": 10954,
+   "sha256": "a4ec2e5036b59bce98fb7217fdaaf262994af07a3e074b36b8c2bf0d66ed86cf"
   },
   {
    "path": "RECOVERY.md",
-   "bytes": 13602,
-   "sha256": "b2d828897d1f925da6ebf3681898fdcf5218daa192625dc633b23569b0076bd5"
+   "bytes": 13603,
+   "sha256": "31244cd50a4f390b67653178ed4e18f308eb82444e2294bed7ff569047ca3176"
   },
   {
    "path": "REGRESSION.md",
@@ -78,8 +78,13 @@
   },
   {
    "path": "SCOPE.md",
-   "bytes": 6408,
-   "sha256": "9c03f2d13605a924e628a09548af0e2a410fbc1523a538502c66a1e75f5afdfd"
+   "bytes": 7108,
+   "sha256": "bcb684677461d78413124e9a98df6d378089dcb1e7d2f467690930ecb77f153a"
+  },
+  {
+   "path": "TEXTURE_LAYERS.md",
+   "bytes": 4820,
+   "sha256": "5e8d27c256d77efc62e67fb35633d6a687d42c7741f0aa4cc5f4d145f8044fda"
   },
   {
    "path": "UPSTREAM.json",
@@ -93,8 +98,8 @@
   },
   {
    "path": "agent/attached_state.js",
-   "bytes": 7363,
-   "sha256": "a22c0eb98b8d35c0a208bb4ee14a6bf60afa539a07fbdd2e69184c991a99ef82"
+   "bytes": 7452,
+   "sha256": "643b1bd258614b5eefd673a871e6efaa221e20e314ec7fc0fef82627242f532b"
   },
   {
    "path": "agent/attachment_lease.js",
@@ -138,8 +143,8 @@
   },
   {
    "path": "agent/operations.js",
-   "bytes": 44972,
-   "sha256": "030285a68b7a1a2e3b6acf5cbcb5cc86ab390261af26bf02583e3edb21740715"
+   "bytes": 45061,
+   "sha256": "21fbac1c8c4c5b36fb2f44e0d6acff01f19b141aecfa2d7407f21851824e9d65"
   },
   {
    "path": "agent/ordinary_extensions.js",
@@ -167,9 +172,14 @@
    "sha256": "6b0c1e56a8ef171b9e88c6b14b78e7f6693fe18503175b880e82e49d390a6244"
   },
   {
+   "path": "agent/texture_layers.js",
+   "bytes": 8785,
+   "sha256": "80044c9ccb613f266552005c7bc6ddc44e880b31e3c345674ee5253b06c4f0da"
+  },
+  {
    "path": "agent/textures.js",
-   "bytes": 34147,
-   "sha256": "4d579527bd21aa7e131a43d00d5b00d94e5bfb9269a39bbbb68a911fe3c1ab90"
+   "bytes": 34394,
+   "sha256": "1a69a9a68daaafba9988dca7c4dcc916cb6e4eddfc11a13c2a81338a70c81353"
   },
   {
    "path": "agent/wear.js",
@@ -968,8 +978,8 @@
   },
   {
    "path": "tests/attached_state_test.js",
-   "bytes": 4057,
-   "sha256": "acebebd9a5c0cc5f2a46d6cc5da56ca94e6fd711f503d7af26d60d51de26a567"
+   "bytes": 4545,
+   "sha256": "e8c16f13dec251760b36eb22fb44336e35897231e0e2cbd450537a1285d0b513"
   },
   {
    "path": "tests/attachment_lease_test.js",
@@ -1252,6 +1262,11 @@
    "sha256": "06fe37db62072b46f47678e77375074a916421592d97750cc63fb47a0713c760"
   },
   {
+   "path": "tests/test_texture_layer_management.py",
+   "bytes": 6446,
+   "sha256": "70fb300ab6f8e85402fc687d8aa0e8b31b46495c886aad5ca44b79a826bd25a8"
+  },
+  {
    "path": "tests/test_texture_layer_state.py",
    "bytes": 2499,
    "sha256": "05b0079ef8b6acb4f9a26d116bd468932ed255a16a51f389a67d8ed356f83633"
@@ -1332,6 +1347,11 @@
    "sha256": "5ebf5b4200457b3c4ed3d14ecac273d237a000a2fcd633b0073bab433a8a9ad1"
   },
   {
+   "path": "tests/texture_layers_test.js",
+   "bytes": 3005,
+   "sha256": "25a30ae2eb3ed0b9b2803f52ceaae2910c4a2ea4371213c67d90afb75cbfbb01"
+  },
+  {
    "path": "tests/textured_wear_acceptance.py",
    "bytes": 6301,
    "sha256": "c09f71cb162063a5062134c482587e38b78e1740419517401969d4a76f20b823"
@@ -1348,8 +1368,8 @@
   },
   {
    "path": "tools/check_attached_editing.py",
-   "bytes": 36799,
-   "sha256": "7b3bc1ac0ec5b95205ac5b7a18243c69b53ecf96e38c8c000b8ca14a99bdddc4"
+   "bytes": 37112,
+   "sha256": "bd3339febafc5e10500901922e65647d4a188a27ec853e1b9e9afe5feed94949"
   },
   {
    "path": "tools/check_attached_sessions.py",
@@ -1382,6 +1402,11 @@
    "sha256": "435faf312f5a7383c42436982a786d5054a0a0c1ff3f08c33f7983b30f442754"
   },
   {
+   "path": "tools/check_texture_layers.py",
+   "bytes": 11728,
+   "sha256": "bad3bb0365eb6b534a1459bd1452e6a53ede8eeaa06f4ec985f0b59c7f8a1d73"
+  },
+  {
    "path": "tools/check_visual_capture.py",
    "bytes": 2760,
    "sha256": "9516ba1c02e80bbdc327d4f9c7214f2384573a74f7f53793b66652ed3a90e017"
@@ -1398,8 +1423,8 @@
   },
   {
    "path": "tools/gen_tool_docs.py",
-   "bytes": 9267,
-   "sha256": "7a9b5dac49a3dd3d76aad727ea3e43cb03b101e31a73f6a7c9dcdb18f3b10c5c"
+   "bytes": 9424,
+   "sha256": "0896feb574192ef81b0b8ce39a85291f3dbcd2a643a127baec8bd8028710f316"
   },
   {
    "path": "tools/replay_makeup_recipe.py",
@@ -1423,8 +1448,8 @@
   },
   {
    "path": "tools/source_manifest.py",
-   "bytes": 6339,
-   "sha256": "304e248707c086206336e43ff1c632f24bbf904f629871dab6f85b6710848d78"
+   "bytes": 6360,
+   "sha256": "a0704e56a03e7e7380d612af64a1da93f001359e643d980ff7cccbc1170d5216"
   },
   {
    "path": "tools/tool_manifest.py",
@@ -1463,8 +1488,8 @@
   },
   {
    "path": "vroid_mcp/bridge.py",
-   "bytes": 19599,
-   "sha256": "86535d06cdd4d13a040ca7326b2557abbbdc9d1d0affb628a16a0aad15b64b3f"
+   "bytes": 19624,
+   "sha256": "24020e4e1e931bd3bd5c03e414129ba7630a7a6080eeac29654cad5f4d391c99"
   },
   {
    "path": "vroid_mcp/capture_quality.py",
@@ -1587,9 +1612,14 @@
    "sha256": "565fe631e9ffa7fd431787bec9c6e2e430a2b40abecb0ebb79b934db666556ff"
   },
   {
+   "path": "vroid_mcp/texture_layer_management.py",
+   "bytes": 6646,
+   "sha256": "98439ba610e8266f060360211296ed606ecbaa3fa2c3de373c07862a293e84f2"
+  },
+  {
    "path": "vroid_mcp/texture_layer_state.py",
-   "bytes": 2415,
-   "sha256": "dfa628152bac0e8ff7d1e5eec87576096e3b0031fcc80ccbe5b5819ee998bdc7"
+   "bytes": 3057,
+   "sha256": "c586609c6ac2caa33799831acdd448416d0e9390882b9bfecf6f3a6c51cf5999"
   },
   {
    "path": "vroid_mcp/texture_mapping.py",
@@ -1603,8 +1633,8 @@
   },
   {
    "path": "vroid_mcp/texture_tools.py",
-   "bytes": 6511,
-   "sha256": "3bf7e4d123d89e5fd3f1a9bcfbbc76419f9898bfa7b9c306d7265aabf253c5a2"
+   "bytes": 6685,
+   "sha256": "ed92b4500fbaaf0f839a93d6e116181d727d96f251f617e2294f4c4671979c63"
   },
   {
    "path": "vroid_mcp/tool_models.py",
