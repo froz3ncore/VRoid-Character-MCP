@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+import tempfile
 from datetime import timedelta
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,7 +128,8 @@ async def check(source: Path, out: Path, variant: str, xwear: Path | None = None
     prepare_lab.check_install(source)
     out.mkdir(parents=True)
     (out / 'temp').mkdir()
-    os.environ['TEMP'] = os.environ['TMP'] = str(out / 'temp')
+    os.environ['TEMP'] = os.environ['TMP'] = os.environ['TMPDIR'] = str(out / 'temp')
+    tempfile.tempdir = None
     target = out / 'target'
     await asyncio.to_thread(prepare_lab.main, ['--source', str(source), '--lab', str(target)])
     fixture = Runtime(target)

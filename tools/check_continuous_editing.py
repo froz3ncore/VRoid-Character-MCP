@@ -14,6 +14,7 @@ import os
 import struct
 from pathlib import Path
 import sys
+import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +31,8 @@ async def run(lab, out, variant, cycles):
     lab, out = lab.resolve(), out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     scratch = out / 'temp'; scratch.mkdir()
-    os.environ['TEMP'] = os.environ['TMP'] = str(scratch)
+    os.environ['TEMP'] = os.environ['TMP'] = os.environ['TMPDIR'] = str(scratch)
+    tempfile.tempdir = None
     report = {'variant': variant, 'cycles': cycles, 'checks': {}}
     prefix = 'continuous-' + uuid.uuid4().hex[:12]
     def passed(name, value=True):

@@ -161,7 +161,7 @@ def configure_scratch(lab: pathlib.Path) -> pathlib.Path:
     # broken host TEMP, and assuming a writable sibling work/ breaks clones.
     scratch = lab / 'e2e-temp'
     scratch.mkdir(parents=True, exist_ok=True)
-    os.environ.update(TEMP=str(scratch), TMP=str(scratch))
+    os.environ.update(TEMP=str(scratch), TMP=str(scratch), TMPDIR=str(scratch))
     tempfile.tempdir = None
     return scratch
 
