@@ -47,6 +47,7 @@ AGENT_MODULES = (
     'wear.js',
     'body_reference.js',
     'preset_previews.js',
+    'vrm_export.js',
     'ordinary_extensions.js',
     'attached_state.js',
     'operations.js',
@@ -255,8 +256,8 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         raise RuntimeError('COPY_DISCONNECTED: restart the MCP server')
     attached = getattr(subject, 'mode', 'copy') == 'attached'
     inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
-        'status', 'native_png_status', 'task_status', 'custom_item_state', 'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
-    if subject.uncertain and operation != 'status' and not (attached and inspectable):
+        'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state', 'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
+    if subject.uncertain and operation not in {'status', 'vrm_export_status'} and not (attached and inspectable):
         if attached:
             raise RuntimeError('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state and actual parameters, layers and files before acknowledge_attached_state; do not retry the interrupted tool')
         raise RuntimeError('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')

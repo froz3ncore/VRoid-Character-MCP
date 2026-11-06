@@ -138,10 +138,8 @@ def test_custom_save_verifies_file_and_registry_instead_of_native_return(tmp_pat
 
 
 def write_glb(path, extension):
-    payload = json.dumps({'extensions': {extension: {}}}).encode()
-    payload += b' ' * (-len(payload) % 4)
-    body = struct.pack('<I4s', len(payload), b'JSON') + payload
-    path.write_bytes(struct.pack('<4sII', b'glTF', 2, 12 + len(body)) + body)
+    from test_ordinary_vrm_options import document, glb
+    path.write_bytes(glb(document(0 if extension == 'VRM' else 1)))
 
 
 @pytest.mark.parametrize('version,extension', [(0, 'VRM'), (1, 'VRMC_vrm')])
