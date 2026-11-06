@@ -316,12 +316,16 @@ globalThis.vroid = (() => {
                 const presetModel = option.field('_model').value;
                 const presetId = text(option.method('get_TransferableGroupId').invoke());
                 const resource = text(presetModel.field('resourceName').value);
+                const catalogField = name => { try { return presetModel.field(name).value; } catch (_) { return null; } };
+                const owned = option.method('get_IsOwned').invoke();
                 entries.push({
                     p: option, id: area + '/' + key + '/' + presetId,
                     category: key, category_name: name,
                     label: name + ' / ' + resource.split('/').slice(0, -1).pop(),
                     resource_name: resource,
-                    owned: option.method('get_IsOwned').invoke(),
+                    owned, locked: !owned,
+                    price_in_coin: catalogField('priceInCoin'), is_set_item: catalogField('isSetItem'),
+                    catalog_only: false,
                     selected: option.method('get_IsSelected').invoke(),
                 });
             }
@@ -340,8 +344,12 @@ globalThis.vroid = (() => {
             counts.set(preset.category, bucket);
         }
         if (args.category && !counts.has(args.category)) throw Error('UNKNOWN_PRESET_CATEGORY');
+        if (args.search != null && typeof args.search !== 'string') throw Error('INVALID_SEARCH');
+        if (args.owned_only != null && typeof args.owned_only !== 'boolean') throw Error('INVALID_OWNED_FILTER');
+        const search = (args.search || '').toLowerCase();
         const matching = all.filter(preset => (!args.category || preset.category === args.category)
-            && (!args.owned_only || preset.owned));
+            && (args.owned_only === false || preset.owned)
+            && (!search || preset.id.toLowerCase().includes(search) || (preset.resource_name || '').toLowerCase().includes(search)));
         const offset = args.offset ?? 0;
         const limit = args.limit ?? 100;
         if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 200) {
@@ -351,6 +359,7 @@ globalThis.vroid = (() => {
             model_token: m.token, area, categories: [...counts.values()], total: matching.length, offset,
             next_offset: offset + limit < matching.length ? offset + limit : null,
             presets: matching.slice(offset, offset + limit).map(({ p, ...data }) => data),
+            catalog: groups.helpers.catalogPage(m,args,all),
         };
     }
 
@@ -746,6 +755,8 @@ globalThis.vroid = (() => {
                                                      presetEntries: collectPresets, core, text });
     const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged });
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
+    const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
+        details:describeParameter,state,ordinary,presetEntries:collectPresets});
 
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
@@ -768,6 +779,7 @@ globalThis.vroid = (() => {
     }
 
     const operations = {
+        ...groups.operations,
         ...textureApi.operations,
         ...ordinary.operations,
         ...attachedState.operations,
@@ -824,7 +836,7 @@ globalThis.vroid = (() => {
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
         + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
-        + 'preview_expression|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
+        + 'preview_expression|set_group_parameters|remove_group|apply_registered_custom_item|apply_preserving_preset|restore_preset_materials|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
         + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
 

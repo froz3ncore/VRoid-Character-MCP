@@ -104,12 +104,13 @@ class EditTools:
 
     # ----------------------------------------------------------------- presets
     async def list_presets(self, area: str, category: str | None = None,
-                           offset: int = 0, limit: int = 100) -> dict:
+                           offset: int = 0, limit: int = 100, search: str | None = None,
+                           owned_only: bool = True) -> dict:
         self._require_preset_area(area)
         async with self.lock:
             return name_catalog(await self._call('list_presets', {'area': area, 'category': category,
                                                                   'offset': offset, 'limit': limit,
-                                                                  'owned_only': True}))
+                                                                  'owned_only': owned_only, 'search': search}))
 
     async def _owned_catalog(self, expected_model: str, area: str, wanted: list[str]) -> dict:
         """Page through the owned presets once until every wanted id is known."""
@@ -171,9 +172,14 @@ class EditTools:
             return {'model_token': expected_model, 'area': area, 'presets': items,
                     'scope': 'Native preset thumbnails, not the preset applied to this character'}, images
 
-    async def apply_preset(self, area: str, expected_model: str, preset_id: str) -> dict:
+    async def apply_preset(self, area: str, expected_model: str, preset_id: str,
+                           preserve_material: bool = False) -> dict:
         self._require_preset_area(area)
+        if type(preserve_material) is not bool:
+            raise ValueError('preserve_material must be bool')
         async with self.lock:
+            if preserve_material:
+                return await self._preserve_material_preset(area, expected_model, preset_id)
             result = await self._call('apply_preset', {'area': area, 'expected_model': expected_model,
                                                        'preset_id': preset_id})
             await self._settle(result['frame'])

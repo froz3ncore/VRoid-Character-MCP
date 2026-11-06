@@ -8,8 +8,18 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         const files=[],it=registry.field('_pathToFileCustomItemModels').value.method('get_Values').invoke().method('GetEnumerator').invoke();
         try { while(it.method('MoveNext').invoke()) {
             const f=it.method('get_Current').invoke();
+            const optionalString=name=>{try{return text(f.method('get_'+name).invoke());}catch(_){return null;}};
+            let customResource=null,customRevision=null,registered=null;
+            try {
+                const custom=f.method('get_CustomItemId').invoke();
+                customResource=text(custom.method('get_ResourceName').invoke());
+                customRevision=text(custom.method('get_Revision').invoke());
+                registered=registry.method('CheckIfIsRegisteredInAssetStorage').invoke(f.method('get_TransferableGroupResourceName').invoke());
+            } catch(_) { /* explicit unavailable identity; never infer it from filename */ }
             files.push({id:text(f.method('get_TransferableGroupId').invoke()),
                 group_type:text(f.method('get_TransferableGroupTypeId').invoke()),
+                resource_name:optionalString('TransferableGroupResourceName'),revision:optionalString('TransferableGroupRevision'),
+                custom_resource_name:customResource,custom_revision:customRevision,registered,
                 path:text(f.method('get_FilePath').invoke()),name:text(f.method('get_DisplayName').invoke())});
         }} finally {it.method('Dispose').invoke();}
         const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();
@@ -152,7 +162,7 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         return meta;
     }
     const nativeVrm=createVrmExportApi({model,text,invokeManaged,retain,metadata:vrmMeta});
-    return {operations:{list_parts:listParts, replace_part:replacePart,
+    return {managedCallbacks, operations:{list_parts:listParts, replace_part:replacePart,
         custom_item_state:customItemState, save_custom_item:saveCustomItem,
         preserve_attached_unsaved(args) {
             if(!ATTACHED)throw Error('ATTACHED_ONLY');

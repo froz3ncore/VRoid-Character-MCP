@@ -1,0 +1,619 @@
+// Native group/query/history adapters adapted from mcjo79/vroid-mcp 0dc7d5e
+// VRoidApi.cs, ClothingSliders.cs, AdvancedEdit.cs, Presets.cs, CustomItems.cs,
+// Catalog.cs and mcp_server/vroid_mcp.py (MIT). See licenses/mcjo79-0dc7d5e.txt.
+// All calls run on the existing Unity main-thread queue. Never wait here.
+function createGroupApi(H) {
+    const {model, cls, text, invokeManaged, entries, details, state, ordinary, presetEntries} = H;
+    const pathNamespace = 'VRoidCore.Common.TransferableTypes.Path.';
+    const requests = new Map();
+    let nextRequest = 0;
+    const alive = o => o != null && (!o.handle || !o.handle.isNull());
+    const str = o => typeof o === 'string' ? o : text(o);
+    function prop(o, name) {
+        if (!alive(o)) throw Error('NULL_NATIVE_PROPERTY: ' + name);
+        const getter = o.tryMethod('get_' + name, 0);
+        if (getter) return getter.invoke();
+        // Use actual declared native field metadata, never C# proxy spellings
+        // assumed to exist in IL2CPP. The recognized backing layout is explicit.
+        for (const candidate of [name, '<' + name + '>k__BackingField']) {
+            const field = o.tryField(candidate);
+            if (field) return field.value;
+        }
+        throw Error('NATIVE_PROPERTY_UNAVAILABLE: ' + name);
+    }
+    function optional(o, name) { try { return prop(o, name); } catch (_) { return null; } }
+    function sequence(o) {
+        if (!alive(o)) return [];
+        if (Array.isArray(o)) return o;
+        if (typeof o[Symbol.iterator] === 'function') return [...o];
+        const array = o.tryField('array');
+        if (array) return sequence(array.value);
+        const bound = (object,name) => {
+            const direct = object.tryMethod(name);
+            if (direct) return direct;
+            const metadata = object.class.methods.find(m=>m.name.endsWith('.' + name));
+            return metadata ? object.method(metadata.name) : null;
+        };
+        const get = bound(o,'GetEnumerator');
+        if (!get) throw Error('NATIVE_ENUMERATOR_UNAVAILABLE');
+        const it = get.invoke(), out = [];
+        const method = name => bound(it,name);
+        const move = method('MoveNext'), current = method('get_Current');
+        if (!move || !current) throw Error('NATIVE_ENUMERATOR_LAYOUT_UNSUPPORTED');
+        try { while (move.invoke()) out.push(current.invoke()); }
+        finally { const dispose = method('Dispose'); if (dispose) dispose.invoke(); }
+        return out;
+    }
+    const pairs = d => sequence(d).map(e => [str(prop(e, 'Key')), prop(e, 'Value')]);
+    function requireModel(args) {
+        if (typeof args.expected_model !== 'string' || !args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
+        return model(args.expected_model);
+    }
+    const active = m => m.context.method('get_ActiveModel').invoke();
+    function nativeQuery(m, name, args) {
+        const query = cls('VRoidCore', 'VRoidCore.Editing.Query.' + name).alloc();
+        invokeManaged(query, '.ctor', args);
+        return invokeManaged(query, 'Execute', [active(m).handle]);
+    }
+    function pathDescriptor(path) {
+        const type = path.class.name;
+        if (/^Template(BlendShapeTransform|Color)Path$/.test(type)) {
+            const wrapped = object => {
+                const value = optional(object,'Value') ?? optional(object,'Key');
+                const key = str(value);
+                if (!key) throw Error('TEMPLATE_WRAPPER_KEY_UNAVAILABLE');
+                return key;
+            };
+            return {path_type: type, template_key: wrapped(prop(path,'templatePath')),
+                element_key: wrapped(prop(path,'editableElementPath'))};
+        }
+        if (!['BlendShapeTransformPath', 'BoneTransformPath', 'ColorPath'].includes(type))
+            throw Error('UNSUPPORTED_EXACT_PATH_TYPE: ' + type);
+        return {path_type: type, template_key: null, element_key: str(prop(path, 'Key'))};
+    }
+    function bindingIdentity(group, descriptor) {
+        return JSON.stringify([group, descriptor.path_type, descriptor.template_key, descriptor.element_key]);
+    }
+    const fingerprint = g => JSON.stringify([g.id, g.type, g.resource_name, g.revision]);
+    function clearType(entry) {
+        if (entry.native_group_type) return entry.native_group_type;
+        for (const owner of [entry.p, optional(entry.p, '_model')]) {
+            const type = optional(owner, 'TransferableGroupType') || optional(owner, '_transferableGroupType');
+            if (alive(type)) return str(type);
+        }
+        return null;
+    }
+    function groupInventory(m) {
+        const found = new Map(), errors = [];
+        function merge(id, object, flags) {
+            const row = found.get(id) || {id, type: null, resource_name: null, revision: null,
+                active: false, active_leaf: false, stored: false, errors: []};
+            Object.assign(row, flags);
+            for (const [name, native] of [['type', 'Type'], ['resource_name', 'ResourceName'], ['revision', 'Revision']]) {
+                try { const value = str(prop(object, native)); if (value != null) row[name] = value; }
+                catch (error) { row.errors.push(String(error)); }
+            }
+            found.set(id, row);
+        }
+        try {
+            for (const [id, group] of pairs(active(m).method('GetActiveTransferableGroups').invoke()))
+                merge(id, group, {active: true});
+        } catch (error) { errors.push({source: 'active', error: String(error)}); }
+        try {
+            for (const [id] of pairs(m.context.method('GetActiveLeafTransferableGroups').invoke())) {
+                const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
+                merge(id, info, {active: true, active_leaf: true});
+            }
+        } catch (error) { errors.push({source: 'active_leaf', error: String(error)}); }
+        try {
+            for (const [id, group] of pairs(prop(active(m), 'TransferableGroups'))) {
+                const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
+                merge(id, alive(info) ? info : group, {stored: true});
+                const elements = optional(group, 'EditableElements');
+                found.get(id).editable_element_count = alive(elements) ? prop(elements, 'Count') : null;
+            }
+        } catch (error) { errors.push({source: 'stored', error: String(error)}); }
+        const clears = [];
+        for (const area of ['face', 'body', 'hair', 'clothing']) {
+            try { clears.push(...presetEntries(m, area).filter(e => e.clear).map(e => ({type: clearType(e), id: e.id}))); }
+            catch (error) { errors.push({source: 'removal_capability/' + area, error: String(error)}); }
+        }
+        const groups = [...found.values()].sort((a,b) => a.id.localeCompare(b.id));
+        for (const g of groups) {
+            g.fingerprint = fingerprint(g);
+            g.removal_evidence = clears.filter(c => c.type && c.type === g.type);
+            // A native clear option tied to this full native type is required.
+            g.removable = g.active_leaf && g.removal_evidence.length === 1;
+            g.removal_reason = g.removable ? 'exact native clear option type binding' : 'mandatory or native removal capability not established';
+        }
+        const topology = JSON.stringify(groups.map(g => g.fingerprint));
+        return {model_token: m.token, groups, errors, topology_fingerprint: topology};
+    }
+    function exactGroup(m, id) {
+        const inventory = groupInventory(m), rows = inventory.groups.filter(g => g.id === id);
+        if (rows.length !== 1) throw Error('UNKNOWN_OR_STALE_GROUP: relist groups');
+        if (!rows[0].revision || !rows[0].type) throw Error('GROUP_IDENTITY_UNAVAILABLE');
+        return {inventory, group: rows[0]};
+    }
+    function rowId(m, group, topology, binding) {
+        return 'group/' + encodeURIComponent(JSON.stringify([m.token, group.fingerprint, topology, binding]));
+    }
+    function typedRows(m, group, inventory, errors) {
+        const rows = [];
+        for (const area of ['face', 'body', 'clothing']) {
+            try {
+                for (const entry of entries(m, area)) {
+                    const d = details(entry);
+                    if (d.semantic_status !== 'complete' || d.semantic_group !== group.type) continue;
+                    const sameType = inventory.groups.filter(g => g.active && g.type === group.type);
+                    if (area === 'clothing' ? !entry.id.startsWith('clothing/' + group.id + '/') : sameType.length !== 1) continue;
+                    const native = d.semantic_bindings.map(b => {
+                        // Existing semantic metadata captures concrete path and
+                        // template identity. Re-read exact native path below.
+                        const fields = {single: ['_path'], combined: entry.p.class.name.includes('Bone')
+                            ? ['_pathNegative','_pathPositive'] : ['_negativeBlendShapePath','_positiveBlendShapePath']};
+                        const names = fields[d.semantic_kind];
+                        return pathDescriptor(entry.p.field(names[d.semantic_bindings.indexOf(b)]).value);
+                    });
+                    const kind = entry.p.class.name.includes('Bone') ? 'bone' : 'blendshape';
+                    rows.push({data: {...d, id: rowId(m, group, inventory.topology_fingerprint, ['typed', entry.id]),
+                        target_binding_id: entry.id, native_bindings: native, kind, type: 'float', units: 'native_vm',
+                        binding_keys: native.map(p => bindingIdentity(group.id, p)), source: 'exact_native_vm',
+                        group_id: group.id, group_fingerprint: group.fingerprint}, entry,
+                        write(value) {
+                            const storage = Memory.alloc(4); storage.writeFloat(value);
+                            invokeManaged(entry.p, entry.p.tryMethod('set_CombinedValue') ? 'set_CombinedValue' : 'set_ModelValue', [storage]);
+                        }});
+                }
+            } catch (error) { errors.push({source: 'typed/' + area, error: String(error)}); }
+        }
+        return rows;
+    }
+    function enumName(value) {
+        if (typeof value === 'string') return value;
+        const c = value.class || value.type?.class;
+        if (!c || !c.isEnum) return 'unknown';
+        const number = value.field('value__').value;
+        const names = c.fields.filter(f => f.isStatic && f.type.name === c.type.name && f.value.field('value__').value === number);
+        return names.length === 1 ? names[0].name : 'unknown';
+    }
+    function rawRows(m, group, inventory, typed, errors) {
+        const rows = [];
+        const add = (kind, value, descriptor, extra = {}) => {
+            const key = bindingIdentity(group.id, descriptor);
+            const equivalents = typed.filter(row => row.data.binding_keys.includes(key));
+            // Raw halves covered by paired VMs stay visible but must use the
+            // combined control, which owns opposing-half zeroing/readback.
+            const color = kind === 'color';
+            const d = {id: rowId(m, group, inventory.topology_fingerprint, ['raw', key]),
+                native_bindings: [descriptor], binding_keys: [key], group_id: group.id,
+                group_fingerprint: group.fingerprint, kind, type: color ? 'color' : 'float',
+                value, min: color ? 0 : null, max: color ? 1 : null,
+                units: color ? 'native_rgba' : 'native_float_unknown_range',
+                editable: color && equivalents.length === 0,
+                source: 'native_raw_query', target_binding_ids: equivalents.map(r => r.data.target_binding_id),
+                unsupported_reason: color && !equivalents.length ? null
+                    : equivalents.length ? 'Use exact typed control; paired/alias half writes refused'
+                    : 'Native scalar range/history contract not established', ...extra};
+            rows.push({data: d, write: value => executeHistory(m, group.id, kind, descriptor, value),
+                prepare: value => prepareHistory(m,group.id,kind,descriptor,value)});
+        };
+        try {
+            for (const [dictionaryKey, p] of pairs(m.context.method('GetParametersForTransferableGroup').invoke(Il2Cpp.string(group.id)))) {
+                const key = str(prop(p, 'Key'));
+                let recognized = false;
+                for (const [native, kind, path, member] of [
+                    ['blendShapeTransform','blendshape','BlendShapeTransformPath','Value'],
+                    ['boneTransform','bone','BoneTransformPath','Value'], ['color','color','ColorPath','Color']]) {
+                    const wrapper = optional(p, native);
+                    if (!alive(wrapper)) continue;
+                    const raw = prop(wrapper, member);
+                    const value = kind === 'color' ? ['r','g','b','a'].map(c => raw.field(c).value) : raw;
+                    add(kind, value, {path_type: path, template_key: null, element_key: key}, {native_dictionary_key: dictionaryKey});
+                    recognized = true; break;
+                }
+                if (!recognized) {
+                    const kind = enumName(optional(p, 'Type'));
+                    rows.push({data: {id: rowId(m, group, inventory.topology_fingerprint, ['unsupported',dictionaryKey,key]),
+                        native_dictionary_key: dictionaryKey, native_key: key, kind, type: kind.toLowerCase(),
+                        value: null, units: 'native_unknown', editable: false,
+                        unsupported_reason: 'No source-proven raw value/history contract for this native enum type',
+                        binding_keys: [], native_bindings: [], source: 'native_raw_query'}});
+                }
+            }
+        } catch (error) { errors.push({source: 'GetParametersForTransferableGroup', error: String(error)}); }
+        // Template garment/accessory sliders, including stored non-leaf groups.
+        try {
+            const transferables = pairs(m.context.method('GetActiveLeafTransferables').invoke())
+                .filter(([,t]) => str(prop(t,'GroupId')) === group.id).map(([id]) => id);
+            const seen = new Set();
+            for (const id of transferables.length ? transferables : [null]) {
+                const result = nativeQuery(m, 'GetTransferableGroupBlendShapesQuery',
+                    [Il2Cpp.string(group.id).handle, id === null ? NULL : Il2Cpp.string(id).handle]);
+                for (const item of sequence(prop(result, 'blendShapes'))) {
+                    const path = prop(item, 'path'), descriptor = pathDescriptor(path);
+                    const identity = bindingIdentity(group.id, descriptor);
+                    if (seen.has(identity)) continue;
+                    seen.add(identity);
+                    const value = active(m).method('GetBlendShapeTransformParameter').invoke(Il2Cpp.string(group.id), path);
+                    if (!rows.some(r => r.data.binding_keys.includes(identity))) add('blendshape', value, descriptor, {item_slider: true});
+                }
+            }
+        } catch (error) { errors.push({source: 'GetTransferableGroupBlendShapesQuery', error: String(error)}); }
+        return rows;
+    }
+    function wornColors(m, group, inventory, errors) {
+        const rows = [], seen = new Set();
+        try {
+            const result = nativeQuery(m, 'AdvancedEdit.GetClothingQuery', [Il2Cpp.string(group.type).handle]);
+            function walk(section) {
+                const name = section.class.name;
+                if (['TopCategory','ClothingTemplate'].includes(name)) {
+                    for (const child of sequence(prop(section,'childSections'))) walk(child);
+                } else if (['ColorGroup','ColorSubGroup'].includes(name)) {
+                    for (const child of sequence(prop(section,'colors'))) walk(child);
+                } else if (name === 'CommonColor') {
+                    const owner = str(prop(section,'transferableGroupId'));
+                    const path = prop(section,'elementKey'), descriptor = pathDescriptor(path);
+                    const nativeKey = bindingIdentity(owner, descriptor);
+                    if (seen.has(nativeKey)) return;
+                    seen.add(nativeKey);
+                    const ownerGroup = inventory.groups.find(g => g.id === owner);
+                    const value = m.context.method('GetColorParameter').invoke(Il2Cpp.string(owner), path);
+                    rows.push({data: {id: rowId(m, group, inventory.topology_fingerprint, ['worn', nativeKey]),
+                        kind: 'color', type: 'color', units: 'native_rgba', min: 0, max: 1,
+                        value: ['r','g','b','a'].map(c => value.field(c).value), editable: !!ownerGroup?.revision,
+                        group_id: owner, group_fingerprint: ownerGroup?.fingerprint,
+                        native_bindings: [descriptor], binding_keys: [nativeKey], source: 'worn_color_query',
+                        shared_binding_identity: nativeKey, material_identity: null,
+                        material_identity_status: 'not established by color query'},
+                        write: value => executeHistory(m, owner, 'color', descriptor, value),
+                        prepare: value => prepareHistory(m,owner,'color',descriptor,value)});
+                }
+            }
+            for (const section of sequence(prop(result,'sections'))) walk(section);
+        } catch (error) { errors.push({source: 'GetClothingQuery', error: String(error)}); }
+        return rows;
+    }
+    function collect(m, id) {
+        const {inventory, group} = exactGroup(m,id), errors = [...inventory.errors];
+        const typed = typedRows(m,group,inventory,errors);
+        const rows = [...typed, ...rawRows(m,group,inventory,typed,errors), ...wornColors(m,group,inventory,errors)];
+        for (const row of rows) {
+            const aliases = rows.filter(other => other !== row && JSON.stringify(other.data.binding_keys) === JSON.stringify(row.data.binding_keys));
+            row.data.alias_ids = aliases.map(other => other.data.id);
+        }
+        return {rows, group, errors, model_token:m.token};
+    }
+    function validate(rows, changes) {
+        if (!Array.isArray(changes) || changes.length < 1 || changes.length > 64) throw Error('BATCH_SIZE: 1..64');
+        const seen = new Set();
+        const validated = changes.map(change => {
+            const matches = rows.filter(r => r.data.id === change.id);
+            if (matches.length !== 1) throw Error('UNKNOWN_OR_STALE_BINDING');
+            const row = matches[0], d = row.data, value = change.value;
+            if (!d.editable || !row.write) throw Error('BINDING_UNSUPPORTED: ' + d.unsupported_reason);
+            if (change.type !== d.type || change.units !== d.units) throw Error('BINDING_TYPE_OR_UNITS_MISMATCH');
+            if (d.binding_keys.some(k => seen.has(k))) throw Error('OVERLAPPING_BINDINGS');
+            d.binding_keys.forEach(k => seen.add(k));
+            const scalar = typeof value === 'number' && Number.isFinite(value);
+            const valid = d.type === 'color' ? Array.isArray(value) && value.length === 4
+                && value.every(v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1)
+                : d.type === 'bool' ? typeof value === 'boolean'
+                : d.type === 'float' && scalar && Number.isFinite(d.min) && Number.isFinite(d.max) && value >= d.min && value <= d.max;
+            if (!valid) throw Error('INVALID_TYPED_NATIVE_VALUE');
+            return {row, value};
+        });
+        const prepared = [];
+        try {
+            for (const change of validated) {
+                const native = change.row.prepare ? change.row.prepare(change.value) : null;
+                prepared.push({...change,native});
+            }
+        } catch (error) {
+            prepared.forEach(change=>change.native?.release());
+            throw error;
+        }
+        return prepared;
+    }
+    function makePath(descriptor) {
+        const create = (name, args) => {
+            const object = cls('VRoidCore',pathNamespace + name).alloc();
+            invokeManaged(object,'.ctor',args); return object;
+        };
+        if (descriptor.template_key !== null) {
+            const template = create('TemplatePath',[Il2Cpp.string(descriptor.template_key).handle]);
+            const plain = create(descriptor.path_type.replace('Template',''), [Il2Cpp.string(descriptor.element_key).handle]);
+            return create(descriptor.path_type,[template.handle,plain.handle]);
+        }
+        return create(descriptor.path_type,[Il2Cpp.string(descriptor.element_key).handle]);
+    }
+    function prepareHistory(m, group, kind, descriptor, value) {
+        const suffix = {bone:'BoneTransform',blendshape:'BlendShapeTransform',color:'Color'}[kind];
+        if (!suffix) throw Error('RAW_HISTORY_WRITER_UNSUPPORTED');
+        const pathClass = cls('VRoidCore',pathNamespace + 'I' + suffix + 'Path');
+        const valueClass = kind === 'color' ? cls('UnityEngine.CoreModule','UnityEngine.Color') : Il2Cpp.corlib.class('System.Single');
+        const commandClass = cls('VRoidCore','VRoidCore.Editing.History.Command.Set' + suffix + 'ParameterCommand');
+        const constructors = commandClass.methods.filter(method => method.name === '.ctor' && method.parameters.length === 3
+            && method.parameters[0].type.name === 'System.String' && method.parameters[2].type.name === 'System.Boolean'
+            && method.parameters[1].type.name.includes('IEnumerable') && method.parameters[1].type.name.includes(pathClass.name)
+            && method.parameters[1].type.name.includes(valueClass.type.name));
+        if (constructors.length !== 1) throw Error('RAW_HISTORY_CONSTRUCTOR_UNSUPPORTED');
+        const handles = [], pin = object => { handles.push(retain(object)); return object; };
+        const release = () => handles.splice(0).forEach(handle=>handle.free());
+        try {
+            const dictionaryClass = Il2Cpp.corlib.class('System.Collections.Generic.Dictionary`2').inflate(pathClass,valueClass);
+            const dictionary = pin(dictionaryClass.alloc()), path = pin(makePath(descriptor));
+            const add = dictionary.method('Add',2);
+            if (add.parameters[0].type.name !== pathClass.type.name || add.parameters[1].type.name !== valueClass.type.name)
+                throw Error('RAW_DICTIONARY_ABI_UNSUPPORTED');
+            invokeManaged(dictionary,'.ctor',[]);
+            const storage = Memory.alloc(kind === 'color' ? 16 : 4);
+            if (kind === 'color') value.forEach((v,i) => storage.add(i*4).writeFloat(v));
+            else storage.writeFloat(value);
+            invokeManaged(dictionary,'Add',[path.handle,storage]);
+            const command = pin(commandClass.alloc()), flag = Memory.alloc(1); flag.writeU8(1);
+            invokeManaged(command,'.ctor',[Il2Cpp.string(group).handle,dictionary.handle,flag]);
+            return {run:()=>invokeManaged(m.context,'ExecuteSyncCommand',[command.handle]),release};
+        } catch (error) { release(); throw error; }
+    }
+    function executeHistory(m,group,kind,descriptor,value) {
+        const command = prepareHistory(m,group,kind,descriptor,value);
+        try { command.run(); } finally { command.release(); }
+    }
+    const sections = {
+        Face:['FaceSkin','Eye','Eyes','Iris','Eyeball','Eyebrow','Eyelash','Eyeline','Mouth','Nose','Ear','Ears','Cheek','Highlight','Shadow'],
+        Hairstyle:['AllHair','HairFront','HairBack','HairTied','HairSideburns','HairHanege','HairAhoge','BaseHair'],
+        Body:['Arm','Chest','Hand','Head','Leg','Neck','Shoulder','Torso','Waist','WholeBody'],
+        Outfit:['Tops','Bottoms','Onepiece','Shoes','Socks','InnerTop','InnerBottom','ClothingSet'],
+        Accessories:['AccessoryNeck','AccessoryArm','Attachment']};
+    function sectionFor(type) {
+        // Full native namespace required. A matching suffix in an unrelated
+        // enum namespace or a resource substring never authorizes a group.
+        const prefix = 'TransferableGroupType.N00.Level1.';
+        if (!type?.startsWith(prefix)) return null;
+        const key = type.slice(prefix.length);
+        return Object.keys(sections).find(section => sections[section].includes(key)) || null;
+    }
+    function categoryView(m, section) {
+        const inventory = groupInventory(m), categories = new Map(), unknown = [];
+        if (section != null && !Object.hasOwn(sections, section)) throw Error('UNKNOWN_SECTION');
+        for (const group of inventory.groups.filter(g => g.active_leaf)) {
+            const s = sectionFor(group.type);
+            if (!s) { unknown.push(group); continue; }
+            if (section && section !== s) continue;
+            if (!categories.has(group.type)) categories.set(group.type, {id:group.type, category:group.type,
+                section:s, label:group.type.split('.').pop(), group_ids:[]});
+            categories.get(group.type).group_ids.push(group.id);
+        }
+        return {model_token:m.token,categories:[...categories.values()],unclassified_groups:unknown,
+            errors:inventory.errors,ui_navigation:false,scope:'active leaf group discovery facade'};
+    }
+    function catalogPage(m,args,selectable) {
+        const offset = args.offset ?? 0, limit = args.limit ?? 100;
+        if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 200)
+            throw Error('INVALID_PAGINATION');
+        try {
+            const mainModel = prop(m.main,'_mainModel'), user = prop(mainModel,'playFabUser');
+            const catalog = user.method('GetTransferableGroupIdToPresetModel').invoke();
+            const all = pairs(catalog).map(([id,p]) => {
+                const resource = str(prop(p,'resourceName')), price = prop(p,'priceInCoin'), owned = prop(p,'isOwned');
+                const ids = selectable.filter(e=>!e.clear && str(e.p.method('get_TransferableGroupId').invoke())===id).map(e=>e.id);
+                const segments = (resource || '').split('/'), n = segments.indexOf('N00');
+                return {id,resource_name:resource,owned,usable:owned || price === 0,locked:!owned && price !== 0,
+                    price_in_coin:price,is_set_item:prop(p,'isSetItem'),catalog_only:ids.length===0,
+                    selectable:ids.length>0 && selectable.some(e=>ids.includes(e.id)&&e.owned),selectable_preset_ids:ids,
+                    catalog_category:n>=2?segments.slice(n-2,n).join('/'):null,
+                    category_identity_status:'resource segments only; not a native section identity'};
+            });
+            const search = (args.search || '').toLowerCase();
+            const matching = all.filter(row=>(args.owned_only===false || row.usable)
+                && (!search || row.id.toLowerCase().includes(search) || (row.resource_name || '').toLowerCase().includes(search)))
+                .sort((a,b)=>(a.resource_name || '').localeCompare(b.resource_name || '') || a.id.localeCompare(b.id));
+            const next = offset+limit < matching.length ? offset+limit : null;
+            return {available:true,source:'PlayFabUser.GetTransferableGroupIdToPresetModel',
+                scope:'all native catalog categories; resource inference does not filter or authorize application',
+                native_total:all.length,total:matching.length,offset,limit,next_offset:next,
+                complete:offset===0 && next===null,page_complete:true,
+                presets:matching.slice(offset,offset+limit),application_policy:'only fresh owned selectable_preset_ids may be applied'};
+        } catch (error) {
+            return {available:false,complete:false,page_complete:false,presets:[],error:String(error),offset,limit,next_offset:null};
+        }
+    }
+    function registryMatch(m, expected) {
+        const registry = m.root.field('_customItemRegistry').value;
+        const matches = sequence(registry.field('_pathToFileCustomItemModels').value.method('get_Values').invoke())
+            .filter(f => str(prop(f,'FilePath')).toLowerCase() === expected.path.toLowerCase());
+        if (matches.length !== 1) throw Error('CUSTOM_ITEM_REGISTRY_PATH_STALE');
+        const item = matches[0], custom = prop(item,'CustomItemId');
+        const actual = {id:str(prop(item,'TransferableGroupId')),group_type:str(prop(item,'TransferableGroupTypeId')),
+            path:str(prop(item,'FilePath')),resource_name:str(prop(item,'TransferableGroupResourceName')),
+            revision:str(prop(item,'TransferableGroupRevision')),custom_resource_name:str(prop(custom,'ResourceName')),
+            custom_revision:str(prop(custom,'Revision'))};
+        if (Object.entries(actual).some(([k,v]) => expected[k] !== v)) throw Error('CUSTOM_ITEM_REGISTRY_IDENTITY_STALE');
+        if (!registry.method('CheckIfIsRegisteredInAssetStorage').invoke(Il2Cpp.string(actual.resource_name)))
+            throw Error('CUSTOM_ITEM_RESOURCE_STALE');
+        return item;
+    }
+    function request(args, kind) {
+        const m = requireModel(args), r = requests.get(args.request_id);
+        if (!r || r.kind !== kind || r.token !== m.token) throw Error('UNKNOWN_OR_STALE_REQUEST');
+        return {m,r};
+    }
+    const sameValue = (a,b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v,i) => Math.abs(v-b[i]) < 1e-5);
+    function colorSnapshot(m) {
+        const inventory = groupInventory(m), rows = [], errors = [...inventory.errors];
+        for (const group of inventory.groups.filter(g => g.active)) {
+            const all = collect(m,group.id);
+            for (const row of all.rows.filter(r => r.data.kind === 'color' && r.data.editable)) {
+                const d = row.data, owner = inventory.groups.find(g => g.id === d.group_id);
+                if (owner && d.native_bindings.length === 1 && !rows.some(r => r.key === d.binding_keys[0]))
+                    rows.push({key:d.binding_keys[0],owner,descriptor:d.native_bindings[0],value:d.value});
+            }
+            errors.push(...all.errors);
+        }
+        return {rows,errors};
+    }
+    function preservationOutcomes(m,r,restore) {
+        const after = colorSnapshot(m), outcomes = [];
+        for (const previous of r.snapshot.rows) {
+            // Owner resource and revision must remain exact, otherwise a same
+            // semantic key in a new material is explicitly incompatible.
+            const current = after.rows.find(row => row.key === previous.key);
+            const outcome = {binding:previous.key,before:previous.value,original_identity:previous.owner,
+                current_identity:current?.owner || null};
+            if (!current || current.owner.fingerprint !== previous.owner.fingerprint) {
+                outcomes.push({...outcome,status:'incompatible',reason:'exact owner/resource/revision/path identity changed'}); continue;
+            }
+            if (sameValue(previous.value,current.value)) {
+                outcomes.push({...outcome,status:r.restored?.has(previous.key) ? 'restored' : 'preserved',after:current.value}); continue;
+            }
+            if (restore) {
+                try {
+                    executeHistory(m,current.owner.id,'color',current.descriptor,previous.value);
+                    r.restored.add(previous.key);
+                    outcomes.push({...outcome,status:'restoration_pending'});
+                } catch (error) { outcomes.push({...outcome,status:'restoration_failed',error:String(error)}); }
+            } else outcomes.push({...outcome,status:'restoration_failed',after:current.value,reason:'settled readback differs'});
+        }
+        outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
+        return {outcomes,discovery_errors:after.errors,frame:state.frame};
+    }
+    return {helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage},operations:{
+        list_groups(args) { return groupInventory(requireModel(args)); },
+        list_group_parameters(args) {
+            const result = collect(requireModel(args),args.group_id);
+            if (args.kind != null && !['bone','blendshape','color','Bool','Float','Image','Template','unknown'].includes(args.kind)) throw Error('UNKNOWN_PARAMETER_KIND');
+            return {...result,rows:undefined,parameters:result.rows.map(r=>r.data).filter(d=>!args.kind || d.kind === args.kind)};
+        },
+        set_group_parameters(args) {
+            const m = requireModel(args), result = collect(m,args.group_id);
+            const prepared = validate(result.rows,args.changes), applied = [];
+            let attempted = 0;
+            const count = () => prepared.slice(0,attempted).every(c=>!!c.native) ? attempted : null;
+            try {
+                for (const {row,value,native} of prepared) {
+                    attempted++;
+                    try { if (native) native.run(); else row.write(value);
+                        applied.push({id:row.data.id,before:row.data.value,requested:value}); }
+                    catch (error) { return {model_token:m.token,ok:false,partial:true,applied,error:String(error),frame:state.frame,
+                        command_count:null,confirmed_raw_command_count:prepared.slice(0,applied.length).filter(c=>c.native).length,
+                        attempted_binding_writes:attempted,
+                        command_count_scope:'one raw history command per raw write; VM internal command count unknown',
+                        history_policy:'native history; multiple commands/undo steps possible'}; }
+                }
+            } finally { prepared.forEach(c=>c.native?.release()); }
+            return {model_token:m.token,ok:true,applied,command_count:count(),attempted_binding_writes:attempted,frame:state.frame,
+                command_count_scope:'one raw history command per raw write; VM internal command count unknown',
+                history_policy:'native history; multiple commands/undo steps possible'};
+        },
+        list_sections(args) {
+            const result = categoryView(requireModel(args));
+            return {...result,sections:Object.keys(sections).map(id=>({id,label:id,
+                categories:result.categories.filter(c=>c.section===id)})).filter(s=>s.categories.length)};
+        },
+        list_categories(args) { return categoryView(requireModel(args),args.section); },
+        enter_category(args) {
+            const m = requireModel(args), result = categoryView(m,args.section);
+            const matches = result.categories.filter(c=>c.id === args.category);
+            if (matches.length !== 1) throw Error('UNKNOWN_CATEGORY: use exact native category ID');
+            if (matches[0].group_ids.length !== 1) return {...result,ambiguous:true,group_ids:matches[0].group_ids,parameters:[]};
+            return {...this.list_group_parameters({...args,group_id:matches[0].group_ids[0]}),ui_navigation:false};
+        },
+        remove_group(args) {
+            const m = requireModel(args), {group} = exactGroup(m,args.group_id);
+            if (!group.removable || group.fingerprint !== args.group_fingerprint) throw Error('NONREMOVABLE_OR_STALE_GROUP');
+            const {ok,fail} = ordinary.managedCallbacks();
+            invokeManaged(m.context,'RemoveTransferableGroupAndChildren',[Il2Cpp.string(group.id).handle,ok.handle,fail.handle]);
+            return {model_token:m.token,frame:state.frame,expected_removed_ids:[group.id]};
+        },
+        custom_item_validate_begin(args) {
+            const m = requireModel(args), item = registryMatch(m,args.registered_item);
+            const task = item.method('LoadCustomItemContents').invoke();
+            const id = String(++nextRequest);
+            requests.set(id,{kind:'custom',token:m.token,task,handles:[retain(task),retain(item)],item:args.registered_item,
+                metadata:args.metadata,completed:false});
+            return {model_token:m.token,request_id:id,completed:false};
+        },
+        custom_item_validate_poll(args) {
+            const {m,r} = request(args,'custom');
+            if (r.completed) return r.result;
+            if (!r.task.method('get_IsCompleted').invoke()) return {model_token:m.token,completed:false};
+            r.completed = true;
+            try {
+                if (r.task.method('get_IsFaulted').invoke() || r.task.method('get_IsCanceled').invoke()) throw Error('NATIVE_CUSTOM_ITEM_LOAD_FAILED');
+                const contents = r.task.method('get_Result').invoke();
+                const object = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil')
+                    .method('DeserializeCustomItem').invoke(contents);
+                r.handles.push(retain(contents),retain(object));
+                if (object.method('IsNecessarilyMigrateBodySuitsCustomItemV2').invoke()) throw Error('CUSTOM_ITEM_MIGRATION_REQUIRED');
+                const meta = prop(object,'customItemMetaData');
+                if (str(prop(meta,'rootTransferableGroupId')) !== r.item.id || r.metadata.rootTransferableGroupId !== r.item.id
+                    || r.metadata.rootTransferableGroupTypeId !== r.item.group_type) throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+                const groups = pairs(prop(object,'transferableGroups'));
+                const root = groups.find(([id])=>id===r.item.id)?.[1];
+                if (!root || str(prop(root,'Type')) !== r.item.group_type || str(prop(root,'ResourceName')) !== r.item.resource_name
+                    || str(prop(root,'Revision')) !== r.item.revision) throw Error('NATIVE_CUSTOM_ITEM_TYPE_OR_REVISION_MISMATCH');
+                registryMatch(m,r.item);
+                r.compatible = true;
+                r.result = {model_token:m.token,completed:true,compatible:true,
+                    evidence:'native LoadCustomItemContents + DeserializeCustomItem, root/type/revision and no required migration'};
+            } catch (error) { r.result = {model_token:m.token,completed:true,compatible:false,error:String(error)}; }
+            return r.result;
+        },
+        apply_registered_custom_item(args) {
+            const {m,r} = request(args,'custom');
+            if (!r.completed || !r.compatible || JSON.stringify(args.registered_item) !== JSON.stringify(r.item)) throw Error('CUSTOM_ITEM_NOT_VALIDATED');
+            registryMatch(m,r.item);
+            // Exact registered option, including file/resource/revision identity.
+            // This route preserves the target's native custom-selection behavior.
+            const c = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemOptionViewModel');
+            const options = Il2Cpp.gc.choose(c).filter(o=> {
+                const context = o.field('_context').value, item = o.field('_model').value;
+                return alive(context) && context.handle.equals(m.context.handle) && alive(item)
+                    && str(prop(item,'FilePath')) === r.item.path && str(prop(item,'TransferableGroupRevision')) === r.item.revision
+                    && str(prop(item,'TransferableGroupResourceName')) === r.item.resource_name;
+            });
+            if (options.length !== 1) throw Error('CUSTOM_ITEM_OPTION_NOT_READY_OR_AMBIGUOUS');
+            const enabled = Memory.alloc(1); enabled.writeU8(1);
+            invokeManaged(options[0],'set_IsSelected',[enabled]);
+            return {model_token:m.token,frame:state.frame};
+        },
+        custom_item_validate_release(args) {
+            const {r} = request(args,'custom');
+            if (!r.completed) throw Error('CUSTOM_ITEM_LOAD_PENDING');
+            r.handles.forEach(handle=>handle.free());
+            requests.delete(args.request_id); return {released:true};
+        },
+        apply_preserving_preset(args) {
+            const m = requireModel(args), matches = presetEntries(m,args.area).filter(e=>e.id===args.preset_id);
+            if (matches.length !== 1 || !matches[0].owned) throw Error('UNKNOWN_OR_LOCKED_PRESET');
+            const entry = matches[0];
+            if (entry.clear || entry.resource_name?.startsWith('user/') || entry.is_set_item !== false)
+                throw Error('PRESERVE_MODE_UNSUPPORTED: simple built-in preset with proven non-set metadata required');
+            const partId = str(entry.p.method('get_TransferableGroupId').invoke());
+            const registry = m.root.field('_customItemRegistry').value;
+            if (!registry.field('_assetCatalog').value.method('ContainsId').invoke(Il2Cpp.string(partId))) throw Error('UNKNOWN_PART_ID');
+            const snapshot = colorSnapshot(m), id = String(++nextRequest), before = groupInventory(m);
+            requests.set(id,{kind:'preserve',token:m.token,snapshot,entry,partId,before,restored:new Set()});
+            const {ok,fail} = ordinary.managedCallbacks(), flag = Memory.alloc(1); flag.writeU8(1);
+            invokeManaged(m.context,'LoadAndReplaceTransferableGroup',[Il2Cpp.string(partId).handle,ok.handle,fail.handle,flag]);
+            return {model_token:m.token,request_id:id,frame:state.frame};
+        },
+        preserving_preset_state(args) {
+            const {m,r} = request(args,'preserve'), current = groupInventory(m);
+            return {model_token:m.token,completed:current.groups.some(g=>g.active&&g.id===r.partId),groups:current.groups};
+        },
+        restore_preset_materials(args) {
+            const {m,r} = request(args,'preserve');
+            r.restoration = preservationOutcomes(m,r,true);
+            return r.restoration;
+        },
+        preserved_preset_readback(args) {
+            const {m,r} = request(args,'preserve'), result = preservationOutcomes(m,r,false);
+            const failed = result.outcomes.some(o=>o.status==='restoration_failed');
+            requests.delete(args.request_id);
+            return {...result,ok:!failed,partial:failed,before_discovery_errors:r.snapshot.errors};
+        }
+    }};
+}

@@ -59,6 +59,9 @@ assert.throws(()=>api.operations.attached_acknowledge({recovery_token:fresh.reco
 const rejected=api.operations.attached_edit_begin({tool:'save_custom_items'});
 assert.equal(api.operations.attached_edit_finish({id:rejected.id,success:false,uncertain:false}).needs_review,false);
 activeScreen='VRoid.Studio.TextureEditorScreen.ViewModel';
+api.guard('enter_category'); // Group-bound read facade does not navigate or edit.
+api.guard('custom_item_validate_poll');
+api.guard('preserving_preset_state');
 for(const name of ['rename_texture_layer','delete_texture_layer','reorder_texture_layers','set_texture_layer_blend']) {
     const edit=api.operations.attached_edit_begin({tool:name});
     api.guard(name);

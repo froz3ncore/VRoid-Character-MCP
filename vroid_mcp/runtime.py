@@ -26,11 +26,12 @@ from .runtime_capture import CaptureTools
 from .runtime_edit import EditTools
 from .runtime_wear import WearTools
 from .runtime_ordinary import OrdinaryTools
+from .runtime_groups import GroupTools
 
 __all__ = ['Runtime', 'review_folder', 'save_destination', 'validate_capture']
 
 
-class Runtime(OrdinaryTools, EditTools, CaptureTools, WearTools):
+class Runtime(GroupTools, OrdinaryTools, EditTools, CaptureTools, WearTools):
     """One lab: process ownership from the bridge, operations from the mixins."""
 
     def __init__(self, lab: pathlib.Path, bridge_js: pathlib.Path | None = None) -> None:
@@ -80,4 +81,8 @@ class Runtime(OrdinaryTools, EditTools, CaptureTools, WearTools):
         return await frida_bridge.status(self)
 
     def close(self) -> dict:
-        return frida_bridge.close(self)
+        result = frida_bridge.close(self)
+        for pin in getattr(self, '_pending_custom_item_pins', []):
+            pin.__exit__(None, None, None)
+        self._pending_custom_item_pins = []
+        return result

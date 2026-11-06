@@ -38,7 +38,7 @@ function createAttachedState({main, text, state}) {
             unsaved: vm.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke(),
             history_revision: historyRevision, command_revision: commandRevision, pending_edit: receipt()};
     }
-    const readOnly = name => /^(status|native_png_status|task_status|get_|list_|inspect_|search_|custom_item_state|vrm_export_state|vrm_export_status|export_texture_|export_renderer_texture|attached_review)/.test(name);
+    const readOnly = name => /^(status|native_png_status|task_status|get_|list_|inspect_|search_|enter_category|custom_item_validate_poll|preserving_preset_state|preserved_preset_readback|custom_item_state|vrm_export_state|vrm_export_status|export_texture_|export_renderer_texture|attached_review)/.test(name);
     function guard(name) {
         if (!ATTACHED || readOnly(name) || name === 'attached_edit_finish') return;
         const s = snapshot();

@@ -50,6 +50,7 @@ AGENT_MODULES = (
     'vrm_export.js',
     'ordinary_extensions.js',
     'attached_state.js',
+    'groups.js',
     'operations.js',
 )
 GUARD_MODULE = 'profile_guard.js'
@@ -256,7 +257,9 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         raise RuntimeError('COPY_DISCONNECTED: restart the MCP server')
     attached = getattr(subject, 'mode', 'copy') == 'attached'
     inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
-        'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state', 'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
+        'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state',
+        'enter_category', 'custom_item_validate_poll', 'preserving_preset_state', 'preserved_preset_readback',
+        'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
     if subject.uncertain and operation not in {'status', 'vrm_export_status'} and not (attached and inspectable):
         if attached:
             raise RuntimeError('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state and actual parameters, layers and files before acknowledge_attached_state; do not retry the interrupted tool')
