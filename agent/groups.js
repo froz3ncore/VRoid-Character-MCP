@@ -85,6 +85,7 @@ function createGroupApi(H) {
     }
     function groupInventory(m) {
         const found = new Map(), errors = [];
+        const completeness = {active:false,active_leaf:false,stored:false};
         function merge(id, object, flags) {
             const row = found.get(id) || {id, type: null, resource_name: null, revision: null,
                 active: false, active_leaf: false, stored: false, errors: []};
@@ -98,12 +99,14 @@ function createGroupApi(H) {
         try {
             for (const [id, group] of pairs(active(m).method('GetActiveTransferableGroups').invoke()))
                 merge(id, group, {active: true});
+            completeness.active = true;
         } catch (error) { errors.push({source: 'active', error: String(error)}); }
         try {
             for (const [id] of pairs(m.context.method('GetActiveLeafTransferableGroups').invoke())) {
                 const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
                 merge(id, info, {active: true, active_leaf: true});
             }
+            completeness.active_leaf = true;
         } catch (error) { errors.push({source: 'active_leaf', error: String(error)}); }
         try {
             for (const [id, group] of pairs(prop(active(m), 'TransferableGroups'))) {
@@ -112,6 +115,7 @@ function createGroupApi(H) {
                 const elements = optional(group, 'EditableElements');
                 found.get(id).editable_element_count = alive(elements) ? prop(elements, 'Count') : null;
             }
+            completeness.stored = true;
         } catch (error) { errors.push({source: 'stored', error: String(error)}); }
         const clears = [];
         for (const area of ['face', 'body', 'hair', 'clothing']) {
@@ -119,15 +123,17 @@ function createGroupApi(H) {
             catch (error) { errors.push({source: 'removal_capability/' + area, error: String(error)}); }
         }
         const groups = [...found.values()].sort((a,b) => a.id.localeCompare(b.id));
+        const complete = Object.values(completeness).every(value=>value);
         for (const g of groups) {
             g.fingerprint = fingerprint(g);
             g.removal_evidence = clears.filter(c => c.type && c.type === g.type);
             // A native clear option tied to this full native type is required.
-            g.removable = g.active_leaf && g.removal_evidence.length === 1;
+            g.removable = complete && g.active_leaf && g.removal_evidence.length === 1;
             g.removal_reason = g.removable ? 'exact native clear option type binding' : 'mandatory or native removal capability not established';
         }
         const topology = JSON.stringify(groups.map(g => g.fingerprint));
-        return {model_token: m.token, groups, errors, topology_fingerprint: topology};
+        return {model_token: m.token, groups, errors, topology_fingerprint: topology,
+            membership_complete:complete,source_completeness:completeness};
     }
     function exactGroup(m, id) {
         const inventory = groupInventory(m), rows = inventory.groups.filter(g => g.id === id);
@@ -145,8 +151,11 @@ function createGroupApi(H) {
                 for (const entry of entries(m, area)) {
                     const d = details(entry);
                     if (d.semantic_status !== 'complete' || d.semantic_group !== group.type) continue;
+                    if (!inventory.membership_complete || !group.active) continue;
                     const sameType = inventory.groups.filter(g => g.active && g.type === group.type);
-                    if (area === 'clothing' ? !entry.id.startsWith('clothing/' + group.id + '/') : sameType.length !== 1) continue;
+                    if (area === 'clothing' ? !entry.id.startsWith('clothing/' + group.id + '/')
+                        : sameType.length !== 1 || sameType[0].id !== group.id
+                            || inventory.groups.some(g=>g.active && !g.type)) continue;
                     const native = d.semantic_bindings.map(b => {
                         // Existing semantic metadata captures concrete path and
                         // template identity. Re-read exact native path below.
@@ -440,6 +449,55 @@ function createGroupApi(H) {
         if (!r || r.kind !== kind || r.token !== m.token) throw Error('UNKNOWN_OR_STALE_REQUEST');
         return {m,r};
     }
+    function customLifetime(r) {
+        if (!r.task || !r.task.method('get_IsCompleted').invoke())
+            return {terminal:false,application_settled:false,reason:'native custom load has no terminal receipt'};
+        if (!r.application_dispatched) return {terminal:true,application_settled:true};
+        const s = H.teardownState();
+        const ui = s.attached_state;
+        const quiet = s.model_ready === true && s.model_token === r.token
+            && ['command_busy','updating','presets_loading','photo_updating'].every(key=>s[key]===false)
+            && s.png_decoder?.pending === 0 && !s.png_decoder.fatal
+            && (!ui || (!ui.dialog && !ui.notification && ui.progress_locked===false && ui.popup_blocked===false));
+        if (!quiet) {
+            r.quiet = null;
+            return {terminal:true,application_settled:false,reason:'native application is busy or model identity changed'};
+        }
+        const inventory = groupInventory(model(r.token));
+        const matches = inventory.groups.filter(g=>g.active && g.id===r.item.id
+            && g.type===r.item.group_type && g.resource_name===r.item.resource_name && g.revision===r.item.revision);
+        if (!inventory.membership_complete || matches.length!==1) {
+            r.quiet = null;
+            return {terminal:true,application_settled:false,reason:'complete applied group identity not confirmed',
+                discovery_errors:inventory.errors,source_completeness:inventory.source_completeness};
+        }
+        const signature = JSON.stringify([s.model_token,inventory.topology_fingerprint,ui?.history_revision,
+            ui?.command_revision,ui?.file_path,ui?.unsaved]);
+        if (!Number.isInteger(s.frame) || s.frame <= r.application_frame) {
+            r.quiet = null;
+            return {terminal:true,application_settled:false,reason:'no fresh post-dispatch frame observed'};
+        }
+        if (!r.quiet || r.quiet.signature!==signature) r.quiet = {signature,frame:s.frame,count:1};
+        else if (s.frame!==r.quiet.frame) { r.quiet.frame=s.frame; r.quiet.count++; }
+        return {terminal:true,application_settled:r.quiet.count>=3,quiet_frames:r.quiet.count,
+            reason:r.quiet.count>=3?null:'awaiting consecutive distinct quiet native observations'};
+    }
+    function prepareTeardown() {
+        const pending = [], ready = [];
+        for (const [id,r] of requests) {
+            if (r.kind!=='custom') continue;
+            try {
+                const evidence = customLifetime(r);
+                if (!evidence.terminal || !evidence.application_settled) pending.push({request_id:id,...evidence});
+                else ready.push([id,r]);
+            } catch (error) { pending.push({request_id:id,error:String(error),terminal:false,application_settled:false}); }
+        }
+        if (pending.length) return {safe:false,pending_work:pending};
+        // Do not sever any request's lifetime until every pending reader/apply
+        // has terminal and settled evidence. Model replacement alone is not it.
+        for (const [id,r] of ready) { r.handles.forEach(handle=>handle.free()); requests.delete(id); }
+        return {safe:true,custom_requests_released:ready.length,pending_work:[]};
+    }
     const sameValue = (a,b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v,i) => Math.abs(v-b[i]) < 1e-5);
     function colorSnapshot(m) {
         const inventory = groupInventory(m), rows = [], errors = [...inventory.errors];
@@ -479,7 +537,7 @@ function createGroupApi(H) {
         outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
         return {outcomes,discovery_errors:after.errors,frame:state.frame};
     }
-    return {helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage},operations:{
+    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage},operations:{
         list_groups(args) { return groupInventory(requireModel(args)); },
         list_group_parameters(args) {
             const result = collect(requireModel(args),args.group_id);
@@ -529,10 +587,12 @@ function createGroupApi(H) {
         },
         custom_item_validate_begin(args) {
             const m = requireModel(args), item = registryMatch(m,args.registered_item);
-            const task = item.method('LoadCustomItemContents').invoke();
             const id = String(++nextRequest);
-            requests.set(id,{kind:'custom',token:m.token,task,handles:[retain(task),retain(item)],item:args.registered_item,
-                metadata:args.metadata,completed:false});
+            const r = {kind:'custom',token:m.token,task:null,handles:[retain(item)],item:args.registered_item,
+                metadata:args.metadata,completed:false};
+            requests.set(id,r);
+            r.task = item.method('LoadCustomItemContents').invoke();
+            r.handles.push(retain(r.task));
             return {model_token:m.token,request_id:id,completed:false};
         },
         custom_item_validate_poll(args) {
@@ -576,14 +636,21 @@ function createGroupApi(H) {
             });
             if (options.length !== 1) throw Error('CUSTOM_ITEM_OPTION_NOT_READY_OR_AMBIGUOUS');
             const enabled = Memory.alloc(1); enabled.writeU8(1);
+            r.application_dispatched = true;
+            r.application_frame = state.frame;
             invokeManaged(options[0],'set_IsSelected',[enabled]);
             return {model_token:m.token,frame:state.frame};
         },
         custom_item_validate_release(args) {
             const {r} = request(args,'custom');
-            if (!r.completed) throw Error('CUSTOM_ITEM_LOAD_PENDING');
+            const evidence = customLifetime(r);
+            if (!evidence.terminal || !evidence.application_settled) throw Error('CUSTOM_ITEM_NATIVE_WORK_PENDING: ' + JSON.stringify(evidence));
             r.handles.forEach(handle=>handle.free());
             requests.delete(args.request_id); return {released:true};
+        },
+        custom_item_application_state(args) {
+            const {m,r} = request(args,'custom'), evidence = customLifetime(r);
+            return {model_token:m.token,completed:evidence.terminal && evidence.application_settled,...evidence};
         },
         apply_preserving_preset(args) {
             const m = requireModel(args), matches = presetEntries(m,args.area).filter(e=>e.id===args.preset_id);

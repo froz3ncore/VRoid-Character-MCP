@@ -16,7 +16,7 @@ def test_attached_close_detaches_without_killing_process(monkeypatch, tmp_path):
     subject.mode = 'attached'
     subject.pid = 1234
     subject.device = SimpleNamespace(kill=lambda pid: calls.append(('kill', pid)))
-    subject.script = SimpleNamespace(exports_sync=SimpleNamespace(release=lambda: calls.append('release') or {}),
+    subject.script = SimpleNamespace(exports_sync=SimpleNamespace(release=lambda: calls.append('release') or {'released':True}),
                                      unload=lambda: calls.append('unload'))
     subject.session = SimpleNamespace(detach=lambda: calls.append('detach'))
     monkeypatch.setattr(bridge, 'record', lambda *args: None)
@@ -46,7 +46,8 @@ def test_failed_attached_release_reports_background_not_restored(monkeypatch, tm
     subject.session = SimpleNamespace(detach=lambda: None)
     monkeypatch.setattr(bridge, 'record', lambda *args: None)
     result = subject.close()
-    assert result['detached'] and not result['background_restored']
+    assert result['close_blocked'] and not result['detached'] and not subject.dead
+    assert not result['background_restored']
     assert 'release failed' in result['release_error']
 
 

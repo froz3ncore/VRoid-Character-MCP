@@ -82,6 +82,8 @@ class Runtime(GroupTools, OrdinaryTools, EditTools, CaptureTools, WearTools):
 
     def close(self) -> dict:
         result = frida_bridge.close(self)
+        if result.get('close_blocked'):
+            return result
         for pin in getattr(self, '_pending_custom_item_pins', []):
             pin.__exit__(None, None, None)
         self._pending_custom_item_pins = []

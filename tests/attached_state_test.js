@@ -61,6 +61,7 @@ assert.equal(api.operations.attached_edit_finish({id:rejected.id,success:false,u
 activeScreen='VRoid.Studio.TextureEditorScreen.ViewModel';
 api.guard('enter_category'); // Group-bound read facade does not navigate or edit.
 api.guard('custom_item_validate_poll');
+api.guard('custom_item_application_state');
 api.guard('preserving_preset_state');
 for(const name of ['rename_texture_layer','delete_texture_layer','reorder_texture_layers','set_texture_layer_blend']) {
     const edit=api.operations.attached_edit_begin({tool:name});

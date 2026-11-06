@@ -63,6 +63,8 @@ class GroupTools:
             raise ValueError('Exact group ID or full native type required')
         async with self.lock:
             before = await self._group_read('list_groups', expected_model)
+            if before.get('membership_complete') is not True:
+                raise ValueError('GROUP_MEMBERSHIP_INCOMPLETE: ' + str(before.get('errors', [])))
             exact = [row for row in before['groups'] if row['id'] == group]
             selected = exact or [row for row in before['groups'] if row['type'] == group]
             if not selected:
@@ -72,6 +74,7 @@ class GroupTools:
             outcomes = []
             for index, row in enumerate(selected):
                 dispatched = False
+                current = None
                 try:
                     self.body_edited_tokens.add(expected_model)
                     dispatched = True
@@ -81,9 +84,13 @@ class GroupTools:
                     while True:
                         await self._settled_for(expected_model, started.get('frame', -1))
                         current = await self._group_read('list_groups', expected_model)
+                        if current.get('membership_complete') is not True:
+                            raise RuntimeError('REMOVE_GROUP_UNCONFIRMED: native membership discovery incomplete')
                         ids = {g['id'] for g in current['groups']}
                         if not ids.intersection(started.get('expected_removed_ids', [row['id']])):
                             outcomes.append(dict(group_id=row['id'], removed=True, remaining_groups=current['groups'],
+                                membership_complete=True,source_completeness=current.get('source_completeness'),
+                                discovery_errors=current.get('errors', []),
                                 native_command='RemoveTransferableGroupAndChildren',
                                 verification='requested exact group absent; fresh full inventory returned; descendant IDs not independently established'))
                             break
@@ -97,7 +104,11 @@ class GroupTools:
                 except Exception as error:
                     if dispatched:
                         self.uncertain = True
-                    outcomes.append(dict(group_id=row['id'], removed=False, uncertain=dispatched, error=str(error)))
+                    outcomes.append(dict(group_id=row['id'], removed=False, uncertain=dispatched,
+                        unconfirmed=dispatched,error=str(error),remaining_groups=(current or {}).get('groups'),
+                        membership_complete=(current or {}).get('membership_complete', False),
+                        source_completeness=(current or {}).get('source_completeness'),
+                        discovery_errors=(current or {}).get('errors', [])))
                     outcomes.extend(dict(group_id=g['id'], removed=False, skipped=True) for g in selected[index+1:])
                     break
             return dict(model_token=expected_model, ok=all(o.get('removed') for o in outcomes),
@@ -121,10 +132,14 @@ class GroupTools:
             args = {'expected_model': expected_model, 'registered_item': row,
                     'metadata': info['metadata'], 'sha256': info['sha256']}
             dispatched, receipt = False, None
+            validation_dispatched, validation_terminal, primary_error = False, False, None
             with pinned_application(self, registered_path):
                 if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
                     raise ValueError('CUSTOM_ITEM_CHANGED')
                 try:
+                    # The reader may start even if dispatch loses its reply.
+                    # Validation lifetime is independent of model mutation.
+                    validation_dispatched = True
                     result = await self._group_read('custom_item_validate_begin', expected_model,
                         registered_item=row, metadata=info['metadata'])
                     receipt = result['request_id']
@@ -136,6 +151,7 @@ class GroupTools:
                         await asyncio.sleep(.1)
                         result = await self._group_read('custom_item_validate_poll', expected_model,
                                                        request_id=receipt)
+                    validation_terminal = result.get('completed') is True
                     if not result.get('compatible'):
                         raise ValueError('CUSTOM_ITEM_INCOMPATIBLE: ' + str(result.get('error')))
                     if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
@@ -149,25 +165,35 @@ class GroupTools:
                         current = await self._group_read('list_groups', expected_model)
                         active = [g for g in current['groups'] if g['id'] == row['id'] and g.get('active')]
                         if len(active) == 1 and active[0].get('resource_name') == row['resource_name'] and active[0].get('revision') == row['revision']:
-                            return dict(model_token=expected_model, applied=True, registered_item=row,
-                                sha256=info['sha256'], input_path=str(path), native_compatibility=result,
-                                readback=active[0], settled=True)
+                            lifetime = await self._group_read('custom_item_application_state', expected_model,
+                                                             request_id=receipt)
+                            if lifetime.get('completed'):
+                                return dict(model_token=expected_model, applied=True, registered_item=row,
+                                    sha256=info['sha256'], input_path=str(path), native_compatibility=result,
+                                    readback=active[0], native_completion=lifetime,settled=True)
                         if time.monotonic() >= deadline:
                             raise TimeoutError('CUSTOM_ITEM_APPLICATION_UNCONFIRMED')
                         await asyncio.sleep(.1)
-                except asyncio.CancelledError:
-                    self.uncertain = True
-                    raise
-                except BaseException:
-                    if dispatched:
+                except BaseException as error:
+                    primary_error = error
+                    if dispatched or (validation_dispatched and not validation_terminal):
                         self.uncertain = True
                     raise
                 finally:
                     # Retain in-flight tasks on uncertain cancellation; never
                     # release native state which may still be in use.
-                    if receipt and not self.uncertain:
-                        await self._call('custom_item_validate_release', {'expected_model': expected_model,
-                                                                        'request_id': receipt})
+                    if receipt and validation_terminal and not self.uncertain:
+                        try:
+                            await self._call('custom_item_validate_release', {'expected_model': expected_model,
+                                                                            'request_id': receipt})
+                        except BaseException as cleanup_error:
+                            self.uncertain = True
+                            if not hasattr(self, '_custom_item_cleanup_errors'):
+                                self._custom_item_cleanup_errors = []
+                            self._custom_item_cleanup_errors.append({'request_id':receipt,'error':str(cleanup_error)})
+                            if primary_error is None:
+                                raise
+                            primary_error.add_note('Custom-item cleanup failed; native lifetime retained: ' + str(cleanup_error))
 
     async def set_body_size(self, expected_model, height_cm, weight_kg=None, variant='F00'):
         validate_size(height_cm, weight_kg, variant)

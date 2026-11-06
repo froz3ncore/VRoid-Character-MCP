@@ -100,7 +100,7 @@ def test_removal_prevalidates_all_and_preserves_partial_outcomes(tmp_path):
     groups = [dict(id='a', type='T', removable=True), dict(id='b', type='T', removable=False)]
     async def call(op, args):
         calls.append(op)
-        return {'model_token': 'live', 'groups': groups}
+        return {'model_token': 'live', 'groups': groups, 'membership_complete': True}
     runtime._call = call
     with pytest.raises(ValueError, match='NONREMOVABLE'):
         asyncio.run(runtime.remove_items('live', 'T'))
@@ -245,7 +245,7 @@ def test_removal_reports_first_success_then_uncertain_failure_without_retry(tmp_
     groups=[dict(id='a',type='T',removable=True),dict(id='b',type='T',removable=True)]
     removed=[]
     async def call(op,args):
-        if op=='list_groups': return dict(model_token='live',groups=[g for g in groups if g['id'] not in removed])
+        if op=='list_groups': return dict(model_token='live',groups=[g for g in groups if g['id'] not in removed],membership_complete=True)
         if op=='remove_group':
             if args['group_id']=='b': raise RuntimeError('native failure')
             removed.append('a')
@@ -318,3 +318,157 @@ def test_silhouette_partial_command_settles_before_restoration(tmp_path):
     runtime._call=call
     result=asyncio.run(runtime.set_body_size('live',170))
     assert not result['ok'] and result.get('restored'),result
+
+
+def test_removal_does_not_confirm_absence_from_failed_inventory(tmp_path):
+    runtime=subject(tmp_path)
+    groups=[dict(id='a',type='T',removable=True),dict(id='b',type='T',removable=True)]
+    removals=[]
+    async def call(op,args):
+        if op=='list_groups':
+            if not removals: return dict(model_token='live',groups=groups,membership_complete=True,errors=[])
+            return dict(model_token='live',groups=[],membership_complete=False,
+                source_completeness={'active':False,'active_leaf':False,'stored':False},
+                errors=[dict(source='active',error='native enumeration failed')])
+        if op=='remove_group':
+            removals.append(args['group_id'])
+            return dict(frame=1,expected_removed_ids=[args['group_id']])
+    runtime._call=call
+    result=asyncio.run(runtime.remove_items('live','T'))
+    assert not result['ok'] and result['uncertain'] and runtime.uncertain
+    assert removals==['a']
+    assert result['outcomes'][0]['removed'] is False and result['outcomes'][0]['unconfirmed']
+    assert result['outcomes'][0]['discovery_errors'][0]['source']=='active'
+    assert result['outcomes'][1]['skipped']
+
+
+@pytest.mark.parametrize('failure',['poll_error','model_change','cleanup_error'])
+def test_custom_validation_preserves_primary_failure_and_pending_lifetimes(tmp_path,monkeypatch,failure):
+    from contextlib import contextmanager
+    from vroid_mcp import runtime_groups, custom_item_file
+    runtime=subject(tmp_path)
+    runtime.mode='attached'
+    registered=tmp_path/'registered.vroidcustomitem'
+    registered.touch()
+    events=[]
+    @contextmanager
+    def pin(path):
+        events.append('pin_acquired')
+        try: yield
+        finally: events.append('pin_released')
+    monkeypatch.setattr(custom_item_file,'pinned_file',pin)
+    monkeypatch.setattr(runtime_groups,'file_input',lambda *a,**k:registered)
+    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a:dict(metadata={},sha256='hash'))
+    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:dict(path=str(registered)))
+    async def no_sleep(*args): pass
+    monkeypatch.setattr(runtime_groups.asyncio,'sleep',no_sleep)
+    async def call(op,args):
+        events.append(op)
+        if op=='custom_item_state':return dict(model_token='live',base_path=str(tmp_path),files=[])
+        if op=='custom_item_validate_begin':return dict(model_token='live',request_id='pending',completed=False)
+        if op=='custom_item_validate_poll':
+            if failure=='poll_error': raise RuntimeError('PRIMARY_POLL_FAILURE')
+            if failure=='model_change': return dict(model_token='new-model',completed=False)
+            return dict(model_token='live',completed=True,compatible=False,error='PRIMARY_INCOMPATIBLE')
+        if op=='custom_item_validate_release':raise RuntimeError('SECONDARY_CLEANUP_FAILURE')
+        raise AssertionError(op)
+    runtime._call=call
+    expected={'poll_error':'PRIMARY_POLL_FAILURE','model_change':'STALE_MODEL','cleanup_error':'PRIMARY_INCOMPATIBLE'}[failure]
+    try:
+        with pytest.raises((RuntimeError,ValueError),match=expected) as raised:
+            asyncio.run(runtime.apply_custom_item('live','registered.vroidcustomitem'))
+        assert runtime.uncertain and 'pin_released' not in events
+        if failure!='cleanup_error': assert 'custom_item_validate_release' not in events
+        else:
+            assert 'SECONDARY_CLEANUP_FAILURE' in str(raised.value.__notes__)
+            assert runtime._custom_item_cleanup_errors[-1]['error']=='SECONDARY_CLEANUP_FAILURE'
+    finally:
+        for pending in getattr(runtime,'_pending_custom_item_pins',[]): pending.__exit__(None,None,None)
+
+
+@pytest.mark.parametrize('failure',[False,True])
+def test_attached_close_retains_pending_custom_lifetime_until_terminal_cleanup(tmp_path,monkeypatch,failure):
+    from types import SimpleNamespace
+    from vroid_mcp import bridge
+    runtime=subject(tmp_path)
+    runtime.mode='attached'
+    runtime.pid=123
+    events=[]
+    class Pin:
+        def __exit__(self,*args):events.append('pin_released')
+    pin=Pin()
+    runtime._pending_custom_item_pins=[pin]
+    pending=True
+    def release():
+        events.append('release')
+        if pending and failure:raise RuntimeError('PRIMARY_RELEASE_FAILURE')
+        return dict(released=not pending,release_blocked=pending,pending_work=['native custom load'] if pending else [])
+    script=SimpleNamespace(exports_sync=SimpleNamespace(release=release),unload=lambda:events.append('unload'))
+    session=SimpleNamespace(detach=lambda:events.append('detach'))
+    runtime.script,runtime.session=script,session
+    runtime.device=SimpleNamespace(kill=lambda *a:events.append('KILL_FORBIDDEN'))
+    monkeypatch.setattr(bridge,'record',lambda *a:None)
+    result=runtime.close()
+    assert result['close_blocked'] and not result['detached']
+    assert not runtime.dead and runtime.script is script and runtime.session is session
+    assert runtime._pending_custom_item_pins==[pin] and events==['release']
+    if failure: assert result['release_error']=='PRIMARY_RELEASE_FAILURE'
+    pending=False
+    result=runtime.close()
+    assert result['detached'] and runtime.dead
+    assert events==['release','release','unload','detach','pin_released']
+    assert runtime._pending_custom_item_pins==[]
+
+
+def test_owned_copy_custom_pin_released_only_after_process_termination(tmp_path):
+    from types import SimpleNamespace
+    runtime=subject(tmp_path)
+    runtime.pid=123
+    runtime.owns_process=True
+    events=[]
+    class Pin:
+        def __exit__(self,*args):events.append('pin_released')
+    runtime._pending_custom_item_pins=[Pin()]
+    runtime.device=SimpleNamespace(kill=lambda pid:events.append(('owned_kill',pid)))
+    result=runtime.close()
+    assert result['native_process_stopped'] and events==[('owned_kill',123),'pin_released']
+
+
+def test_custom_application_waits_for_native_lifetime_receipt_before_release(tmp_path,monkeypatch):
+    from contextlib import contextmanager
+    from vroid_mcp import runtime_groups,custom_item_file
+    runtime=subject(tmp_path);runtime.mode='attached'
+    registered=tmp_path/'item.vroidcustomitem';registered.touch()
+    row=dict(id='g',path=str(registered),resource_name='resource',revision='r')
+    events=[];observations=[]
+    @contextmanager
+    def pin(path):
+        events.append('pin_acquired')
+        try:yield
+        finally:events.append('pin_released')
+    monkeypatch.setattr(custom_item_file,'pinned_file',pin)
+    monkeypatch.setattr(runtime_groups,'file_input',lambda *a,**k:registered)
+    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a:dict(metadata={},sha256='hash'))
+    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:row)
+    async def no_sleep(*args):pass
+    monkeypatch.setattr(runtime_groups.asyncio,'sleep',no_sleep)
+    async def call(op,args):
+        events.append(op)
+        if op=='custom_item_state':return dict(model_token='live',base_path=str(tmp_path),files=[])
+        if op=='custom_item_validate_begin':return dict(model_token='live',request_id='r',completed=False)
+        if op=='custom_item_validate_poll':return dict(model_token='live',completed=True,compatible=True)
+        if op=='apply_registered_custom_item':return dict(frame=1)
+        if op=='list_groups':return dict(model_token='live',membership_complete=True,
+            groups=[dict(id='g',active=True,resource_name='resource',revision='r')])
+        if op=='custom_item_application_state':
+            observations.append(1)
+            assert 'pin_released' not in events
+            return dict(model_token='live',completed=len(observations)==3)
+        if op=='custom_item_validate_release':
+            assert len(observations)==3
+            return dict(released=True)
+        raise AssertionError(op)
+    runtime._call=call
+    result=asyncio.run(runtime.apply_custom_item('live','item.vroidcustomitem'))
+    assert result['applied'] and result['native_completion']['completed']
+    assert events[-2:]==['custom_item_validate_release','pin_released']

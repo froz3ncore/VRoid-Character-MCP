@@ -67,16 +67,92 @@ function setup() {
         const original=dictionary.method.bind(dictionary);
         dictionary.method=(name,...args)=>name==='Add'?{...original(name),parameters:[{type:key.type},{type:value.type}]}:original(name,...args);
         return dictionary;}})};
+    const nativeState={frame:9,model_ready:true,model_token:'live',command_busy:false,updating:false,
+        presets_loading:false,photo_updating:false,png_decoder:{pending:0,fatal:null},
+        attached_state:{dialog:null,notification:null,progress_locked:false,popup_blocked:false}};
     const api=context.createGroupApi({model:expected=>{if(expected!=='live')throw Error('STALE_MODEL');return m;},
-        cls:(_assembly,name)=>classFor(name),text:o=>o?.content??null,state:{frame:9},
+        cls:(_assembly,name)=>classFor(name),text:o=>o?.content??null,state:nativeState,teardownState:()=>nativeState,
         invokeManaged:(object,name,args=[])=>object.method(name).invoke(...args),
         entries:(_model,area)=>area==='body'?[{id:'body/WholeBody/000',p}]:[],
         details:entry=>({semantic_status:'complete',semantic_group:type,semantic_kind:'combined',
             semantic_bindings:[{key:'negative'},{key:'positive'}],min:-1,max:1,editable:true,value:entry.p.value}),
         presetEntries:(_model,area)=>area==='clothing'?presets:[],ordinary:{managedCallbacks:()=>({ok:{handle:1},fail:{handle:2}})}});
-    return {api:api.operations,helpers:api.helpers,calls,m,group,p,rawColor,classes,classFor,presets,type,active};
+    return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,m,group,p,rawColor,classes,classFor,presets,type,active};
+}
+
+function customFixture(f) {
+    const item={id:'g',group_type:f.type,path:'registered.vroidcustomitem',resource_name:'resource',revision:'r',
+        custom_resource_name:'user/custom',custom_revision:'c'};
+    const nativeItem=new Native('FileCustomItemModel',{FilePath:s(item.path),TransferableGroupId:s('g'),
+        TransferableGroupTypeId:s(f.type),TransferableGroupResourceName:s('resource'),TransferableGroupRevision:s('r'),
+        CustomItemId:new Native('CustomItemId',{ResourceName:s(item.custom_resource_name),Revision:s('c')})});
+    const deserialized=new Native('CustomObject',{customItemMetaData:new Native('Meta',{rootTransferableGroupId:s('g')}),
+        transferableGroups:dict([['g',f.group]])},{IsNecessarilyMigrateBodySuitsCustomItemV2:()=>false});
+    const native={terminal:false};
+    const task=new Native('Task',{}, {get_IsCompleted:()=>native.terminal,get_IsCanceled:()=>false,get_IsFaulted:()=>false,get_Result:()=>new Native('Contents')});
+    nativeItem.calls.LoadCustomItemContents=()=>task;
+    f.m.root.fields._customItemRegistry=new Native('Registry',{
+        _pathToFileCustomItemModels:new Native('Dictionary',{}, {get_Values:()=>[nativeItem]})},
+        {CheckIfIsRegisteredInAssetStorage:resource=>resource.content==='resource'});
+    f.classFor('VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil').method=()=>({invoke:()=>deserialized});
+    return {item,native,nativeItem};
 }
 const args={expected_model:'live',group_id:'g'};
+{
+    const f=setup(), custom=customFixture(f);
+    f.api.custom_item_validate_begin({...args,registered_item:custom.item,
+        metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
+    const before=freed;
+    assert.equal(f.teardown().safe,false,'pending native reader blocks teardown');
+    assert.equal(freed,before);
+    custom.native.terminal=true;
+    f.m.token='new-model'; // Terminal validation cleanup must survive model replacement.
+    assert.equal(f.teardown().safe,true);
+    assert.equal(freed-before,2);
+    assert.equal(f.teardown().safe,true);assert.equal(freed-before,2,'no double free');
+}
+{
+    const f=setup(), custom=customFixture(f);custom.native.terminal=true;
+    const started=f.api.custom_item_validate_begin({...args,registered_item:custom.item,
+        metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
+    assert.equal(f.api.custom_item_validate_poll({...args,request_id:started.request_id}).compatible,true);
+    const option=new Native('CustomOption',{_context:f.m.context,_model:custom.nativeItem},
+        {set_IsSelected:()=>{f.nativeState.presets_loading=true;}});
+    context.Il2Cpp.gc.choose=()=>[option];
+    f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:custom.item});
+    const before=freed;
+    assert.equal(f.teardown().safe,false,'Task completion alone does not complete application');
+    assert.equal(freed,before);
+    f.nativeState.presets_loading=false;
+    f.nativeState.frame++;
+    assert.equal(f.teardown().safe,false);
+    assert.equal(f.teardown().safe,false,'repeating the same frame is not settled evidence');
+    f.nativeState.frame++;
+    assert.equal(f.teardown().safe,false);
+    f.nativeState.frame++;
+    assert.equal(f.teardown().safe,true);
+    assert.equal(freed-before,4);
+    context.Il2Cpp.gc.choose=()=>[];
+}
+{
+    const f=setup();
+    const stored=new Native('Group',{Id:s('stored'),Type:s(f.type),ResourceName:s('stored-resource'),Revision:s('stored-r')});
+    f.active.fields.TransferableGroups=dict([['g',f.group],['stored',stored]]);
+    f.m.context.calls.GetActiveTransferableGroupInfo=id=>id.content==='g'?f.group:stored;
+    const listed=f.api.list_group_parameters({...args,group_id:'stored'});
+    assert.equal(listed.parameters.filter(p=>p.source==='exact_native_vm').length,0,
+        'an inactive same-type group cannot borrow the active VM writer');
+    assert.throws(()=>f.api.set_group_parameters({...args,group_id:'stored',changes:[
+        {id:'body/WholeBody/000',type:'float',units:'native_vm',value:.7}]}),/UNKNOWN_OR_STALE_BINDING/);
+    assert.equal(f.p.value,0,'listing/writing an inactive group must not mutate the active group');
+    f.m.context.calls.GetActiveLeafTransferableGroups=()=>{throw Error('leaf enumeration failed');};
+    const incomplete=f.api.list_groups(args);
+    assert.equal(incomplete.membership_complete,false);
+    assert.equal(incomplete.source_completeness.active,true);
+    assert.equal(incomplete.source_completeness.active_leaf,false);
+    assert.equal(f.api.list_group_parameters(args).parameters.filter(p=>p.source==='exact_native_vm').length,0,
+        'partial discovery cannot establish singleton VM ownership');
+}
 {
     const f=setup();let index=0;
     const iterator=new Native('ExplicitIterator',{}, {'System.Collections.IEnumerator.MoveNext':()=>index++===0,
@@ -244,3 +320,21 @@ const args={expected_model:'live',group_id:'g'};
     assert.throws(()=>f.api.apply_preserving_preset({...args,area:'clothing',preset_id:'clothing/WholeBody/preset'}),/LOCKED/);
 }
 console.log('groups native doubles: discovery, exact pairing, prevalidation, history ABI, removal, custom preflight and preservation passed');
+{
+    const events=[];
+    let pending=true;
+    const releaseContext=vm.createContext({
+        vroid:{prepareTeardown:()=>pending?{safe:false,pending_work:['custom load']}:{safe:true}},
+        bridge:{pngDecoder:{release(){events.push('decoder');}},backgroundHook:{detach(){events.push('background');}},
+            attachmentLease:{release(){events.push('lease');}},backgroundScope:null,
+            retained:new Map([['handle',{free(){events.push('retained');}}]]),pumpHooks:[]},state:{refs:{model:'retained'}}});
+    const source=fs.readFileSync('agent/main_thread.js','utf8');
+    vm.runInContext(source.slice(source.indexOf('function releaseAttached()'),source.indexOf('// The editor singletons')),releaseContext);
+    assert.equal(releaseContext.releaseAttached().release_blocked,true);
+    assert.deepEqual(events,[],'blocked native preflight must precede all attachment cleanup');
+    assert.equal(releaseContext.state.refs.model,'retained');
+    pending=false;
+    assert.equal(releaseContext.releaseAttached().released,true);
+    assert.deepEqual(events,['decoder','background','lease','retained']);
+    assert.equal(Object.keys(releaseContext.state.refs).length,0);
+}

@@ -99,3 +99,53 @@ def test_failed_adoption_releases_attachment_and_allows_retry(session_tools, mon
         assert (await invoke('attach_open_vroid', pid=100))['mode'] == 'attached'
     asyncio.run(scenario())
     assert ('close', 'attached', 100) in events
+
+
+@pytest.mark.parametrize('tool',['detach_open_vroid','restart_session','attach_open_vroid'])
+def test_pending_native_release_does_not_rebind_attached_session(session_tools,monkeypatch,tool):
+    invoke,instances,events=session_tools
+    async def scenario():
+        await invoke('attach_open_vroid',pid=100)
+        current=instances[-1]
+        current.close=lambda:dict(close_blocked=True,detached=False,pending_work=['custom task'])
+        monkeypatch.setattr(server.bridge,'find_open_vroid',lambda _: [
+            {'pid':101,'path':'E:/other/VRoidStudio.exe'}])
+        result=await invoke(tool,**({'pid':101} if tool=='attach_open_vroid' else {}))
+        assert result['close_blocked'] and not result.get('detached',False)
+        assert instances[-1] is current and not current.dead
+        assert len([event for event in events if event[0]=='attach'])==1
+        assert (await invoke('get_status'))['mode']=='attached'
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('primary',[False,True])
+def test_lifespan_shutdown_reports_pending_native_work_without_losing_runtime(tmp_path,monkeypatch,primary):
+    instances=[]
+    class PendingRuntime:
+        def __init__(self,lab):
+            self.mode='attached';self.dead=False
+            instances.append(self)
+        def close(self):return dict(close_blocked=True,pending_work=['custom task'])
+    monkeypatch.setattr(server,'Runtime',PendingRuntime)
+    mcp=server.create_server(tmp_path,'F00')
+    async def scenario():
+        with pytest.raises((ValueError,RuntimeError),match='PRIMARY_LIFESPAN_FAILURE' if primary else 'NATIVE_WORK_PENDING') as raised:
+            async with mcp.settings.lifespan(mcp) as active:
+                assert active is instances[0]
+                if primary: raise ValueError('PRIMARY_LIFESPAN_FAILURE')
+        if primary: assert 'NATIVE_WORK_PENDING' in str(raised.value.__notes__)
+        assert len(instances)==1 and not instances[0].dead
+    asyncio.run(scenario())
+
+
+def test_failed_adoption_preserves_primary_error_when_cleanup_is_blocked(session_tools,monkeypatch):
+    invoke,instances,events=session_tools
+    cls=type(instances[0])
+    async def failed_adoption(self):
+        self.close=lambda:dict(close_blocked=True,pending_work=['native request'])
+        raise ValueError('PRIMARY_ADOPTION_FAILURE')
+    monkeypatch.setattr(cls,'adopt',failed_adoption)
+    with pytest.raises(ValueError,match='PRIMARY_ADOPTION_FAILURE') as raised:
+        asyncio.run(invoke('attach_open_vroid',pid=100))
+    assert 'NATIVE_WORK_PENDING' in str(raised.value.__notes__)
+    assert instances[-1].mode=='attached' and not instances[-1].dead

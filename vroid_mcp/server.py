@@ -88,16 +88,34 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             await runtime.current.initialize(variant, model_file)
             state['initialized'] = True
         except BaseException as failure:
-            await asyncio.to_thread(runtime.current.close)
+            try:
+                closed = await asyncio.to_thread(runtime.current.close)
+            except BaseException as cleanup_error:
+                failure.add_note('Session cleanup failed; runtime retained: ' + str(cleanup_error))
+                raise failure
+            if closed.get('close_blocked'):
+                failure.add_note('NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
+                raise
             runtime.rebind(Runtime(lab))
             raise
 
     @asynccontextmanager
     async def lifespan(server):
+        primary = None
         try:
             yield runtime.current
+        except BaseException as error:
+            primary = error
+            raise
         finally:
-            await asyncio.to_thread(runtime.current.close)
+            try:
+                closed = await asyncio.to_thread(runtime.current.close)
+                if closed.get('close_blocked'):
+                    raise RuntimeError('NATIVE_WORK_PENDING: runtime/session retained: ' + str(closed))
+            except BaseException as cleanup_error:
+                if primary is None:
+                    raise
+                primary.add_note('Session shutdown incomplete; runtime retained: ' + str(cleanup_error))
 
     mcp = FastMCP('VRoid Character MCP', lifespan=lifespan, instructions=INSTRUCTIONS)
 
@@ -164,7 +182,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             # Validate the executable before touching the current session.
             target = next(item for item in candidates if item['pid'] == pid)
             await asyncio.to_thread(bridge.validate_assembly, Path(target['path']).parent / 'GameAssembly.dll')
-            await asyncio.to_thread(current.close)
+            closed = await asyncio.to_thread(current.close)
+            if closed.get('close_blocked'):
+                return {**closed, 'attached': False}
             runtime.rebind(Runtime(lab))
             state['initialized'] = False
             try:
@@ -173,8 +193,15 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 state['initialized'] = True
                 return {**await runtime.current.status(), 'adopted': adopted,
                         'notice': 'Editing the real VRoid session; isolation guard is not loaded.'}
-            except BaseException:
-                await asyncio.to_thread(runtime.current.close)
+            except BaseException as failure:
+                try:
+                    closed = await asyncio.to_thread(runtime.current.close)
+                except BaseException as cleanup_error:
+                    failure.add_note('Attachment cleanup failed; runtime retained: ' + str(cleanup_error))
+                    raise failure
+                if closed.get('close_blocked'):
+                    failure.add_note('NATIVE_WORK_PENDING; attached runtime retained: ' + str(closed))
+                    raise
                 runtime.rebind(Runtime(lab))
                 raise
 
@@ -185,6 +212,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             if runtime.current.mode != 'attached':
                 return {'detached': False, 'mode': runtime.current.mode}
             closed = await asyncio.to_thread(runtime.current.close)
+            if closed.get('close_blocked'):
+                return closed
             runtime.rebind(Runtime(lab))
             state['initialized'] = False
             return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
@@ -201,12 +230,16 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         async with session_gate:
             if runtime.current.mode == 'attached':
                 closed = await asyncio.to_thread(runtime.current.close)
+                if closed.get('close_blocked'):
+                    return closed
                 runtime.rebind(Runtime(lab))
                 state['initialized'] = False
                 return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
             if discard_unsaved is not True:
                 raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
-            await asyncio.to_thread(runtime.current.close)
+            closed = await asyncio.to_thread(runtime.current.close)
+            if closed.get('close_blocked'):
+                return closed
             runtime.rebind(Runtime(lab))
             state['initialized'] = False
             await initialize_runtime()

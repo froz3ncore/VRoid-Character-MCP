@@ -756,7 +756,7 @@ globalThis.vroid = (() => {
     const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged });
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
     const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
-        details:describeParameter,state,ordinary,presetEntries:collectPresets});
+        details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status});
 
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
@@ -868,6 +868,7 @@ globalThis.vroid = (() => {
     }
 
     return {
+        prepareTeardown: groups.prepareTeardown,
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))

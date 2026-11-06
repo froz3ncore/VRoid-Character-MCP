@@ -258,7 +258,7 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
     attached = getattr(subject, 'mode', 'copy') == 'attached'
     inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
         'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state',
-        'enter_category', 'custom_item_validate_poll', 'preserving_preset_state', 'preserved_preset_readback',
+        'enter_category', 'custom_item_validate_poll', 'custom_item_application_state', 'preserving_preset_state', 'preserved_preset_readback',
         'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
     if subject.uncertain and operation not in {'status', 'vrm_export_status'} and not (attached and inspectable):
         if attached:
@@ -394,16 +394,36 @@ async def status(subject) -> dict:
 def close(subject) -> dict:
     # Kill only the process this subject spawned: never a name-based kill.
     outcome = {'mode': getattr(subject, 'mode', 'copy')}
+    pinned = bool(getattr(subject, '_pending_custom_item_pins', []))
+    def blocked(reason, **details):
+        subject.uncertain = True
+        outcome.update(close_blocked=True,detached=False,reason=reason,**details)
+        return outcome
     try:
         if getattr(subject, 'mode', 'copy') == 'attached':
+            if pinned and (subject.script is None or subject.dead):
+                # A lost agent is not proof that the user's process stopped.
+                try:
+                    subject.device.get_process(subject.pid)
+                except frida.ProcessNotFoundError:
+                    outcome['native_process_stopped'] = True
+                except Exception as error:
+                    return blocked('ATTACHED_NATIVE_WORK_PENDING',release_error=str(error))
+                else:
+                    return blocked('ATTACHED_NATIVE_WORK_PENDING: agent unavailable; process still running')
             if subject.script is not None and not subject.dead:
                 try:
                     released = subject.script.exports_sync.release()
+                    if released.get('released') is not True:
+                        return blocked('ATTACHED_NATIVE_WORK_PENDING',pending_work=released.get('pending_work', []),
+                                       release=released)
                     outcome['background_restored'] = bool(released.get('released'))
                     record(subject, {'event': 'released', 'result': released})
                 except Exception as error:
                     outcome.update(background_restored=False, release_error=str(error))
-                    record(subject, {'event': 'release-error', 'error': str(error)})
+                    # Native resources may exist without a Python pin. Failed
+                    # preflight cannot authorize script unload or session loss.
+                    return blocked('ATTACHED_NATIVE_WORK_PENDING',release_error=str(error))
                 try:
                     subject.script.unload()
                 except frida.InvalidOperationError:
@@ -416,11 +436,15 @@ def close(subject) -> dict:
                 subject.device.kill(subject.pid)
             except frida.ProcessNotFoundError:
                 pass
+            outcome['native_process_stopped'] = True
+        elif pinned:
+            return blocked('NATIVE_WORK_PENDING: owned process termination not established')
     finally:
-        subject.dead = True
-        if subject.file_lock:
-            lab_lock.release(subject.file_lock)
-            subject.file_lock = None
+        if not outcome.get('close_blocked'):
+            subject.dead = True
+            if subject.file_lock:
+                lab_lock.release(subject.file_lock)
+                subject.file_lock = None
     return outcome
 
 

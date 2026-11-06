@@ -236,6 +236,9 @@ function adoptRunning() {
 }
 
 function releaseAttached() {
+    const pending = globalThis.vroid?.prepareTeardown?.();
+    if (pending && !pending.safe)
+        return {released:false,release_blocked:true,pending_work:pending.pending_work};
     if (bridge.pngDecoder) { bridge.pngDecoder.release(); bridge.pngDecoder = null; }
     if (bridge.backgroundHook) bridge.backgroundHook.detach();
     bridge.backgroundHook = null;
