@@ -140,53 +140,59 @@ class OrdinaryTools:
                     'verified': 'ZIP integrity, metadata and native closet registration; cold reopen is separate'}
 
     async def _vrm_preview(self, args, timeout=120):
-        deadline = time.monotonic() + timeout
-        quiet = 0
-        while True:
-            state = await self._call('vrm_export_state', args)
-            if state.get('model_token') != args['expected_model']:
-                raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
-            quiet = quiet + 1 if state.get('ready') else 0
-            if quiet >= 4:
-                return state
-            if time.monotonic() >= deadline:
-                self.uncertain = True
-                raise TimeoutError('VRM preview did not become quiet; do not retry or navigate')
-            await asyncio.sleep(.25)
+        try:
+            deadline = time.monotonic() + timeout
+            quiet = 0
+            while True:
+                state = await self._call('vrm_export_state', args)
+                if state.get('model_token') != args['expected_model']:
+                    raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
+                quiet = quiet + 1 if state.get('ready') else 0
+                if quiet >= 4:
+                    return state
+                if time.monotonic() >= deadline:
+                    raise TimeoutError('VRM preview did not become quiet; do not retry or navigate')
+                await asyncio.sleep(.25)
+        except BaseException:
+            # A failed getter or caller cancellation is no proof that the
+            # preceding entry/setter's native preview work has completed.
+            self.uncertain = True
+            raise
 
     async def _vrm_screen(self, args, *, fresh=False):
-        state = await self._call('vrm_export_state', args)
-        if state.get('model_token') != args['expected_model'] or state.get('busy'):
-            raise RuntimeError('VRM_EXPORT_STATE_INVALID')
-        if fresh and state['export_screen']:
-            await self._vrm_leave(args)
-            state = {'export_screen': False}
-        if not state['export_screen']:
-            try:
+        try:
+            state = await self._call('vrm_export_state', args)
+            if state.get('model_token') != args['expected_model'] or state.get('busy'):
+                raise RuntimeError('VRM_EXPORT_STATE_INVALID')
+            if fresh and state['export_screen']:
+                # An existing screen may still own queued reduction/preview
+                # work even when this adapter has no active export job.
+                await self._vrm_preview(args)
+                await self._vrm_leave(args)
+                state = {'export_screen': False}
+            if not state['export_screen']:
                 await self._call('enter_vrm_export', args)
-            except BaseException:
-                self.uncertain = True
-                raise
-        return await self._vrm_preview(args)
+            return await self._vrm_preview(args)
+        except BaseException:
+            self.uncertain = True
+            raise
 
     async def _vrm_leave(self, args):
         try:
             await self._call('leave_vrm_export', args)
+            deadline = time.monotonic() + 30
+            while True:
+                state = await self._call('vrm_export_state', args)
+                if state.get('model_token') != args['expected_model']:
+                    raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
+                if not state['export_screen']:
+                    return
+                if time.monotonic() >= deadline:
+                    raise TimeoutError('VRM export screen did not close; state uncertain')
+                await asyncio.sleep(.25)
         except BaseException:
             self.uncertain = True
             raise
-        deadline = time.monotonic() + 30
-        while True:
-            state = await self._call('vrm_export_state', args)
-            if state.get('model_token') != args['expected_model']:
-                self.uncertain = True
-                raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
-            if not state['export_screen']:
-                return
-            if time.monotonic() >= deadline:
-                self.uncertain = True
-                raise TimeoutError('VRM export screen did not close; state uncertain')
-            await asyncio.sleep(.25)
 
     async def _vrm_apply(self, args, target):
         for stage in ('mesh', 'material', 'texture'):

@@ -127,6 +127,18 @@ def validate_vrm(path: Path, vrm_version: int = 1) -> dict:
                 for bind in expression.get('materialColorBinds',[])+expression.get('textureTransformBinds',[]):index(bind['material'],materials,'VRM1 expression material')
     else:
         for bone in extensions[extension].get('humanoid',{}).get('humanBones',[]):index(bone['node'],nodes,'humanoid bone')
+        # Official UniVRM's VRM0 format documents -1 as no first-person
+        # bone/target mesh. Material textures instead use absent properties
+        # for unset slots; their present values must index glTF textures.
+        def first_person_index(value,items,kind):
+            if type(value) is int and value==-1:return
+            index(value,items,kind)
+        first_person=extensions[extension].get('firstPerson',{})
+        if 'firstPersonBone' in first_person:first_person_index(first_person['firstPersonBone'],nodes,'VRM0 first person bone')
+        for annotation in first_person.get('meshAnnotations',[]):
+            if 'mesh' in annotation:first_person_index(annotation['mesh'],meshes,'VRM0 first person mesh')
+        for material in extensions[extension].get('materialProperties',[]):
+            for texture in material.get('textureProperties',{}).values():index(texture,textures,'VRM0 material texture')
         secondary=extensions[extension].get('secondaryAnimation',{})
         collider_groups=secondary.get('colliderGroups',[])
         for group in collider_groups:index(group['node'],nodes,'VRM0 collider node')

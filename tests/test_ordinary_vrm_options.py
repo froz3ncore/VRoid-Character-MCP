@@ -275,3 +275,155 @@ def test_uncertain_export_status_is_inspectable_without_retry_or_release(tmp_pat
     for op in ('start_vrm_export', 'finish_vrm_export', 'leave_vrm_export'):
         with pytest.raises(RuntimeError, match='PREVIOUS_CALL_UNCERTAIN'): asyncio.run(bridge.call(runtime, op))
     assert calls == ['vrm_export_status']
+
+
+@pytest.mark.parametrize('mutation', ['entry', 'setter'])
+@pytest.mark.parametrize('interruption', ['getter', 'cancel'])
+def test_interrupted_post_mutation_preview_never_navigates(tmp_path, monkeypatch, mutation, interruption):
+    runtime, calls, state = harness(tmp_path, monkeypatch)
+    native = runtime._call
+    changed = False; interrupted = False
+    observed = asyncio.Event()
+    failure = RuntimeError('preview getter failed after native mutation')
+    async def call(op, args=None):
+        nonlocal changed, interrupted
+        if op == 'vrm_export_state' and changed and not interrupted:
+            interrupted = True
+            if interruption == 'getter': raise failure
+            observed.set()
+            await asyncio.Event().wait()
+        result = await native(op, args)
+        if op == ('enter_vrm_export' if mutation == 'entry' else 'apply_vrm_export_options'):
+            changed = True
+        return result
+    runtime._call = call
+    async def scenario():
+        options = {'hair': 100} if mutation == 'setter' else None
+        task = asyncio.create_task(runtime.export_vrm('live', 'a.vrm', options=options))
+        if interruption == 'cancel':
+            await observed.wait()
+            task.cancel('caller stopped observing preview')
+            with pytest.raises(asyncio.CancelledError, match='caller stopped observing preview'):
+                await task
+        else:
+            with pytest.raises(RuntimeError) as error: await task
+            assert error.value is failure
+    asyncio.run(scenario())
+    assert runtime.uncertain and state['open']
+    assert all(op not in {'leave_vrm_export', 'start_vrm_export', 'finish_vrm_export'} for op, _ in calls)
+
+
+def test_fresh_pop_waits_for_consecutive_quiet_existing_preview(tmp_path, monkeypatch):
+    runtime, calls, state = harness(tmp_path, monkeypatch, opened=True)
+    native = runtime._call
+    samples = iter([False, False, True, True, False, True, True, True, True])
+    quiet = 0; popped_after = None
+    async def call(op, args=None):
+        nonlocal quiet, popped_after
+        if op == 'leave_vrm_export' and popped_after is None:
+            popped_after = quiet
+        result = await native(op, args)
+        if op == 'vrm_export_state' and popped_after is None:
+            result['ready'] = next(samples)
+            result['preview_queued'] = not result['ready']
+            quiet = quiet + 1 if result['ready'] else 0
+        return result
+    runtime._call = call
+    asyncio.run(runtime.export_vrm('live', 'a.vrm'))
+    assert popped_after >= 4
+    assert state['open']  # initial ownership survives the safe fresh reopen
+    assert sum(op == 'start_vrm_export' for op, _ in calls) == 1
+
+
+@pytest.mark.parametrize('failure', ['deadline', 'getter'])
+def test_existing_preview_failure_blocks_fresh_pop(tmp_path, monkeypatch, failure):
+    runtime, calls, state = harness(tmp_path, monkeypatch, opened=True)
+    native = runtime._call
+    reads = 0
+    async def call(op, args=None):
+        nonlocal reads
+        result = await native(op, args)
+        if op == 'vrm_export_state':
+            reads += 1
+            if failure == 'getter' and reads == 3: raise RuntimeError('existing preview observation failed')
+            result['ready'] = False; result['preview_queued'] = True
+        return result
+    runtime._call = call
+    ticks = iter(range(0, 1000000, 2))
+    monkeypatch.setattr('vroid_mcp.runtime_ordinary.time.monotonic', lambda: next(ticks))
+    with pytest.raises((RuntimeError, TimeoutError)):
+        asyncio.run(runtime.export_vrm('live', 'a.vrm', leave=True))
+    assert runtime.uncertain and state['open']
+    assert all(op not in {'leave_vrm_export', 'enter_vrm_export', 'start_vrm_export'} for op, _ in calls)
+
+
+def vrm0_reference_document():
+    data = document(0)
+    data.update(images=[{'bufferView': 0}], textures=[{'source': 0}])
+    data['extensions']['VRM'].update(
+        firstPerson={'firstPersonBone': 0, 'meshAnnotations': [{'mesh': 0, 'firstPersonFlag': 'Auto'}]},
+        materialProperties=[{'textureProperties': {'_MainTex': 0}}])
+    return data
+
+
+@pytest.mark.parametrize('kind', ['bone', 'mesh', 'texture'])
+@pytest.mark.parametrize('value', [-2, 1, 999, False, 0.0, '0', None])
+def test_vrm0_first_person_and_material_references_reject_invalid_index(tmp_path, kind, value):
+    data = vrm0_reference_document(); ext = data['extensions']['VRM']
+    if kind == 'bone': ext['firstPerson']['firstPersonBone'] = value
+    elif kind == 'mesh': ext['firstPerson']['meshAnnotations'][0]['mesh'] = value
+    else: ext['materialProperties'][0]['textureProperties']['_MainTex'] = value
+    path = tmp_path / 'bad.vrm'; path.write_bytes(glb(data))
+    with pytest.raises(ValueError): check_vrm_container(path, 0)
+
+
+@pytest.mark.parametrize('value', [-1, -1.0])
+def test_vrm0_material_texture_unset_is_omission_not_negative_index(tmp_path, value):
+    data = vrm0_reference_document()
+    data['extensions']['VRM']['materialProperties'][0]['textureProperties']['_MainTex'] = value
+    path = tmp_path / 'bad.vrm'; path.write_bytes(glb(data))
+    with pytest.raises(ValueError): check_vrm_container(path, 0)
+
+
+@pytest.mark.parametrize('kind', ['bone', 'mesh'])
+def test_vrm0_first_person_unset_requires_exact_integer_sentinel(tmp_path, kind):
+    data = vrm0_reference_document(); first = data['extensions']['VRM']['firstPerson']
+    if kind == 'bone': first['firstPersonBone'] = -1.0
+    else: first['meshAnnotations'][0]['mesh'] = -1.0
+    path = tmp_path / 'bad.vrm'; path.write_bytes(glb(data))
+    with pytest.raises(ValueError): check_vrm_container(path, 0)
+
+
+@pytest.mark.parametrize('unset', [False, True, 'omitted'])
+def test_vrm0_valid_first_person_and_texture_references_and_unset_values(tmp_path, unset):
+    data = vrm0_reference_document(); ext = data['extensions']['VRM']
+    if unset is True:
+        ext['firstPerson']['firstPersonBone'] = -1
+        ext['firstPerson']['meshAnnotations'][0]['mesh'] = -1
+        ext['materialProperties'][0]['textureProperties'] = {}
+    elif unset == 'omitted':
+        ext['firstPerson'].pop('firstPersonBone')
+        ext['firstPerson']['meshAnnotations'] = []
+        ext['materialProperties'][0].pop('textureProperties')
+    path = tmp_path / 'valid.vrm'; path.write_bytes(glb(data))
+    assert check_vrm_container(path, 0)['self_contained'] is True
+
+
+@pytest.mark.parametrize('kind', ['bone', 'mesh', 'texture'])
+def test_invalid_vrm0_reference_is_never_published(tmp_path, monkeypatch, kind):
+    from pathlib import Path
+    runtime, calls, state = harness(tmp_path, monkeypatch)
+    native = runtime._call
+    data = vrm0_reference_document(); ext = data['extensions']['VRM']
+    if kind == 'bone': ext['firstPerson']['firstPersonBone'] = 999
+    elif kind == 'mesh': ext['firstPerson']['meshAnnotations'][0]['mesh'] = 999
+    else: ext['materialProperties'][0]['textureProperties']['_MainTex'] = 999
+    async def call(op, args=None):
+        result = await native(op, args)
+        if op == 'start_vrm_export': Path(args['path']).write_bytes(glb(data))
+        return result
+    runtime._call = call
+    with pytest.raises(ValueError): asyncio.run(runtime.export_vrm('live', 'bad.vrm', version=0))
+    assert not (tmp_path / 'saves' / 'bad.vrm').exists()
+    assert Path(state['staging']).is_file()
+    assert sum(op == 'start_vrm_export' for op, _ in calls) == 1
