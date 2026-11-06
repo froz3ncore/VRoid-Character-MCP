@@ -77,3 +77,11 @@ pipeline/lab-codex/
 *.html
 docs/
 文檔/
+
+# Local development scratch and versioned migration designs
+temp/
+!/docs/
+!/docs/superpowers/
+!/docs/superpowers/**/
+!/docs/superpowers/**/*.md
+!/MIGRATION.md
