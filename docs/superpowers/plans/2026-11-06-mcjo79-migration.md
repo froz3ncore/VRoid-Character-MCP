@@ -150,7 +150,7 @@ Focused test command convention: `<python> <workspace>/temp/run_logged.py task-N
 
 ### Task 10: Integrated verification, documentation and delivery
 
-**Files:** Update `README.md`, `README.zh-CN.md`, `CHANGELOG.md`, `REGRESSION.md`, `MIGRATION.md`, `tools/TOOLS.md`, `pipeline/expected-tools.json` (locate actual existing schema path), `pipeline/source-manifest.json`, documentation generators only where needed for CRLF; add native migration acceptance checklist under docs/superpowers. Update workspace root Agents.md; keep CLAUDE.md exact.
+**Files:** Update `README.md`, `README.zh-CN.md`, `CHANGELOG.md`, `REGRESSION.md`, `MIGRATION.md`, `tools/TOOLS.md`, `tools/expected-tools.json`, `pipeline/source-manifest.json`, documentation generators only where needed for CRLF; add native migration acceptance checklist under docs/superpowers. Update workspace root Agents.md; keep CLAUDE.md exact.
 
 **Interfaces:** All 53 source tools have a final, evidence-backed disposition; new schemas/docs/manifest agree. Native acceptance is a separate explicit gate, with read-only preflight identifying the actual unsupported installed assembly.
 
