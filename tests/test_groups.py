@@ -472,3 +472,28 @@ def test_custom_application_waits_for_native_lifetime_receipt_before_release(tmp
     result=asyncio.run(runtime.apply_custom_item('live','item.vroidcustomitem'))
     assert result['applied'] and result['native_completion']['completed']
     assert events[-2:]==['custom_item_validate_release','pin_released']
+
+
+@pytest.mark.parametrize('liveness',['absent','alive','unknown'])
+def test_disconnected_owned_copy_proves_process_absence_before_releasing_pins(tmp_path,liveness):
+    from vroid_mcp import bridge
+    runtime=subject(tmp_path)
+    runtime.dead=True;runtime.owns_process=True;runtime.pid=123
+    events=[]
+    class Pin:
+        def __exit__(self,*args):events.append('pin_released')
+    class Device:
+        def get_process(self,pid):
+            events.append(('probe',pid))
+            if liveness=='absent':raise bridge.frida.ProcessNotFoundError('already exited')
+            if liveness=='unknown':raise RuntimeError('process state unavailable')
+            return object()
+        def kill(self,*args):raise AssertionError('disconnected liveness is not authority to kill')
+    runtime.device=Device();pin=Pin();runtime._pending_custom_item_pins=[pin]
+    result=runtime.close()
+    if liveness=='absent':
+        assert result.get('native_process_stopped') and not result.get('close_blocked')
+        assert events==[('probe',123),'pin_released'] and runtime._pending_custom_item_pins==[]
+    else:
+        assert result['close_blocked'] and runtime._pending_custom_item_pins==[pin]
+        assert events==[('probe',123)]

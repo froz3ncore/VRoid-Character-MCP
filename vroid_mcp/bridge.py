@@ -438,7 +438,20 @@ def close(subject) -> dict:
                 pass
             outcome['native_process_stopped'] = True
         elif pinned:
-            return blocked('NATIVE_WORK_PENDING: owned process termination not established')
+            if getattr(subject, 'owns_process', False) and subject.dead and subject.pid is not None and subject.device is not None:
+                # Detach/disconnection is not termination. A dead owned session
+                # may release its source pins only after the PID is proven absent;
+                # never kill a surviving or reused PID during this recovery probe.
+                try:
+                    subject.device.get_process(subject.pid)
+                except frida.ProcessNotFoundError:
+                    outcome['native_process_stopped'] = True
+                except Exception as error:
+                    return blocked('NATIVE_WORK_PENDING: owned process liveness unknown',liveness_error=str(error))
+                else:
+                    return blocked('NATIVE_WORK_PENDING: disconnected owned process still exists')
+            else:
+                return blocked('NATIVE_WORK_PENDING: owned process termination not established')
     finally:
         if not outcome.get('close_blocked'):
             subject.dead = True

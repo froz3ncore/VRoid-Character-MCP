@@ -149,3 +149,112 @@ def test_failed_adoption_preserves_primary_error_when_cleanup_is_blocked(session
         asyncio.run(invoke('attach_open_vroid',pid=100))
     assert 'NATIVE_WORK_PENDING' in str(raised.value.__notes__)
     assert instances[-1].mode=='attached' and not instances[-1].dead
+
+
+@pytest.mark.parametrize('phase',['adoption','initialization'])
+@pytest.mark.parametrize('cleanup',['blocked','error'])
+def test_retained_uninitialized_session_never_automatically_starts_or_rebinds(tmp_path,monkeypatch,phase,cleanup):
+    instances=[];events=[]
+    class PendingRuntime:
+        fail=True
+        def __init__(self,lab):
+            self.mode='copy';self.pid=None;self.dead=False;self.pending=False
+            self.script=object();self.session=object();self.pins=[object()]
+            instances.append(self)
+        def start(self):
+            events.append(('start',self))
+            if self.pending:raise RuntimeError('START_RETRIED_ON_PENDING_RUNTIME')
+        async def initialize(self,*args):
+            events.append(('initialize',self))
+            if phase=='initialization' and self.fail:
+                self.pending=True
+                raise ValueError('PRIMARY_INITIALIZATION_FAILURE')
+        def attach(self,pid):
+            self.mode='attached';self.pid=pid
+            events.append(('attach',self))
+        async def adopt(self):
+            events.append(('adopt',self))
+            if self.fail:
+                self.pending=True
+                raise ValueError('PRIMARY_ADOPTION_FAILURE')
+            return {'adopted':True}
+        async def status(self):
+            events.append(('native_status',self))
+            return {'mode':self.mode,'pid':self.pid}
+        async def list_parts(self,*args):
+            events.append(('native_tool',self))
+            return {}
+        def close(self):
+            events.append(('close',self))
+            if self.pending:
+                if cleanup=='error':raise RuntimeError('CLEANUP_UNKNOWN')
+                return {'close_blocked':True,'pending_work':['native task']}
+            self.dead=True
+            return {'detached':True}
+    monkeypatch.setattr(server,'Runtime',PendingRuntime)
+    monkeypatch.setattr(server.bridge,'find_open_vroid',lambda _:[{'pid':100,'path':'E:/stub/VRoidStudio.exe'}])
+    monkeypatch.setattr(server.bridge,'validate_assembly',lambda _:None)
+    mcp=server.create_server(tmp_path,'F00')
+    async def invoke(name,**args):return await mcp._tool_manager.get_tool(name).fn(**args)
+    async def scenario():
+        with pytest.raises(ValueError,match='PRIMARY_'):
+            await invoke('attach_open_vroid',pid=100) if phase=='adoption' else await invoke('get_status')
+        retained=instances[-1]
+        script,session,pins=retained.script,retained.session,retained.pins
+        count,previous=len(instances),list(events)
+        status=await invoke('get_status')
+        assert status['pending_session'] and status['writes_blocked'] and not status['model_ready']
+        with pytest.raises(RuntimeError,match='SESSION_CLEANUP_PENDING'):
+            await invoke('list_parts',expected_model='live')
+        assert events==previous and len(instances)==count and instances[-1] is retained
+        assert (retained.script,retained.session,retained.pins)==(script,session,pins) and not retained.dead
+        retained.pending=False;PendingRuntime.fail=False
+        result=await invoke('restart_session',discard_unsaved=True)
+        assert not result.get('close_blocked') and instances[-1] is not retained
+        assert not (await invoke('get_status')).get('pending_session')
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('liveness',['absent','alive','unknown'])
+def test_restart_of_disconnected_owned_copy_requires_actual_process_absence(tmp_path,monkeypatch,liveness):
+    from vroid_mcp import bridge
+    from vroid_mcp.runtime import Runtime
+    instances=[];events=[]
+    class Device:
+        def get_process(self,pid):
+            events.append(('probe',pid))
+            if liveness=='absent':raise bridge.frida.ProcessNotFoundError('already exited')
+            if liveness=='unknown':raise RuntimeError('liveness unknown')
+            return object()
+        def kill(self,*args):raise AssertionError('must not kill a disconnected/reused PID')
+    class Pin:
+        def __exit__(self,*args):events.append('pin_released')
+    class FakeNativeRuntime(Runtime):
+        def __init__(self,lab):
+            super().__init__(lab)
+            instances.append(self)
+        def start(self):
+            events.append(('start',self))
+            self.owns_process=True;self.pid=123;self.device=Device()
+        async def initialize(self,*args):events.append(('initialize',self))
+        async def status(self):return {'mode':self.mode,'dead':self.dead}
+    monkeypatch.setattr(server,'Runtime',FakeNativeRuntime)
+    mcp=server.create_server(tmp_path,'F00')
+    async def invoke(name,**args):return await mcp._tool_manager.get_tool(name).fn(**args)
+    async def scenario():
+        await invoke('get_status')
+        retained=instances[-1];retained.dead=True
+        pin=Pin();retained._pending_custom_item_pins=[pin]
+        result=await invoke('restart_session',discard_unsaved=True)
+        if liveness=='absent':
+            assert not result.get('close_blocked') and len(instances)==2
+            assert retained._pending_custom_item_pins==[]
+            assert events.index('pin_released')<events.index(('start',instances[-1]))
+            assert result['dead'] is False
+        else:
+            assert result['close_blocked'] and len(instances)==1 and instances[-1] is retained
+            assert retained._pending_custom_item_pins==[pin]
+            assert 'pin_released' not in events
+            assert len([event for event in events if isinstance(event,tuple) and event[0]=='start'])==1
+        assert events.count(('probe',123))==1
+    asyncio.run(scenario())

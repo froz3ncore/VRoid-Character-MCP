@@ -77,10 +77,19 @@ DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorl
 
 def create_server(lab: Path, variant: str, model_file: Path | None = None) -> FastMCP:
     runtime = RuntimeHandle(Runtime(lab))
-    state = {'initialized': False}
+    state = {'initialized': False, 'retained_pending': None}
     session_gate = asyncio.Lock()
 
+    def retain_pending(phase, failure, cleanup):
+        state['retained_pending'] = {'phase': phase, 'error': str(failure), 'cleanup': cleanup}
+
+    def rebind_runtime():
+        runtime.rebind(Runtime(lab))
+        state.update(initialized=False, retained_pending=None)
+
     async def initialize_runtime() -> None:
+        if state['retained_pending'] is not None:
+            raise RuntimeError('SESSION_CLEANUP_PENDING: inspect get_status and explicitly close the retained session; automatic initialization is blocked')
         if state['initialized']:
             return
         try:
@@ -91,12 +100,14 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             try:
                 closed = await asyncio.to_thread(runtime.current.close)
             except BaseException as cleanup_error:
+                retain_pending('initialization', failure, {'cleanup_error': str(cleanup_error)})
                 failure.add_note('Session cleanup failed; runtime retained: ' + str(cleanup_error))
                 raise failure
             if closed.get('close_blocked'):
+                retain_pending('initialization', failure, closed)
                 failure.add_note('NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
                 raise
-            runtime.rebind(Runtime(lab))
+            rebind_runtime()
             raise
 
     @asynccontextmanager
@@ -125,7 +136,11 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             @wraps(function)
             async def ready(*args, **kwargs):
                 async with session_gate:
-                    await initialize_runtime()
+                    # A failed, uninitialized session can still own native work.
+                    # Status is a synthetic recovery receipt in that state; every
+                    # ordinary tool is blocked before startup or native dispatch.
+                    if not (state['retained_pending'] is not None and function.__name__ == 'get_status'):
+                        await initialize_runtime()
                     current = runtime.current
                     edit = options.get('annotations') and not options['annotations'].readOnlyHint
                     receipt = None
@@ -185,8 +200,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             closed = await asyncio.to_thread(current.close)
             if closed.get('close_blocked'):
                 return {**closed, 'attached': False}
-            runtime.rebind(Runtime(lab))
-            state['initialized'] = False
+            rebind_runtime()
             try:
                 await asyncio.to_thread(runtime.current.attach, pid)
                 adopted = await runtime.current.adopt()
@@ -197,12 +211,14 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 try:
                     closed = await asyncio.to_thread(runtime.current.close)
                 except BaseException as cleanup_error:
+                    retain_pending('adoption', failure, {'cleanup_error': str(cleanup_error)})
                     failure.add_note('Attachment cleanup failed; runtime retained: ' + str(cleanup_error))
                     raise failure
                 if closed.get('close_blocked'):
+                    retain_pending('adoption', failure, closed)
                     failure.add_note('NATIVE_WORK_PENDING; attached runtime retained: ' + str(closed))
                     raise
-                runtime.rebind(Runtime(lab))
+                rebind_runtime()
                 raise
 
     @mcp.tool(annotations=EDIT)
@@ -214,8 +230,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             closed = await asyncio.to_thread(runtime.current.close)
             if closed.get('close_blocked'):
                 return closed
-            runtime.rebind(Runtime(lab))
-            state['initialized'] = False
+            rebind_runtime()
             return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
 
     @mcp.tool(annotations=DESTRUCTIVE)
@@ -232,16 +247,14 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 closed = await asyncio.to_thread(runtime.current.close)
                 if closed.get('close_blocked'):
                     return closed
-                runtime.rebind(Runtime(lab))
-                state['initialized'] = False
+                rebind_runtime()
                 return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
             if discard_unsaved is not True:
                 raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
             closed = await asyncio.to_thread(runtime.current.close)
             if closed.get('close_blocked'):
                 return closed
-            runtime.rebind(Runtime(lab))
-            state['initialized'] = False
+            rebind_runtime()
             await initialize_runtime()
             return await runtime.current.status()
 
@@ -253,7 +266,13 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         cached an older tool list can tell whether it needs to reload instead of
         guessing.
         """
-        status = await runtime.current.status()
+        if state['retained_pending'] is not None:
+            status = {'mode': runtime.current.mode, 'pid': getattr(runtime.current, 'pid', None),
+                'model_ready': False, 'writes_blocked': True, 'pending_session': True,
+                'reason': 'SESSION_CLEANUP_PENDING', 'retained_session': state['retained_pending'],
+                'recovery': 'Explicit detach_open_vroid for attached sessions, or restart_session(discard_unsaved=true) for an owned copy; cleanup must succeed before another session starts'}
+        else:
+            status = await runtime.current.status()
         try:
             status.update(await toolset.live_summary(mcp))
         except Exception as error:  # tool enumeration must never hide model state
