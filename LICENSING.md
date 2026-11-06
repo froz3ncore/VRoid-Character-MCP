@@ -58,3 +58,23 @@ archives stay local. The selected native screenshots under `assets/showcase/`
 are included as visual documentation; see that directory's README and
 SOURCES.json for their origins. They are excluded from the code's MIT grant
 and do not convey a licence to the characters, clothing or VRoid Studio.
+
+## mcjo79 capability migration
+
+The migration reference is [mcjo79/vroid-mcp](https://github.com/mcjo79/vroid-mcp)
+at commit `0dc7d5eb3cf27f7f943713960cac1b65f479a876`, whose MIT notice names
+Copyright (c) 2026 mcjo79 and vroid-mcp contributors. Its complete LICENSE is
+preserved by file-level copy in
+[licenses/mcjo79-0dc7d5e.txt](licenses/mcjo79-0dc7d5e.txt).
+[MIGRATION.md](MIGRATION.md) records source files, destination ownership and
+per-capability implementation/verification state. The Task 1 documentation
+adapts the source's capability contract; no source runtime implementation has
+yet been incorporated. Each later task must identify the actual transferred
+files and update this provenance rather than imply that a plan is shipped code.
+
+The Python MCP, Frida and JavaScript architecture remains the control kernel.
+The source BepInEx/Harmony/HTTP runtime is not incorporated. This attribution
+does not replace the brainrom or Karylcode notices, change the historic
+unlicensed-baseline record, or grant rights to VRoid binaries, native preset
+images, user custom items or generated character assets. Catalog images must
+remain local unless separately licensed for redistribution.

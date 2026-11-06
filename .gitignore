@@ -84,4 +84,5 @@ temp/
 !/docs/superpowers/
 !/docs/superpowers/**/
 !/docs/superpowers/**/*.md
+# Keep the capability matrix beside its versioned design and provenance.
 !/MIGRATION.md

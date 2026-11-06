@@ -27,6 +27,18 @@ Third-party components and data in this repository
 4. frida (PyPI) and mcp (PyPI) are declared dependencies; their licenses are
    their own.
 
+5. mcjo79/vroid-mcp
+   https://github.com/mcjo79/vroid-mcp
+   Reference revision: 0dc7d5eb3cf27f7f943713960cac1b65f479a876.
+   Copyright (c) 2026 mcjo79 and vroid-mcp contributors, MIT.
+   The complete source LICENSE is retained by file-level copy in
+   licenses/mcjo79-0dc7d5e.txt. MIGRATION.md records all 53 source tools,
+   source-file/destination ownership, planned adaptations and their evidence.
+   At Task 1 only the capability/provenance documentation is adapted; runtime
+   adaptations remain planned. Later tasks must update that record when code
+   or behavior is transferred. The BepInEx/Harmony/HTTP control framework is
+   not incorporated.
+
 VRoid Studio, its assemblies and the VRM format are not distributed here.
 Character assets, textures and Blender files produced during development stay
 local and are excluded by .gitignore.
