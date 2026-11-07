@@ -1,7 +1,7 @@
 # Licensing and project ancestry
 
-VRoid Character MCP is maintained at
-https://github.com/froz3ncore/VRoid-Character-MCP.
+This [BunnyBlack fork](https://github.com/BunnyBlack/VRoid-Character-MCP) adapts
+the [froz3ncore VRoid Character MCP](https://github.com/froz3ncore/VRoid-Character-MCP).
 
 ## Status: reimplementation complete
 
@@ -31,8 +31,8 @@ of the later revision.
 The historical rewrite was behaviour-driven: its then-published tool contract (86 tools and
 their JSON schemas) was captured before each step and compared afterwards, with
 unit tests, the read-only native domain check and a clean-lab run to an exported
-VRM as the other gates. `REWRITE.md` records the order and the gates. The current
-103-tool development contract and acceptance scope are described in [SCOPE.md](SCOPE.md).
+VRM as the other gates. `REWRITE.md` records the order and the gates. The later
+103-tool upstream baseline and its acceptance scope are described in [SCOPE.md](SCOPE.md).
 
 ## What the licence covers
 
@@ -67,10 +67,10 @@ Copyright (c) 2026 mcjo79 and vroid-mcp contributors. Its complete LICENSE is
 preserved by file-level copy in
 [licenses/mcjo79-0dc7d5e.txt](licenses/mcjo79-0dc7d5e.txt).
 [MIGRATION.md](MIGRATION.md) records source files, destination ownership and
-per-capability implementation/verification state. The Task 1 documentation
-adapts the source's capability contract; no source runtime implementation has
-yet been incorporated. Each later task must identify the actual transferred
-files and update this provenance rather than imply that a plan is shipped code.
+per-capability implementation/verification state. Runtime adaptations include
+ordinary export options, group and material editing, hair controls, camera
+capture, preset catalog storage and framing. The matrix distinguishes those
+adaptations from existing target behavior and records the limits of verification.
 
 The Python MCP, Frida and JavaScript architecture remains the control kernel.
 The source BepInEx/Harmony/HTTP runtime is not incorporated. This attribution

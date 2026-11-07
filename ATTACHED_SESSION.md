@@ -1,9 +1,9 @@
 # Existing VRoid sessions, parts and ordinary VRM export
 
-Current source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`),
-**103 tools**. Local native evidence is dated 2026-10-28; independent external-user
-acceptance remains pending. Version/documentation changes alone do not rerun
-that native evidence.
+The native results on this page date from the 103-tool upstream **0.5.0.dev0**
+snapshot (2026-10-28). Independent external-user acceptance remains pending.
+The [fork's migration matrix](MIGRATION.md) covers subsequent changes, including
+ordinary export options, and identifies the checks still required on a real copy.
 
 The default session is still a dedicated lab copy. `attach_open_vroid(pid=None)`
 explicitly switches to a compatible VRoid Studio process the user opened. It

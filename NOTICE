@@ -33,11 +33,11 @@ Third-party components and data in this repository
    Copyright (c) 2026 mcjo79 and vroid-mcp contributors, MIT.
    The complete source LICENSE is retained by file-level copy in
    licenses/mcjo79-0dc7d5e.txt. MIGRATION.md records all 53 source tools,
-   source-file/destination ownership, planned adaptations and their evidence.
-   At Task 1 only the capability/provenance documentation is adapted; runtime
-   adaptations remain planned. Later tasks must update that record when code
-   or behavior is transferred. The BepInEx/Harmony/HTTP control framework is
-   not incorporated.
+   the source files used for each adaptation, destination modules and evidence.
+   Adaptations include native edit and export workflows, image processing,
+   camera control, preset catalog storage and category framing. The target
+   retains its Python/Frida backend; the source BepInEx/Harmony/HTTP control
+   framework is not incorporated.
 
 VRoid Studio, its assemblies and the VRM format are not distributed here.
 Character assets, textures and Blender files produced during development stay
