@@ -13,6 +13,7 @@ then native-icon. Situation callers own native/restoration verification.
 """
 import asyncio
 from contextlib import asynccontextmanager, contextmanager, ExitStack
+from contextvars import ContextVar
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
@@ -22,6 +23,7 @@ from pathlib import Path, PurePosixPath
 import re
 import struct
 import tempfile
+import threading
 import time
 import zlib
 import uuid
@@ -30,6 +32,36 @@ from . import catalog_framing as framing
 
 STATUSES = {'new','changed','unchanged','removed','returned','unknown'}
 MAX_ROWS = 20000
+
+
+class _CustomDispatchLease:
+    """The worker or the unwinding waiter takes sole ownership of this lock."""
+    def __init__(self, resources):
+        self.resources = resources
+        self.guard = threading.Lock()
+
+    def take(self):
+        with self.guard:
+            resources, self.resources = self.resources, None
+            return resources
+
+
+_custom_dispatch = ContextVar('vroid_custom_dispatch', default=None)
+
+
+def bind_custom_selection_export(export):
+    """Capture the task-local authorization before scheduling the sync export."""
+    lease = _custom_dispatch.get()
+    if lease is None:  # The filename API has no catalog selection.
+        return export
+
+    def run(operation, payload):
+        resources = lease.take()
+        if resources is None:
+            raise RuntimeError('CUSTOM_ITEM_CATALOG_DISPATCH_EXPIRED')
+        with resources:
+            return export(operation, payload)
+    return run
 
 
 def _now():
@@ -297,7 +329,17 @@ class PresetCatalog:
             current = await asyncio.to_thread(self.current_custom, observed['key'])
             if any(current[k] != observed[k] for k in ('scan_id','fingerprint','source','id')):
                 raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_CHANGED')
-            yield
+            # An asyncio cancellation or timeout can unwind this scope while
+            # Frida's synchronous export is still selecting the item in a thread.
+            lease = _CustomDispatchLease(stack.pop_all())
+            token = _custom_dispatch.set(lease)
+            try:
+                yield
+            finally:
+                _custom_dispatch.reset(token)
+                unused = lease.take()
+                if unused is not None:
+                    unused.close()
 
     def _situation_candidates(self, category):
         """Private complete bounded snapshot; public search remains capped at 200."""

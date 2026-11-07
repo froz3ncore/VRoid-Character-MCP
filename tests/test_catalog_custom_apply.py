@@ -5,6 +5,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from types import SimpleNamespace
 
 import pytest
 from test_custom_item_generation import archive
@@ -167,3 +169,91 @@ def test_catalog_dispatch_wait_yields_event_loop_and_is_cancellable(tmp_path,mon
         if not cancel:assert (await asyncio.wait_for(job,2))['applied']
     asyncio.run(run())
     with store.locked():pass
+
+
+@pytest.mark.parametrize('interruption',['cancel','timeout'])
+def test_catalog_lease_survives_interrupted_real_bridge_export(tmp_path,monkeypatch,interruption):
+    from vroid_mcp import bridge
+    manager,key,calls=setup(tmp_path,monkeypatch,'copy')
+    rt=server.Runtime(tmp_path)
+    original=rt._call
+    store=PresetCatalog(tmp_path/'preset_cache',lock_timeout=.12)
+    source=store.get(key)['source']
+    entered,resume,finished=(threading.Event() for _ in range(3))
+    removed_at_selection=[]
+    def export(operation,payload):
+        try:
+            assert operation=='apply_registered_custom_item'
+            entered.set()
+            if not resume.wait(8):raise AssertionError('selector timed out')
+            removed_at_selection.append(store.get(key)['removed'])
+            return {'frame':3}
+        finally:finished.set()
+    async def native(operation,payload):
+        if operation=='apply_registered_custom_item':
+            return await bridge.call(rt,operation,payload)
+        return await original(operation,payload)
+    rt._call=native
+    rt.script=SimpleNamespace(exports_sync=SimpleNamespace(call=export))
+    if interruption=='timeout':
+        monkeypatch.setitem(bridge.SLOW_OPERATIONS,'apply_registered_custom_item',.2)
+    def retire():
+        store.sync([],source,{'builtin':True,'custom':True})
+    async def run():
+        job=asyncio.create_task(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))
+        try:
+            assert await asyncio.to_thread(entered.wait,4)
+            if interruption=='cancel':
+                job.cancel()
+                with pytest.raises(asyncio.CancelledError):await job
+            else:
+                with pytest.raises(RuntimeError,match='Native call timed out'):await job
+            assert rt.uncertain and rt._pending_custom_item_pins
+            with pytest.raises(TimeoutError,match='CATALOG_LOCK_TIMEOUT'):
+                await asyncio.to_thread(retire)
+        finally:
+            resume.set()
+            assert await asyncio.to_thread(finished.wait,4)
+        await asyncio.to_thread(retire)
+        assert store.get(key)['removed'] and removed_at_selection==[False]
+    try:asyncio.run(run())
+    finally:
+        for pin in getattr(rt,'_pending_custom_item_pins',[]):pin.__exit__(None,None,None)
+
+
+def test_deferred_selection_cannot_start_after_waiter_releases_unclaimed_lease(tmp_path,monkeypatch):
+    from vroid_mcp import bridge
+    manager,key,calls=setup(tmp_path,monkeypatch,'copy')
+    rt=server.Runtime(tmp_path)
+    original=rt._call
+    to_thread=asyncio.to_thread
+    submitted=asyncio.Event()
+    queued=[]
+    selected=[]
+    async def defer(function,*args,**kwargs):
+        if args and args[0]=='apply_registered_custom_item':
+            # The host has submitted the closure, but the worker has yet to claim it.
+            queued.append((function,args))
+            submitted.set()
+            await asyncio.Future()
+        return await to_thread(function,*args,**kwargs)
+    async def native(op,args):
+        if op=='apply_registered_custom_item':return await bridge.call(rt,op,args)
+        return await original(op,args)
+    rt._call=native
+    rt.script=SimpleNamespace(exports_sync=SimpleNamespace(call=lambda op,args:selected.append(op)))
+    monkeypatch.setattr(bridge.asyncio,'to_thread',defer)
+    store=PresetCatalog(tmp_path/'preset_cache',lock_timeout=.12)
+    async def run():
+        job=asyncio.create_task(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))
+        await asyncio.wait_for(submitted.wait(),4)
+        job.cancel()
+        with pytest.raises(asyncio.CancelledError):await job
+        store.sync([],store.get(key)['source'],{'builtin':True,'custom':True})
+        function,args=queued[0]
+        with pytest.raises(RuntimeError,match='DISPATCH_EXPIRED'):
+            await to_thread(function,*args)
+        assert store.get(key)['removed'] and not selected
+    try:asyncio.run(run())
+    finally:
+        for pin in getattr(rt,'_pending_custom_item_pins',[]):pin.__exit__(None,None,None)

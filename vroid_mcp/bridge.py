@@ -321,8 +321,11 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
             await asyncio.sleep(.05)
     edit_sequence.before_call(subject, operation, payload)
     try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(subject.script.exports_sync.call, operation, payload), timeout)
+        export = subject.script.exports_sync.call
+        if operation == 'apply_registered_custom_item':
+            from .preset_catalog import bind_custom_selection_export
+            export = bind_custom_selection_export(export)
+        result = await asyncio.wait_for(asyncio.to_thread(export, operation, payload), timeout)
         edit_sequence.after_call(subject, operation, payload, result)
         return result
     except asyncio.TimeoutError:
