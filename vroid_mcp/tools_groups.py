@@ -66,6 +66,14 @@ def register(ready_tool, runtime, lab, read, edit):
         return await runtime.apply_custom_item(expected_model, filename)
 
     @ready_tool(annotations=edit)
+    async def apply_custom_item_by_key(expected_model: str, key: str) -> dict:
+        """Apply a current custom key from search_preset_cache to its scanned model.
+
+        Both session modes require the same live registered file, revisions and bytes.
+        """
+        return await runtime.apply_custom_item_by_key(expected_model, key)
+
+    @ready_tool(annotations=edit)
     async def set_body_size(expected_model: str, height_cm: PhysicalValue, weight_kg: PhysicalValue | None = None,
                             variant: Literal['F00','M00'] = 'F00') -> dict:
         """Solve silhouette FigureHeight/FigureSlender with live native height feedback.

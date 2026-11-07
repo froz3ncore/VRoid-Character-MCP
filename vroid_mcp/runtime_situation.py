@@ -19,7 +19,7 @@ import base64
 
 from .catalog_framing import category as validate_category
 from .capture_quality import decode_capture
-from .custom_item_file import inspect_custom_item, pinned_application
+from .custom_item_file import pinned_application
 from .preset_catalog import PresetCatalog, MAX_ROWS, capture_identity
 from .lab_paths import _physical
 from .situation_proof import capture_proof, raster_evidence, definition, identity
@@ -130,9 +130,6 @@ class SituationTools:
         # Opaque preset IDs are from this run's complete sync, never reused
         # across the restoration/reopen generation boundary.
         if row['kind']=='custom':
-            info=inspect_custom_item(row['path'])
-            if info['sha256']!=row.get('sha256'):
-                raise ValueError('CUSTOM_ITEM_BYTES_OR_IDENTITY_CHANGED')
             result=await self._apply_custom_item_unlocked(expected,row['path'],catalog_row=row)
             registered=result['registered_item']
             if (registered['id']!=row['id'] or registered['resource_name']!=row['resource_name']

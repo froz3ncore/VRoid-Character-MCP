@@ -267,6 +267,19 @@ class PresetCatalog:
         if key not in data['presets']: raise ValueError('UNKNOWN_CATALOG_KEY')
         return deepcopy(data['presets'][key])
 
+    def current_custom(self, key, expected_model):
+        _text(key, 'key', 8192)
+        data = self._load()  # Catalog generations are atomically replaced.
+        row = data['presets'].get(key)
+        if (not row or row['kind'] != 'custom' or row['removed']
+                or row['status'] not in ('new','changed','unchanged','returned')
+                or not data.get('scan_id') or row.get('scan_id') != data['scan_id']
+                or row['source'] != data['source'] or row['source']['session'] != expected_model
+                or not all(row.get(field) is True for field in ('registered','owned','usable','selectable'))
+                or not _digest(row.get('sha256'))):
+            raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_STALE_OR_UNUSABLE')
+        return row
+
     def _situation_candidates(self, category):
         """Private complete bounded snapshot; public search remains capped at 200."""
         framing.category(category)

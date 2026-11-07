@@ -204,7 +204,7 @@ def test_custom_gallery_binds_custom_and_group_resource_names_before_dispatch(tm
         id='custom-root',revision='g1',custom_revision='c1',resource_name='user/group',group_type=type,path=str(path),registered=True)]
     original=n.call
     async def native(op,args=None):
-        if op=='custom_item_state':return dict(model_token=n.token,files=[registered],base_path=str(profile))
+        if op=='custom_item_state':return dict(model_token=n.token,build='a'*64,files=[registered],base_path=str(profile))
         if op=='custom_item_validate_begin':return dict(model_token=n.token,request_id='custom',completed=True,compatible=True)
         if op=='apply_registered_custom_item':
             n.groups=[g for g in n.groups if g['type']!=type]

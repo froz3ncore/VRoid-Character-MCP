@@ -11,6 +11,36 @@ from pathlib import Path, PurePosixPath
 import stat
 import zipfile
 
+from .wear_paths import _filename, _physical
+
+
+def catalog_registration(catalog, snapshot, profile):
+    """Use the live registry to authorize a single path before inspecting any archive."""
+    if snapshot.get('build') != catalog['source']['build']:
+        raise ValueError('CUSTOM_ITEM_CATALOG_BUILD_CHANGED')
+    name = catalog['path']
+    matches = [r for r in snapshot['files'] if isinstance(r.get('path'),str)
+               and os.path.normcase(os.path.normpath(r['path'])) == os.path.normcase(os.path.normpath(name))]
+    if len(matches) != 1 or matches[0]['path'] != name:
+        raise ValueError('CUSTOM_ITEM_UNREGISTERED_OR_AMBIGUOUS')
+    row = matches[0]
+    for live, cached in (('id','id'), ('group_type','group_type'), ('revision','revision'),
+                         ('resource_name','resource_name'), ('custom_resource_name','resource'),
+                         ('custom_revision','custom_revision')):
+        if not isinstance(row.get(live),str) or not row[live] or row[live] != catalog.get(cached):
+            raise ValueError('CUSTOM_ITEM_CATALOG_IDENTITY_CHANGED')
+    if row.get('registered') is not True:
+        raise ValueError('CUSTOM_ITEM_UNREGISTERED_OR_AMBIGUOUS')
+    path, root = Path(row['path']), Path(snapshot['base_path'])
+    if (not path.is_absolute() or not root.is_absolute() or '..' in path.parts or '..' in root.parts
+            or not path.is_relative_to(root) or profile is not None and not root.is_relative_to(profile)):
+        raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY_OR_PROFILE')
+    _filename(path.name, ('.vroidcustomitem',))
+    _physical(path)
+    if path.resolve(strict=True) != path or path.stat().st_nlink != 1:
+        raise ValueError('CUSTOM_ITEM_PATH_ALIAS')
+    return row
+
 
 def inspect_custom_item(path, *, include_icon=False):
     path = Path(path).resolve(strict=True)

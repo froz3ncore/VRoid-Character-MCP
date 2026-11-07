@@ -3,7 +3,8 @@ import asyncio
 from pathlib import Path
 import time
 
-from .custom_item_file import inspect_custom_item, resolve_registered, pinned_application
+from .custom_item_file import catalog_registration, inspect_custom_item, resolve_registered, pinned_application
+from .preset_catalog import PresetCatalog
 from .file_paths import file_input
 from .exception_notes import add_exception_note
 from .group_validation import validate_changes
@@ -120,45 +121,46 @@ class GroupTools:
                     outcomes=outcomes, uncertain=self.uncertain)
 
     async def apply_custom_item(self, expected_model, filename):
-        # Catalog wrappers must pass their resolved registered identity, not an
-        # arbitrary path registered behind the user's back.
         async with self.lock:
             return await self._apply_custom_item_unlocked(expected_model, filename)
 
+    async def apply_custom_item_by_key(self, expected_model, key):
+        async with self.lock:
+            row = PresetCatalog(self.lab/'preset_cache').current_custom(key, expected_model)
+            result = await self._apply_custom_item_unlocked(expected_model, row['path'], catalog_row=row)
+            return dict(result, key=key, scan_id=row['scan_id'])
+
     async def _apply_custom_item_unlocked(self, expected_model, filename, *, catalog_row=None):
-        # Catalog wrappers must pass their resolved registered identity, not an
-        # arbitrary path registered behind the user's back.
         if catalog_row is None:
             path = file_input(self.lab, filename, ('.vroidcustomitem',), attached=self.mode == 'attached')
-        else:
-            # Internal catalog use: a full registered path must stay inside the
-            # owned profile and match the scanned byte/registration identity.
-            path=Path(filename).resolve(strict=True)
-            if self.mode!='copy' or not path.is_relative_to((self.lab/'profile').resolve()):
-                raise ValueError('CUSTOM_ITEM_PROFILE_MISMATCH')
-        info = inspect_custom_item(path)
+            info = inspect_custom_item(path)
         snapshot = await self._group_read('custom_item_state', expected_model)
-        row = resolve_registered(info, snapshot['files'])
-        if catalog_row is not None and (info['sha256']!=catalog_row.get('sha256')
-                or any(row.get(k)!=catalog_row.get(c) for k,c in (
-                    ('id','id'),('group_type','group_type'),('resource_name','resource_name'),
-                    ('revision','revision'),('custom_resource_name','resource'),
-                    ('custom_revision','custom_revision')))
-                or Path(row['path']).resolve()!=path):
-            raise ValueError('CUSTOM_ITEM_CATALOG_IDENTITY_CHANGED')
-        registered_path = Path(row['path']).resolve(strict=True)
-        root = Path(snapshot['base_path']).resolve(strict=True)
-        if not registered_path.is_relative_to(root):
-            raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY')
-        if self.mode != 'attached' and not root.is_relative_to((self.lab / 'profile').resolve()):
-            raise ValueError('CUSTOM_ITEM_PROFILE_MISMATCH')
-        args = {'expected_model': expected_model, 'registered_item': row,
-                'metadata': info['metadata'], 'sha256': info['sha256']}
+        if catalog_row is None:
+            row = resolve_registered(info, snapshot['files'])
+            registered_path = Path(row['path']).resolve(strict=True)
+            root = Path(snapshot['base_path']).resolve(strict=True)
+            if not registered_path.is_relative_to(root):
+                raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY')
+            if self.mode != 'attached' and not root.is_relative_to((self.lab / 'profile').resolve()):
+                raise ValueError('CUSTOM_ITEM_PROFILE_MISMATCH')
+        else:
+            profile = None if self.mode == 'attached' else self.lab / 'profile'
+            row = catalog_registration(catalog_row, snapshot, profile)
+            path = registered_path = Path(row['path'])
         dispatched, receipt = False, None
         validation_dispatched, validation_terminal, primary_error = False, False, None
         with pinned_application(self, registered_path):
-            if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
+            checked = inspect_custom_item(registered_path)
+            if catalog_row is not None:
+                if (checked['sha256'] != catalog_row['sha256']
+                        or checked['metadata']['rootTransferableGroupId'] != row['id']
+                        or checked['metadata']['rootTransferableGroupTypeId'] != row['group_type']):
+                    raise ValueError('CUSTOM_ITEM_CATALOG_BYTES_OR_IDENTITY_CHANGED')
+                info = checked
+            elif checked['sha256'] != info['sha256']:
                 raise ValueError('CUSTOM_ITEM_CHANGED')
+            args = {'expected_model': expected_model, 'registered_item': row,
+                    'metadata': info['metadata'], 'sha256': info['sha256']}
             try:
                 # The reader may start even if dispatch loses its reply.
                 # Validation lifetime is independent of model mutation.
@@ -179,6 +181,10 @@ class GroupTools:
                     raise ValueError('CUSTOM_ITEM_INCOMPATIBLE: ' + str(result.get('error')))
                 if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
                     raise ValueError('CUSTOM_ITEM_CHANGED')
+                if catalog_row is not None:
+                    current = PresetCatalog(self.lab/'preset_cache').current_custom(catalog_row['key'], expected_model)
+                    if any(current[k] != catalog_row[k] for k in ('scan_id','fingerprint','source','id')):
+                        raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_CHANGED')
                 self.body_edited_tokens.add(expected_model)
                 dispatched = True
                 started = await self._call('apply_registered_custom_item', {**args, 'request_id': receipt})

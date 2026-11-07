@@ -24,7 +24,7 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         }} finally {it.method('Dispose').invoke();}
         const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();
         const parts=listParts(args).parts.filter(p=>allowed.method('Contains').invoke(Il2Cpp.string(p.group_type)));
-        return {model_token:m.token,base_path:text(registry.field('_basePath').value),parts,files,
+        return {model_token:m.token,build:VROID_ASSEMBLY_SHA256,base_path:text(registry.field('_basePath').value),parts,files,
             source_file_path:text(m.file.field('path').value),
             unsaved:m.main.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke()};
     }
