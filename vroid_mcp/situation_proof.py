@@ -20,16 +20,18 @@ def definition(value, version=True):
     if not version:return {k:root[k] for k in keys}
     members=value.get('members')
     if (value.get('revision_verified') is not True or not isinstance(members,list)
-            or not 1<=len(members)<=512 or len({g.get('id') for g in members})!=len(members)):
+            or not 1<=len(members)<=512):
         raise ValueError('SITUATION_MEMBER_VERSION_UNPROVEN')
     normalized=[]
     for group in members:
-        if (any(not isinstance(group.get(k),str) or not group[k] for k in (*keys,'revision'))
+        if (not isinstance(group,dict) or any(not isinstance(group.get(k),str) or not group[k] for k in (*keys,'revision'))
                 or group.get('updated_since_last_revision') is not False):
             raise ValueError('SITUATION_MEMBER_VERSION_UNPROVEN')
         normalized.append({k:group[k] for k in (*keys,'revision','updated_since_last_revision')})
+    if len({g['id'] for g in normalized}) != len(normalized):
+        raise ValueError('SITUATION_MEMBER_VERSION_UNPROVEN')
     normalized.sort(key=lambda g:g['id'])
-    if identity(root) not in {identity(g) for g in normalized}:raise ValueError('SITUATION_ROOT_VERSION_UNPROVEN')
+    if not any(identity(root)==identity(g) for g in normalized):raise ValueError('SITUATION_ROOT_VERSION_UNPROVEN')
     return {'root':{k:root[k] for k in (*keys,'revision','updated_since_last_revision')},'members':normalized}
 
 

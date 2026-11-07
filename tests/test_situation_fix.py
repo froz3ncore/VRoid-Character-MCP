@@ -225,6 +225,31 @@ def test_offline_preferred_image_drops_stale_framing_after_independent_change(tm
     with pytest.raises(ValueError,match='UNAVAILABLE'):s.resolve_image(n.rows[0]['resource'])
 
 
+@pytest.mark.parametrize('icon', [True, False])
+def test_malformed_situation_members_preserve_separate_native_icon(tmp_path, icon):
+    n = Native(tmp_path)
+    assert run(n)['processed'] == 1
+    store = PresetCatalog(tmp_path / 'preset_cache')
+    key = n.rows[0]['resource']
+    row = store.get(key)
+    historical = store.root / row['images']['situation']['path']
+    original = historical.read_bytes()
+    if icon:
+        store.publish_image(key, png(), {'kind':'native-icon', 'source':'native'}, row['fingerprint'])
+    for member in (None, {}, {'id':[]}, {'id':{}}):
+        with store.locked():
+            catalog = store._load()
+            catalog['presets'][key]['images']['situation']['membership']['members'] = [member]
+            store._write(store.path, catalog)
+        if icon:
+            image, data = store.resolve_image(key)
+            assert image['kind'] == 'native-icon' and data == png()
+        else:
+            with pytest.raises(ValueError, match='CATALOG_IMAGE_UNAVAILABLE'):
+                store.resolve_image(key)
+        assert historical.read_bytes() == original
+
+
 def test_single_color_subject_on_transparent_background_is_not_a_uniform_frame():
     from vroid_mcp.texture_mapping import png_rgba
     from vroid_mcp.situation_proof import raster_evidence

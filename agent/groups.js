@@ -197,15 +197,26 @@ function createGroupApi(H) {
             table.set(key,prop(item,'Value'));
         }
         const enumType=cls('VRoidCore','VRoidCore.Common.TransferableTypes.TransferableGroupEntryType');
+        function discriminator(value) {
+            const owner = value?.type?.class;
+            if (enumType.handle && (!owner?.isEnum || !enumType.handle.equals(owner.handle)))
+                throw Error('SITUATION_ENTRY_ENUM_TYPE_MISMATCH');
+            // Literal field reads and managed return values own different
+            // ValueType storage even when they represent the same named enum.
+            const number = owner?.isEnum ? value.field('value__').value : value;
+            if (!Number.isInteger(number)) throw Error('SITUATION_ENTRY_ENUM_VALUE_INVALID');
+            return number;
+        }
         const types=new Map(['TransferableGroup','Transferable','Clear','ClearByResourceName','RecommendedTransferableGroup']
-            .map(name=>[enumType.field(name).value,name]));
+            .map(name=>[discriminator(enumType.field(name).value),name]));
+        if (types.size !== 5) throw Error('SITUATION_ENTRY_ENUM_AMBIGUOUS');
         const read=id=>{
             const group=table.get(id);if(!group)throw Error('SITUATION_MEMBER_DEFINITION_UNAVAILABLE');
             const header=prop(group,'Header'),custom=prop(header,'Custom');
             return {id:str(prop(header,'Id')),resource_name:str(prop(header,'ResourceName')),type:str(prop(group,'TypeId')),
                 revision:str(prop(custom,'Revision')),updated_since_last_revision:prop(custom,'UpdatedSinceLastRevision'),
                 entries:sequence(prop(group,'Entries'),4096).map(entry=>{
-                    const type=types.get(prop(entry,'Type'));
+                    const type=types.get(discriminator(prop(entry,'Type')));
                     return {type,id:type==='TransferableGroup'?str(prop(entry,'TransferableGroupId')):null};
                 })};
         };return {read,table};

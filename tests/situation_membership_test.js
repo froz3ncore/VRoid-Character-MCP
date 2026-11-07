@@ -79,6 +79,22 @@ const catalog=new N({}, {GetTransferableGroupByName:name=>catalogEntry});
 context.methods.get_RestorationInfo=()=>new N({AssetStorage:new N({AssetCatalog:catalog})});
 const candidate={id:'set',resource_name:'set/resource'};
 assert.equal(api.operations.list_groups({expected_model:'token',situation_candidate:candidate}).situation_definition.revision_verified,true);
+// IL2CPP returns a fresh ValueType wrapper on every literal or getter read.
+const handles = name => ({equals: other => other?.name === name, name});
+const enumClass = {isEnum:true, handle:handles('entry')};
+const codes = {TransferableGroup:41, Transferable:72, Clear:83, ClearByResourceName:94, RecommendedTransferableGroup:105};
+const wrapped = (code, owner=enumClass) => ({type:{class:owner}, field:name=>{
+    assert.equal(name,'value__');return {value:code};
+}});
+enumClass.field = name => ({value:wrapped(codes[name])});
+const wrappedApi = createGroupApi({model:()=>({token:'token',context}),cls:()=>enumClass,text:x=>x,presetEntries:()=>[]}).operations;
+stored[1].fields.Entries[0].methods.get_Type=()=>wrapped(72);
+for (const [code, owner, verified] of [[41,enumClass,true], [41,{isEnum:true,handle:handles('alien')},false],
+        [83,enumClass,false], [94,enumClass,false], [105,enumClass,false], [999,enumClass,false]]) {
+    edge.methods.get_Type=()=>wrapped(code,owner);
+    assert.equal(wrappedApi.list_groups({expected_model:'token',situation_root:root}).situation_membership.verified,verified);
+    assert.equal(wrappedApi.list_groups({expected_model:'token',situation_candidate:candidate}).situation_definition.revision_verified,verified);
+}
 catalogEntry.fields.id='other';
 assert.equal(api.operations.list_groups({expected_model:'token',situation_candidate:candidate}).situation_definition.verified,false);
 catalogEntry.fields.id='set';active.fields.TransferableGroups=[];
