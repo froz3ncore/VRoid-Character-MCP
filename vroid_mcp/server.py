@@ -79,9 +79,9 @@ EDIT = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
 
 
-async def _acquire_runtime(function, *args):
-    """Keep the session gate until the exact acquiring thread has stopped."""
-    worker = asyncio.create_task(asyncio.to_thread(function, *args))
+async def _finish_owned(operation):
+    """Hold the caller's session gate through the full lifecycle transaction."""
+    worker = asyncio.create_task(operation)
     try:
         return await asyncio.shield(worker)
     except asyncio.CancelledError as cancelled:
@@ -94,7 +94,7 @@ async def _acquire_runtime(function, *args):
                 except Exception:
                     break
         if not worker.cancelled() and worker.exception() is not None:
-            add_exception_note(cancelled, 'Acquisition worker failed: ' + str(worker.exception()))
+            add_exception_note(cancelled, 'Session worker failed: ' + str(worker.exception()))
         raise
 
 
@@ -123,6 +123,35 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         runtime.rebind(Runtime(lab))
         state.update(initialized=False, retained_pending=None)
 
+    async def close_runtime(phase='teardown', failure=None, *, rebind=True):
+        async def finish():
+            try:
+                closed = await asyncio.to_thread(runtime.current.close)
+            except BaseException as error:
+                retain_pending(phase, failure or error, {'cleanup_error': str(error)})
+                if failure is not None:
+                    add_exception_note(failure, 'Session cleanup failed; runtime retained: ' + str(error))
+                raise
+            if closed.get('close_blocked'):
+                if failure is not None:
+                    retain_pending(phase, failure, closed)
+                    add_exception_note(failure, 'NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
+            elif rebind:
+                rebind_runtime()
+            return closed
+        # Rebinding/retaining belongs to the owned operation too. The client
+        # can disappear after release succeeds but before its result is delivered.
+        return await _finish_owned(finish())
+
+    async def cleanup_failed(phase, failure):
+        try:
+            with CancelScope(shield=True):
+                await close_runtime(phase, failure)
+        except BaseException:
+            # close_runtime already reconciled the exact worker result. Preserve
+            # the original failure, including any notes from blocked cleanup.
+            raise failure
+
     async def initialize_runtime(explicit=False) -> None:
         if state['retained_pending'] is not None:
             raise RuntimeError('SESSION_CLEANUP_PENDING: inspect get_status and explicitly close the retained session; automatic initialization is blocked')
@@ -133,22 +162,11 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         if state['initialized']:
             return
         try:
-            await _acquire_runtime(runtime.current.start)
+            await _finish_owned(asyncio.to_thread(runtime.current.start))
             await runtime.current.initialize(variant, model_file)
             state['initialized'] = True
         except BaseException as failure:
-            try:
-                with CancelScope(shield=True):
-                    closed = await _acquire_runtime(runtime.current.close)
-            except BaseException as cleanup_error:
-                retain_pending('initialization', failure, {'cleanup_error': str(cleanup_error)})
-                add_exception_note(failure, 'Session cleanup failed; runtime retained: ' + str(cleanup_error))
-                raise failure
-            if closed.get('close_blocked'):
-                retain_pending('initialization', failure, closed)
-                add_exception_note(failure, 'NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
-                raise
-            rebind_runtime()
+            await cleanup_failed('initialization', failure)
             raise
 
     @asynccontextmanager
@@ -162,7 +180,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         finally:
             try:
                 async with session_gate():
-                    closed = await asyncio.to_thread(runtime.current.close)
+                    closed = await close_runtime(rebind=False)
                 if closed.get('close_blocked'):
                     raise RuntimeError('NATIVE_WORK_PENDING: runtime/session retained: ' + str(closed))
             except BaseException as cleanup_error:
@@ -260,12 +278,11 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             # Validate the executable before touching the current session.
             target = next(item for item in candidates if item['pid'] == pid)
             await asyncio.to_thread(bridge.validate_assembly, Path(target['path']).parent / 'GameAssembly.dll')
-            closed = await asyncio.to_thread(current.close)
+            closed = await close_runtime()
             if closed.get('close_blocked'):
                 return {**closed, 'attached': False}
-            rebind_runtime()
             try:
-                await _acquire_runtime(runtime.current.attach, pid)
+                await _finish_owned(asyncio.to_thread(runtime.current.attach, pid))
                 adopted = await runtime.current.adopt()
                 state['initialized'] = True
                 status = await runtime.current.status()
@@ -273,22 +290,10 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 return {**status, 'adopted': adopted,
                         'notice': 'Editing the real VRoid session; isolation guard is not loaded.'}
             except BaseException as failure:
-                try:
-                    with CancelScope(shield=True):
-                        closed = await _acquire_runtime(runtime.current.close)
-                except BaseException as cleanup_error:
-                    retain_pending('adoption', failure, {'cleanup_error': str(cleanup_error)})
-                    add_exception_note(failure, 'Attachment cleanup failed; runtime retained: ' + str(cleanup_error))
-                    raise failure
-                if closed.get('close_blocked'):
-                    retain_pending('adoption', failure, closed)
-                    add_exception_note(failure, 'NATIVE_WORK_PENDING; attached runtime retained: ' + str(closed))
-                    raise
-                rebind_runtime()
+                await cleanup_failed('adoption', failure)
                 raise
 
     def after_detach(closed):
-        rebind_runtime()
         next_action = ('Use restart_session(discard_unsaved=true) to start a new copy' if state['stopped']
                        else 'Next normal tool call starts a new copy')
         return {'detached': True, 'mode': 'copy', 'release': closed, 'next': next_action}
@@ -299,7 +304,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         async with session_gate():
             if runtime.current.mode != 'attached':
                 return {'detached': False, 'mode': runtime.current.mode}
-            closed = await asyncio.to_thread(runtime.current.close)
+            closed = await close_runtime()
             if closed.get('close_blocked'):
                 return closed
             return after_detach(closed)
@@ -316,16 +321,15 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         async with session_gate():
             if (runtime.current.mode == 'attached' and not getattr(runtime.current,'exit_stopped',False)
                     and not getattr(runtime.current,'exit_watch',None)):
-                closed = await asyncio.to_thread(runtime.current.close)
+                closed = await close_runtime()
                 if closed.get('close_blocked'):
                     return closed
                 return after_detach(closed)
             if discard_unsaved is not True:
                 raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
-            closed = await asyncio.to_thread(runtime.current.close)
+            closed = await close_runtime()
             if closed.get('close_blocked'):
                 return closed
-            rebind_runtime()
             await initialize_runtime(explicit=True)
             state['stopped'] = False
             return await runtime.current.status()

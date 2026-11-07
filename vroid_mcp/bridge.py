@@ -466,6 +466,9 @@ async def status(subject) -> dict:
 
 def close(subject) -> dict:
     # Kill only the process this subject spawned: never a name-based kill.
+    confirmed = getattr(subject, '_confirmed_close', None)
+    if confirmed is not None:
+        return dict(confirmed)
     outcome = {'mode': getattr(subject, 'mode', 'copy')}
     pinned = bool(getattr(subject, '_pending_custom_item_pins', []))
     def blocked(reason, **details):
@@ -541,12 +544,16 @@ def close(subject) -> dict:
                     return blocked('NATIVE_WORK_PENDING: disconnected owned process still exists')
             else:
                 return blocked('NATIVE_WORK_PENDING: owned process termination not established')
-    finally:
-        if not outcome.get('close_blocked'):
-            subject.dead = True
-            if subject.file_lock:
-                lab_lock.release(subject.file_lock)
-                subject.file_lock = None
+    except BaseException:
+        subject.uncertain = True
+        raise
+    subject.dead = True
+    if subject.file_lock:
+        lab_lock.release(subject.file_lock)
+        subject.file_lock = None
+    # A still-live user's PID is expected after a confirmed detach. Never
+    # infer successful cleanup from 'dead' alone; disconnection also sets it.
+    subject._confirmed_close = dict(outcome)
     return outcome
 
 
