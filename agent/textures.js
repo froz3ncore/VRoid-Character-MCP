@@ -68,8 +68,12 @@ globalThis.createTextureApi=H=>{
  }
  function scalar(type,value){const p=Memory.alloc(4);type==='float'?p.writeFloat(value):p.writeS32(value);return p;}
  function groups(m){return pairs(m.context.method('get_ActiveModel').invoke().method('get_TransferableGroups').invoke());}
- function region(m,id){const r=groups(m).find(r=>r.key===id);if(!r)throw Error('UNKNOWN_TEXTURE_REGION');return r;}
+ function region(m,id){
+  if(typeof id==='string'&&id.startsWith('["hair_material",')){materialApi.imagePaths(m,id);return {key:id,shared_material:true};}
+  const r=groups(m).find(r=>r.key===id);if(!r)throw Error('UNKNOWN_TEXTURE_REGION');return r;
+ }
  function imagePaths(m,r){
+  if(r.shared_material)return materialApi.imagePaths(m,r.key);
   const active=m.context.method('get_ActiveModel').invoke();
   const ids=[...new Set(seq(active.method('GetAllTransferableIdsInTransferableGroup').invoke(Il2Cpp.string(r.key))).map(s=>new Il2Cpp.String(s.handle).content))],images=[];
   for(const id of ids)for(const p of seq(q(m,'GetEditableImagePathsForTransferableQuery',[Il2Cpp.string(id).handle])))
@@ -88,8 +92,14 @@ globalThis.createTextureApi=H=>{
   }return rows;
  }
  const management=createLayerManagementApi({identity,region,imagePaths,layerRows,pathKey,nativeFieldOfType,stringProp,cls,invokeManaged,seq});
+ const {materialApi,rasterApi,rasterSnapshot}=createNativeTextureExtensions({...H,identity,region,layerRows,pathData,invokeStatic,scalar,seq});
  return {operations:{
   ...management.operations,
+  inspect_hair_materials:materialApi.inspect,
+  begin_clothing_edit:materialApi.beginClothing,
+  begin_hair_edit:materialApi.beginHair,
+  set_hair_material_color:materialApi.setColor,
+  replace_texture_layer:rasterApi.replace,
   export_renderer_texture(args){const m=identity(args),name=args.mesh_name,slot=args.material_slot;
    if(!['Face','Body','Hand','Foot'].includes(name)||!Number.isInteger(slot)||slot<0||slot>15)throw Error('INVALID_NATIVE_TEXTURE_TARGET');
    const origin=m.face.method('GetFaceSMR').invoke().method('get_transform').invoke().method('get_parent').invoke(),found=[];
@@ -285,12 +295,8 @@ globalThis.createTextureApi=H=>{
   })};},
   list_texture_layers(args){const m=identity(args),r=region(m,args.region_id);return {model_token:m.token,region_id:r.key,layers:layerRows(m,r).map(x=>x.data),composition_modes:management.describeModes(),folder_editing_supported:false};},
   export_texture_layer(args){const m=identity(args),r=region(m,args.region_id),row=layerRows(m,r).find(l=>l.data.layer_id===args.layer_id);if(!row)throw Error('UNKNOWN_TEXTURE_LAYER');
-   const texture=row.raw.method('CreateTexture2D').invoke();
-   try{const width=texture.method('get_width').invoke(),height=texture.method('get_height').invoke(),rgba=row.raw.method('ComposeTiles',0).invoke(),yes=Memory.alloc(1);yes.writeU8(1);
-    if(rgba.length!==width*height*4||width*height>4194304)throw Error('LAYER_PIXEL_COUNT_MISMATCH');
-    const bytes=invokeStatic(cls('VRoidCore','VRoidCore.Common.PNGUtil'),'SavePNGFromRGBABytes',[rgba.handle,yes,scalar('int',width),scalar('int',height)]);
-    return {model_token:m.token,region_id:r.key,layer:row.data,width,height,base64:Il2Cpp.corlib.class('System.Convert').method('ToBase64String').overload('System.Byte[]').invoke(bytes).content};
-   }finally{core('Object').method('DestroyImmediate',1).invoke(texture);}
+   const {rgba,...snapshot}=rasterSnapshot(m,row);
+   return {model_token:m.token,region_id:r.key,layer:row.data,...snapshot};
   }
  }};
 };

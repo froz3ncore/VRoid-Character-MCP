@@ -753,7 +753,7 @@ globalThis.vroid = (() => {
     const bodyReference = createBodyReferenceApi({ model: modelContext, cls, core, text, invokeManaged });
     const presetPreviews = createPresetPreviewApi({ model: modelContext, main: mainViewModel,
                                                      presetEntries: collectPresets, core, text });
-    const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged });
+    const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged, groupApi:()=>groups });
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
     const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
         details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status});
@@ -788,6 +788,16 @@ globalThis.vroid = (() => {
         ...bodyReference.operations,
         ...wear.operations,
         ...extended.operations,
+        list_hair_materials(args) {
+            const existing=extended.operations.list_hair_materials(args);
+            const exact=textureApi.operations.inspect_hair_materials(args);
+            const materials=existing.materials.map(row=>({...row,
+                ...exact.materials.find(material=>material.id===row.id)}));
+            for(const material of exact.materials)if(!materials.some(row=>row.id===material.id))materials.push(material);
+            return {...existing,count:materials.length,materials,
+                active_material_bindings:exact.materials,global_base_colors:exact.global_base_colors,
+                exact_scope:exact.scope};
+        },
         status,
         list_face_params: listParameters,
         set_face_params: applyChanges,
@@ -835,10 +845,10 @@ globalThis.vroid = (() => {
     const EDIT_OPERATION = new RegExp('^(set_(face|body|clothing)_params|apply_.*preset|add_shoe_template|'
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
         + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
-        + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
+        + 'open_texture_editor|close_texture_editor|import_texture_layer|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|save_as|undo|redo|'
         + 'preview_expression|set_group_parameters|remove_group|apply_registered_custom_item|apply_preserving_preset|restore_preset_materials|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
-        + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
+        + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|inspect_hair_materials)');
 
     function dressUpActive() {
         return wear.operations.get_wear_status().active;

@@ -43,6 +43,9 @@ AGENT_MODULES = (
     'capture_framing.js',
     'parameters.js',
     'texture_layers.js',
+    'texture_pixels.js',
+    'advanced_materials.js',
+    'texture_native.js',
     'textures.js',
     'wear.js',
     'body_reference.js',
@@ -273,12 +276,12 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
                 return {'model_ready': False, 'pid': subject.pid, 'current_state_unavailable': True,
                         'reason': 'ATTACHED_OS_MODAL_BLOCKED', 'window_state': window}
             raise RuntimeError('ATTACHED_OS_MODAL_BLOCKED: finish the open Windows dialog in VRoid first; nothing dispatched')
-        if operation in {'open_texture_editor', 'open_wear_project'} and not getattr(subject, 'native_png_decoder_ready', False):
+        if operation in {'open_texture_editor', 'begin_clothing_edit', 'begin_hair_edit', 'open_wear_project'} and not getattr(subject, 'native_png_decoder_ready', False):
             raise RuntimeError('ATTACHED_HISTORY_UNKNOWN: prior manual body and texture edits cannot be verified; use a fresh isolated copy for this transition')
         if operation in {'open_model', 'new_model', 'wear_clear_save_path'}:
             raise RuntimeError('ATTACHED_FILE_OPERATION_REFUSED: save in VRoid; file operations belong to the isolated copy')
     if getattr(subject, 'native_png_decoder_ready', False) and operation in {
-            'open_texture_editor', 'close_texture_editor', 'open_wear_project',
+            'open_texture_editor', 'begin_clothing_edit', 'begin_hair_edit', 'close_texture_editor', 'open_wear_project',
             'new_model', 'open_model', 'replace_with_file', 'replace_with_new_character', 'save_character', 'save_as', 'enter_vrm_export'}:
         deadline = time.monotonic() + 30
         while True:

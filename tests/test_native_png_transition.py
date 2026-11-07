@@ -7,7 +7,7 @@ from vroid_mcp.runtime import Runtime
 from vroid_mcp import edit_sequence
 
 
-@pytest.mark.parametrize('op', ['open_texture_editor', 'close_texture_editor', 'open_wear_project', 'save_as'])
+@pytest.mark.parametrize('op', ['open_texture_editor', 'begin_clothing_edit', 'begin_hair_edit', 'close_texture_editor', 'open_wear_project', 'save_as'])
 def test_transition_waits_for_png_callbacks_before_dispatch(tmp_path, op):
     subject = Runtime(tmp_path)
     subject.native_png_decoder_ready = True
@@ -44,3 +44,15 @@ def test_unverified_sessions_keep_guard_and_verified_attachment_can_transition(t
     subject.native_png_decoder_ready = True
     subject.mode = 'attached'
     edit_sequence.before_call(subject, 'open_texture_editor', {'expected_model': 'live'})
+
+
+@pytest.mark.parametrize('op', ['begin_clothing_edit', 'begin_hair_edit'])
+def test_conversion_preserves_cold_reopen_and_wear_process_guards(tmp_path, op):
+    subject = Runtime(tmp_path)
+    subject.body_edited_tokens.add('live')
+    with pytest.raises(RuntimeError, match='REOPEN_REQUIRED'):
+        edit_sequence.before_call(subject, op, {'expected_model': 'live'})
+    subject.body_edited_tokens.clear()
+    edit_sequence.after_call(subject, op, {'expected_model': 'live'}, {'screen_entered': False})
+    with pytest.raises(RuntimeError, match='NEW_PROCESS_REQUIRED'):
+        edit_sequence.before_call(subject, 'open_wear_project', {})
