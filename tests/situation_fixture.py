@@ -28,6 +28,8 @@ def optical_proof(profile):
         projection='perspective',projection_matrix=matrix,aspect=1,fov_degrees=30,near_clip=near,far_clip=far,
         source_span=span,region_world_top=top,region_world_bottom=bottom,effective_half_width=width,
         requested_distance=profile['distance']*span,requested_distance_multiplier=profile['distance'],
+        distance_adjusted=distance>profile['distance']*span,
+        adjustment_reason='perspective region containment including model depth' if distance>profile['distance']*span else None,
         effective_distance_multiplier=distance/span,distance=distance,target=target,
         position=[target[i]+n[i]*distance for i in range(3)],forward=forward,right_vector=right,up_vector=[0,1,0],
         yaw_degrees=profile['yaw'],fit=profile['fit'],inactive_fields=['top','bottom','half'] if full else [])

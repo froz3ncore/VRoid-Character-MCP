@@ -39,6 +39,28 @@ const api=createGroupApi({model:()=>({token:'token',context}),cls:()=>({field:na
 const certified=api.operations.list_groups({expected_model:'token',situation_root:root});
 assert.equal(certified.membership_complete,true);assert.equal(certified.situation_membership.verified,true);
 assert.equal(certified.situation_membership.members.length,2);
+// A dictionary key never substitutes for the native Info.Id in either stream.
+for(const stream of ['active','leaf'])for(const supplied of ['foreign-leaf',null]){
+    const fields={...infos[1].fields};if(supplied===null)delete fields.Id;else fields.Id=supplied;
+    const bad=new N(fields);
+    if(stream==='active')active.methods.GetActiveTransferableGroups=()=>[pair('set',infos[0]),pair('top',bad)];
+    else context.methods.GetActiveLeafTransferableGroups=()=>[pair('top',bad)];
+    const refused=api.operations.list_groups({expected_model:'token',situation_root:root});
+    assert.equal(refused.membership_complete,false,`${stream} native Info.Id must match the key`);
+    assert.equal(refused.situation_membership.verified,false);
+    active.methods.GetActiveTransferableGroups=()=>infos.map((g,i)=>pair(i?'top':'set',g));
+    context.methods.GetActiveLeafTransferableGroups=()=>[pair('top',infos[1])];
+}
+// The stored enumeration's fresh active-Info lookup must carry its own Id too.
+for(const supplied of ['foreign-stored-lookup',null]){
+    let topLookups=0;
+    const fields={...infos[1].fields};if(supplied===null)delete fields.Id;else fields.Id=supplied;
+    context.methods.GetActiveTransferableGroupInfo=id=>id==='set'?infos[0]:++topLookups===1?infos[1]:new N(fields);
+    const refused=api.operations.list_groups({expected_model:'token',situation_root:root});
+    assert.equal(refused.membership_complete,false,'fresh stored active-Info lookup Id must match the key');
+    assert.equal(refused.situation_membership.verified,false);
+}
+context.methods.GetActiveTransferableGroupInfo=id=>infos[id==='set'?0:1];
 edge.fields.Type=105;
 assert.equal(api.operations.list_groups({expected_model:'token',situation_root:root}).situation_membership.verified,false);
 console.log('native set adapter distinguishes Info/Header and resolves actual named entry enums');

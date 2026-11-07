@@ -283,3 +283,154 @@ def test_cached_set_child_revision_drift_forces_regeneration(tmp_path):
     n.runtime._call=native;assert run(n)['processed']==1
     n.token='token';version[0]='2';result=run(n)
     assert result['processed']==1 and result['skipped']==0 and n.capture_count==2
+
+
+@pytest.mark.parametrize('mixed',[False,True])
+@pytest.mark.parametrize('change',['identity-build','framing','scan'])
+def test_cache_hits_require_final_locked_current_observation_without_rescan(tmp_path,mixed,change):
+    n=Native(tmp_path);assert run(n)['processed']==1;n.token='token';n.calls=[]
+    if mixed:n.rows.append(dict(n.rows[0],id='new',resource='Clothing/Tops/N00/z',selectable_preset_ids=['clothing/Tops/new']))
+    original=n.call;changed=[False]
+    def interleave():
+        s=PresetCatalog(tmp_path/'preset_cache')
+        if change=='framing':s.set_framing('Clothing/Tops',yaw=90)
+        else:
+            d=s._load();rows=list(d['presets'].values());source=dict(d['source'])
+            if change=='identity-build':rows[0]['id']='other';source['build']='b'*64
+            s.sync(rows,source,{'builtin':True,'custom':True})
+        changed[0]=True
+    async def native(op,args=None):
+        value=await original(op,args)
+        if not mixed and op=='list_groups' and args.get('situation_candidate') and not changed[0]:interleave()
+        if mixed and op=='screenshot' and not changed[0]:interleave()
+        return value
+    n.runtime._call=native;result=run(n)
+    assert changed[0] and result['skipped']==0
+    assert 'CACHE_OBSERVATION_STALE' in str(result['errors'])
+    assert sum(op=='preset_catalog_begin' for op,args in n.calls)==1
+    if not mixed:
+        assert n.capture_count==1  # Only the original prepopulation capture.
+        assert not any(op in ('save_as','remove_group','apply_preset','screenshot') for op,args in n.calls)
+
+
+@pytest.mark.parametrize('fit',['full-body','region'])
+def test_oversized_still_contained_distance_cannot_claim_requested_framing(fit):
+    from situation_fixture import optical_proof
+    from vroid_mcp.situation_proof import capture_proof
+    profile={'top':0,'bottom':1,'half':None,'distance':3.3,'yaw':0,'fit':fit}
+    proof=optical_proof(profile);assert proof['distance']==pytest.approx(7.26)
+    proof['distance']*=2;proof['effective_distance_multiplier']*=2
+    proof['position']=[proof['target'][i]-proof['forward'][i]*proof['distance'] for i in range(3)]
+    proof['distance_adjusted']=False;proof['adjustment_reason']=None
+    with pytest.raises(ValueError,match='DISTANCE|ADJUST'):
+        capture_proof(proof,profile)
+
+
+def test_first_restore_preflight_cancellation_retains_altered_model_and_generation_pin(tmp_path):
+    n=Native(tmp_path);original=n.runtime._restore_situation
+    async def restore(*args):
+        async def cancelled(*a):raise asyncio.CancelledError()
+        n.runtime._settled_for=cancelled
+        return await original(*args)
+    n.runtime._restore_situation=restore
+    with pytest.raises(asyncio.CancelledError):run(n)
+    report=json.loads(next((tmp_path/'temp').glob('situation-*/report.json')).read_text(encoding='utf-8'))
+    try:
+        assert report['processed']==1 and report['uncertain'] and report['model_token'] is None
+        assert report['restore']['state']=='pending' and report['restore']['phase']=='preflight'
+        assert report['restore']['import_dispatch']=='not-sent' and 'task' not in report['restore']
+        assert n.groups!=n.saved_groups and not any(op=='replace_with_file' for op,args in n.calls)
+        if os.name=='nt':
+            with pytest.raises(OSError):Path(report['snapshot']['path']).unlink()
+    finally:
+        for pin in getattr(n.runtime,'_pending_custom_item_pins',[]):pin.__exit__(None,None,None)
+        n.runtime._pending_custom_item_pins=[]
+
+
+@pytest.mark.parametrize('failure',['lost-terminal','negative-terminal','faulted-terminal','canceled-terminal',
+                                  'lost-dispatch','unconfirmed','verify-owner-error'])
+def test_final_restore_failure_record_keeps_actual_receipt_and_last_phase(tmp_path,monkeypatch,failure):
+    n=Native(tmp_path);original=n.call
+    if failure=='lost-terminal':
+        async def task(*a):raise RuntimeError('lost terminal response')
+        n.runtime._task=task
+    if failure in ('negative-terminal','faulted-terminal','canceled-terminal'):
+        from vroid_mcp import bridge
+        async def status(*a):
+            if failure=='faulted-terminal':return {'completed':True,'faulted':True,'canceled':False,'error':'native fault'}
+            if failure=='canceled-terminal':return {'completed':True,'faulted':False,'canceled':True}
+            return {'completed':True,'faulted':False,'canceled':False,'result':False}
+        monkeypatch.setattr(bridge,'call',status)
+        async def task(receipt):return await bridge.wait_task(n.runtime,receipt)
+        n.runtime._task=task
+    if failure=='verify-owner-error':
+        original_settle=n.runtime._settle
+        async def settle(*a):
+            if n.token=='fresh':raise RuntimeError('lost owner response')
+            return await original_settle(*a)
+        n.runtime._settle=settle
+    async def native(op,args=None):
+        value=await original(op,args)
+        if op=='replace_with_file':
+            if failure=='lost-dispatch':raise RuntimeError('lost dispatch reply')
+            if failure=='unconfirmed':n.engine='engine-old'
+        return value
+    n.runtime._call=native;result=run(n)
+    saved=json.loads(Path(result['evidence_path']).read_text(encoding='utf-8'))['restore']
+    try:
+        assert result['uncertain'] and result['model_token'] is None
+        if failure=='lost-dispatch':
+            assert saved['phase']=='import-dispatching' and saved['import_dispatch']=='unknown' and 'task' not in saved
+        else:
+            assert saved['task']['task_id']=='restoration' and saved['import_dispatch']=='sent'
+            if failure=='lost-terminal':
+                assert saved['phase']=='import-dispatched' and saved['terminal_status']=='unknown' and not saved['terminal_received']
+            if failure in ('negative-terminal','faulted-terminal','canceled-terminal'):
+                assert saved['phase']=='terminal-negative' and saved['terminal_status']=='negative' and saved['terminal_received']
+                if failure=='negative-terminal':assert saved['terminal_receipt']['result'] is False
+                elif failure=='faulted-terminal':assert saved['terminal_receipt']['faulted'] is True
+                else:assert saved['terminal_receipt']['canceled'] is True
+            if failure in ('unconfirmed','verify-owner-error'):
+                assert saved['phase']=='verify-owner' and saved['terminal_status']=='succeeded' and saved['terminal_received']
+    finally:
+        for pin in getattr(n.runtime,'_pending_custom_item_pins',[]):pin.__exit__(None,None,None)
+        n.runtime._pending_custom_item_pins=[]
+
+
+@pytest.mark.parametrize('fit,distance',[('full-body',3.3),('region',.1)])
+@pytest.mark.parametrize('change',['flag','reason','missing'])
+def test_distance_adjustment_flag_and_reason_match_the_actual_branch(fit,distance,change):
+    from situation_fixture import optical_proof
+    from vroid_mcp.situation_proof import capture_proof
+    profile={'top':0,'bottom':1,'half':None,'distance':distance,'yaw':0,'fit':fit}
+    proof=optical_proof(profile);capture_proof(proof,profile)
+    if change=='flag':proof['distance_adjusted']=not proof['distance_adjusted']
+    elif change=='reason':proof['adjustment_reason']='invented zoom'
+    else:proof.pop('distance_adjusted')
+    with pytest.raises(ValueError,match='ADJUST'):capture_proof(proof,profile)
+
+
+def test_valid_float32_optical_receipt_retains_distance_and_projection_tolerance():
+    import struct
+    from situation_fixture import optical_proof
+    from vroid_mcp.situation_proof import capture_proof
+    profile={'top':.12,'bottom':.62,'half':None,'distance':3.3,'yaw':45,'fit':'region'}
+    proof=optical_proof(profile)
+    for key in ('distance','effective_distance_multiplier','near_clip','far_clip','position','target',
+                'forward','right_vector','up_vector','projection_matrix'):
+        value=proof[key]
+        fp32=lambda x:struct.unpack('<f',struct.pack('<f',x))[0]
+        proof[key]=[fp32(x) for x in value] if isinstance(value,list) else fp32(value)
+    capture_proof(proof,profile)
+
+
+def test_final_cache_check_after_native_settle_preserves_independent_annotation(tmp_path):
+    n=Native(tmp_path);assert run(n)['processed']==1;n.token='token';original=n.runtime._settled_for
+    async def settled(*args):
+        value=await original(*args)
+        PresetCatalog(tmp_path/'preset_cache').annotate(n.rows[0]['resource'],'independent',label='keep')
+        return value
+    n.runtime._settled_for=settled
+    result=run(n)
+    assert result['skipped']==1 and result['processed']==0 and not result['errors']
+    assert PresetCatalog(tmp_path/'preset_cache').get(n.rows[0]['resource'])['manual_label']=='keep'

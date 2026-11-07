@@ -245,7 +245,8 @@ def test_image_validation_provenance_and_stale_situation_fallback(tmp_path):
     assert s.resolve_image(key)[0]['kind'] == 'native-icon'
     situation = {'kind': 'situation', 'verified': True, 'source': 'clean-render', 'framing': {'fit': 'region'}}
     image = s.publish_image(key, png(3, 3), situation, item['fingerprint'])
-    assert s.resolve_image(key)[0]['kind'] == 'situation'
+    assert s.resolve_image(key)[0]['kind'] == 'native-icon'
+    assert s.get(key)['images']['situation']==image  # Historical bytes/receipt remain.
     (s.root / image['path']).unlink()
     assert s.resolve_image(key)[0]['kind'] == 'native-icon'
     (s.root / icon['path']).write_bytes(png(4, 4))
@@ -255,6 +256,21 @@ def test_image_validation_provenance_and_stale_situation_fallback(tmp_path):
     data['presets'][key]['images']['native-icon']['path'] = '../outside.png'
     s.path.write_bytes(json.dumps(data).encode('utf-8'))
     with pytest.raises(ValueError): s.resolve_image(key)
+
+
+def test_legacy_verified_situation_is_historical_and_native_icon_remains_distinct(tmp_path):
+    from test_preset_previews import png
+    s=store(tmp_path);sync(s,[row()]);r=s.search()[0];key=r['key']
+    old=s.publish_image(key,png(3,3),{'kind':'situation','source':'clean-render','verified':True,'build':'a'*64},r['fingerprint'])
+    before=(s.root/old['path']).read_bytes();s.annotate(key,'Me',label='keep')
+    s.sync([dict(row(),id='other')],{'build':'b'*64,'session':'other'},{'builtin':True,'custom':True})
+    with pytest.raises(ValueError,match='UNAVAILABLE'):s.resolve_image(key)
+    current=s.get(key)
+    assert current['images']['situation']==old and current['manual_label']=='keep'
+    assert (s.root/old['path']).read_bytes()==before
+    s.publish_image(key,png(),{'kind':'native-icon','source':'native_thumbnail'},current['fingerprint'])
+    metadata,_=s.resolve_image(key)
+    assert metadata['kind']=='native-icon' and metadata.get('verified') is not True
 
 
 def test_returned_changed_revision_records_history_and_invalidates_images(tmp_path):

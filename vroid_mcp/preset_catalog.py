@@ -285,6 +285,26 @@ class PresetCatalog:
                 and r.get('scan_id')==scan_id and r['source']==data['source']),key=lambda r:r['key'])
             return {'scan_id':scan_id,'source':deepcopy(data['source']),'framing':profile,'rows':rows}
 
+    def _verify_situation_hits(self, observed, hits, raster_cache=None):
+        """Linearize skip claims against the same scan and current image inputs."""
+        with self.locked():
+            data=self._load()
+            if (data.get('scan_id')!=observed['scan_id'] or data['source']!=observed['source']
+                    or self.get_framing(observed['framing']['category'])!=observed['framing']):
+                raise ValueError('CATALOG_CACHE_OBSERVATION_STALE')
+            for expected in hits:
+                row=data['presets'].get(expected['key'])
+                if (not row or row['removed'] or row.get('scan_id')!=observed['scan_id']
+                        or capture_identity(row)!=capture_identity(expected)
+                        or row['images'].get('situation')!=expected['images'].get('situation')):
+                    raise ValueError('CATALOG_CACHE_OBSERVATION_STALE')
+                try:current,_=self._resolve_observed_image(row,raster_cache)
+                except (ValueError,OSError) as error:
+                    raise ValueError('CATALOG_CACHE_OBSERVATION_STALE') from error
+                if current!=expected['images']['situation']:
+                    raise ValueError('CATALOG_CACHE_OBSERVATION_STALE')
+            return len(hits)
+
     def sync(self, rows, source, complete):
         if (not isinstance(rows,list) or len(rows)>MAX_ROWS or not isinstance(source,dict)
                 or not _completeness(complete)):
@@ -453,13 +473,13 @@ class PresetCatalog:
     def resolve_image(self, key):
         return self._resolve_observed_image(self.get(key))
 
-    def _resolve_observed_image(self, row):
+    def _resolve_observed_image(self, row, raster_cache=None):
         """Validate a bounded frozen row's blob without decoding the catalog again."""
         for kind in ('situation','native-icon'):
             image = row['images'].get(kind)
             if image is None: continue
-            if kind=='situation' and 'capture_input' in image and (
-                    image['capture_input']!=capture_identity(row)
+            if kind=='situation' and (
+                    image.get('capture_input')!=capture_identity(row)
                     or image.get('requested_framing')!=self.get_framing(row['category'])):
                 continue
             _image_metadata(image,kind)
@@ -477,5 +497,27 @@ class PresetCatalog:
             except FileNotFoundError: continue
             actual = validate_png(data,512 if kind=='native-icon' else 2048)
             if any(image.get(k)!=v for k,v in actual.items()): raise ValueError('CATALOG_IMAGE_BYTES_CHANGED')
+            if kind=='situation':
+                # Legacy/incomplete receipts remain inspectable in get(). They
+                # are historical evidence, never a current verified preview.
+                from .situation_proof import capture_proof,definition,raster_evidence
+                from .capture_quality import decode_capture
+                import base64
+                try:
+                    if (image.get('source')!='clean_fixed_camera_render' or image.get('build')!=row['source']['build']
+                            or image.get('verified') is not True):continue
+                    decode_capture({**image,'base64':base64.b64encode(data).decode('ascii')},512,'balanced')
+                    capture_proof(image.get('framing'),image['requested_framing'])
+                    native=definition(image.get('membership'))
+                    if image.get('native_definition')!=native:continue
+                    tested=image.get('tested',{});root=native['root']
+                    if (tested.get('resource')!=row['resource'] or tested.get('kind')!=row['kind']
+                            or any(tested.get(k)!=root[k] for k in ('id','type','revision'))
+                            or tested.get('group_resource')!=root['resource_name']
+                            or row['kind']=='custom' and any(tested.get(k)!=row.get(k) for k in ('custom_revision','sha256'))):continue
+                    if raster_cache is None:raster_cache={}
+                    if actual['sha256'] not in raster_cache:raster_cache[actual['sha256']]=raster_evidence(data)
+                    if image.get('raster')!=raster_cache[actual['sha256']]:continue
+                except (ValueError,KeyError,TypeError):continue
             return deepcopy(image),data
         raise ValueError('CATALOG_IMAGE_UNAVAILABLE')

@@ -113,10 +113,17 @@ function createGroupApi(H) {
     function groupInventory(m, removalCapabilities=true) {
         const found = new Map(), errors = [];
         const completeness = {active:false,active_leaf:false,stored:false};let coherent=true;
-        function merge(id, object, flags) {
+        function merge(id, object, flags, nativeInfo=false) {
             const row = found.get(id) || {id, type: null, resource_name: null, revision: null,
                 active: false, active_leaf: false, stored: false, errors: []};
             Object.assign(row, flags);
+            if(flags.active||nativeInfo)try{
+                const nativeId=str(prop(object,'Id'));
+                if(typeof nativeId!=='string'||!nativeId||nativeId!==id)throw Error('NATIVE_INFO_ID_KEY_MISMATCH');
+            }catch(error){
+                coherent=false;errors.push({source:'native_info_identity',id,error:String(error)});
+                row.errors.push(String(error));
+            }
             for (const [name, native] of [['type', 'Type'], ['resource_name', 'ResourceName'], ['revision', 'Revision']]) {
                 try { const value = str(prop(object, native)); if (value != null){
                     if(row[name]!=null&&row[name]!==value){coherent=false;errors.push({source:'identity_conflict',id,field:name});}
@@ -142,7 +149,7 @@ function createGroupApi(H) {
         try {
             for (const [id, group] of pairs(prop(active(m), 'TransferableGroups'))) {
                 const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
-                merge(id, alive(info) ? info : group, {stored: true});
+                merge(id, alive(info) ? info : group, {stored: true}, alive(info));
                 try{
                     const header=prop(group,'Header'),custom=prop(header,'Custom'),row=found.get(id);
                     const stored={id:str(prop(header,'Id')),type:str(prop(group,'TypeId')),

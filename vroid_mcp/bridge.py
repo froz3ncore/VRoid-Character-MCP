@@ -345,16 +345,17 @@ async def initialize(subject, variant: str = 'F00', model_file: pathlib.Path | N
         return await settle(subject)
 
 
-async def wait_task(subject, task: dict) -> None:
+async def wait_task(subject, task: dict) -> dict:
+    from .task_receipt import ManagedTaskFailure
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         result = await call(subject, 'task_status', task)
         if result['completed']:
             if result['faulted'] or result['canceled']:
-                raise RuntimeError(result.get('error', 'Operation canceled'))
+                raise ManagedTaskFailure(result.get('error', 'Operation canceled'),result)
             if result.get('result') is False:
-                raise RuntimeError('MANAGED_TASK_FAILED: terminal Boolean result was false')
-            return
+                raise ManagedTaskFailure('MANAGED_TASK_FAILED: terminal Boolean result was false',result)
+            return result
         await asyncio.sleep(.1)
     subject.uncertain = True
     raise TimeoutError('Managed task did not complete; restart before further changes')

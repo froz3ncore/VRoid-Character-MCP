@@ -71,12 +71,24 @@ def capture_proof(effective,requested,width=512,height=512):
     ex=[(b-a)/2 for a,b in zip(lo,hi)];depth=abs(normal[0])*ex[0]+abs(normal[2])*ex[2]
     half=abs(normal[2])*ex[0]+abs(normal[0])*ex[2] if full or requested['half'] is None else requested['half']*H
     span=max(top-bottom,.14*H)*1.1
-    for key,want in [('target',target),('position',[target[i]+normal[i]*d for i in range(3)]),
+    requested_distance=requested['distance']*span
+    required=depth+max(half/aspect,(top-bottom)/2)/math.tan(math.pi/12)
+    intended=max(requested_distance,required*1.000001,depth+.02)
+    if not near(d,intended):raise ValueError('SITUATION_EFFECTIVE_DISTANCE_MISMATCH')
+    adjusted=effective.get('distance_adjusted');reason=effective.get('adjustment_reason')
+    # The branch must be true outside Float32-scale boundary ambiguity. Tiny
+    # containment padding can straddle that boundary without a visible change.
+    if (type(adjusted) is not bool or not near(max(required*1.000001,depth+.02),requested_distance) and adjusted is not (intended>requested_distance)
+            or adjusted and reason!='perspective region containment including model depth'
+            or not adjusted and reason is not None):
+        raise ValueError('SITUATION_DISTANCE_ADJUSTMENT_MISMATCH')
+    if not near(far,max(1000,intended+depth+H+1)):raise ValueError('SITUATION_CLIP_OR_ASPECT_MISMATCH')
+    for key,want in [('target',target),('position',[target[i]+normal[i]*intended for i in range(3)]),
                      ('right_vector',right),('forward',forward),('up_vector',[0,1,0])]:
         if any(not near(a,b) for a,b in zip(effective[key],want)):raise ValueError('SITUATION_POSE_MISMATCH')
     for key,want in [('source_span',span),('region_world_top',top),('region_world_bottom',bottom),
-                     ('effective_half_width',half),('requested_distance',requested['distance']*span),
-                     ('requested_distance_multiplier',requested['distance']),('effective_distance_multiplier',d/span),
+                     ('effective_half_width',half),('requested_distance',requested_distance),
+                     ('requested_distance_multiplier',requested['distance']),('effective_distance_multiplier',intended/span),
                      ('yaw_degrees',requested['yaw'])]:
         if not near(effective[key],want):raise ValueError('SITUATION_REGION_OR_DISTANCE_MISMATCH')
     if (effective.get('fit')!=requested['fit'] or effective.get('inactive_fields')!=(['top','bottom','half'] if full else [])

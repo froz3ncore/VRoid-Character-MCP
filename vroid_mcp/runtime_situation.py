@@ -23,6 +23,7 @@ from .custom_item_file import inspect_custom_item, pinned_application
 from .preset_catalog import PresetCatalog, MAX_ROWS, capture_identity
 from .lab_paths import _physical
 from .situation_proof import capture_proof, raster_evidence, definition, identity
+from .task_receipt import ManagedTaskFailure
 
 
 def _identity(group):
@@ -157,48 +158,62 @@ class SituationTools:
             raise ValueError('SITUATION_SELECTION_UNCONFIRMED: expanded sets need exact member evidence')
 
     async def _restore_situation(self, expected, saved, owner, original_groups, result, persist):
-        if self.dead or self.uncertain:
-            self.uncertain=True
-            return {'state':'skipped-uncertain'}
-        try:
-            await self._settled_for(expected)
-        except Exception as error:
-            self.uncertain=True
-            return {'state':'skipped-model-changed','error':str(error)}
         path=Path(saved['path'])
+        receipt={'state':'pending','phase':'preflight','snapshot_path':str(path),'snapshot_sha256':saved['sha256'],
+                 'import_dispatch':'not-sent','terminal_received':False,'terminal_status':'not-started'}
+        result['restore']=receipt
         try:
+            persist()
+            if self.dead or self.uncertain:
+                self.uncertain=True;receipt['state']='skipped-uncertain';return receipt
+            try:await self._settled_for(expected)
+            except asyncio.CancelledError:raise
+            except Exception as error:
+                self.uncertain=True;receipt.update(state='skipped-model-changed',error=str(error));return receipt
             # The generation pin is already held by the outer transaction.
+            receipt['phase']='verify-snapshot';persist()
             if hashlib.sha256(path.read_bytes()).hexdigest()!=saved['sha256']:
-                self.uncertain=True;return {'state':'snapshot-changed'}
+                self.uncertain=True;receipt['state']='snapshot-changed';return receipt
             await self._settled_for(expected)
             if path.resolve()!=path or not path.is_relative_to(self.lab):raise ValueError('SITUATION_SNAPSHOT_PATH_CHANGED')
-            result['restore']={'state':'pending','phase':'dispatching','snapshot_path':str(path)};persist()
+            receipt.update(phase='import-dispatching',import_dispatch='unknown',terminal_status='unknown');persist()
             task=await self._call('replace_with_file',{'expected_model':expected,'discard_unsaved':True,'path':str(path)})
-            result['restore'].update(phase='import-dispatched',task=task);persist()
-            await self._task(task)
-            result['restore'].update(phase='terminal-received',terminal_received=True);persist()
+            receipt.update(phase='import-dispatched',import_dispatch='sent',task=deepcopy(task));persist()
+            terminal=await self._task(task)
+            receipt.update(phase='terminal-received',terminal_received=True,terminal_status='succeeded')
+            if isinstance(terminal,dict):receipt['terminal_receipt']=terminal
+            persist()
+            receipt['phase']='verify-owner';persist()
             fresh=await self._settle()
+            receipt['observed_owner']=fresh;persist()
             verified=(fresh.get('model_token') and fresh['model_token']!=expected
                 and isinstance(fresh.get('engine_id'),str) and fresh['engine_id']!=owner.get('engine_id')
                 and isinstance(fresh.get('file_path'),str) and Path(fresh['file_path']).resolve()==path)
             if verified:
+                receipt['phase']='verify-inventory';persist()
                 groups=await self._situation_inventory(fresh['model_token'])
                 verified={_identity(g) for g in groups}=={_identity(g) for g in original_groups}
             if not verified:
                 self.uncertain=True
-                return {'state':'unconfirmed','observed_owner':fresh,'terminal_received':True,'snapshot_path':str(path)}
-            return {'state':'restored','model_token':fresh['model_token'],
-                    'snapshot_path':str(path),'snapshot_sha256':saved['sha256'],'engine_id':fresh['engine_id'],
-                    'associated_file':fresh['file_path'],'terminal_received':True,'original_inventory_verified':True,
-                    'history_preserved':False,'original_file_association_preserved':False}
+                receipt['state']='unconfirmed';return receipt
+            receipt.update(state='restored',phase='verified',model_token=fresh['model_token'],engine_id=fresh['engine_id'],
+                    associated_file=fresh['file_path'],original_inventory_verified=True,
+                    history_preserved=False,original_file_association_preserved=False)
+            return receipt
         except asyncio.CancelledError:
             self.uncertain=True
-            result['restore'].update(state='pending',interrupted=True)
+            receipt.update(state='pending',interrupted=True)
             persist()
             raise
+        except ManagedTaskFailure as error:
+            self.uncertain=True
+            receipt.update(state='failed',phase='terminal-negative',terminal_received=True,terminal_status='negative',
+                           terminal_receipt=error.receipt,error=str(error))
+            return receipt
         except Exception as error:
             self.uncertain=True
-            return {'state':'failed','error':str(error)}
+            receipt.update(state='failed',error=str(error))
+            return receipt
 
     async def _candidate_definition(self, expected, row):
         resource=row['resource_name'] if row['kind']=='custom' else row['resource']
@@ -214,7 +229,7 @@ class SituationTools:
 
     def _cached_situation(self, store, row, framing, candidate, raster_cache):
         try:
-            image,data=store._resolve_observed_image(row)
+            image,data=store._resolve_observed_image(row,raster_cache)
             if (image['kind']!='situation' or image.get('source')!='clean_fixed_camera_render'
                     or image.get('verified') is not True or image.get('capture_input')!=capture_identity(row)
                     or image.get('requested_framing')!=framing):return False,0
@@ -248,12 +263,12 @@ class SituationTools:
                 raise ValueError('SITUATION_ORIGINAL_ENGINE_UNPROVEN')
             summary=await self._sync_preset_cache_unlocked(expected_model)
             observed=store._situation_snapshot(category,summary['scan_id']);framing=observed['framing']
-            selected=[];raster_cache={}
+            selected=[];raster_cache={};cache_hits=[]
             for row in observed['rows']:
                 try:
                     candidate=await self._candidate_definition(expected_model,row)
                     cached,priority=self._cached_situation(store,row,framing,candidate,raster_cache) if not refresh else (False,0)
-                    if cached:result['skipped']+=1;continue
+                    if cached:cache_hits.append(row);continue
                     selected.append((priority,row,candidate))
                 except Exception as error:
                     result['errors'].append({'key':row['key'],'phase':'candidate','error':str(error)})
@@ -264,6 +279,13 @@ class SituationTools:
             if not selected:
                 result['restore']={'state':'not-needed'}
                 result['model_token']=(await self._settled_for(expected_model))['model_token']
+                try:result['skipped']=store._verify_situation_hits(observed,cache_hits,raster_cache)
+                except (ValueError,OSError) as error:result['errors'].append({'phase':'cache-observation','error':str(error)})
+                return result
+            try:store._verify_situation_hits(observed,cache_hits,raster_cache)
+            except (ValueError,OSError) as error:
+                result['errors'].append({'phase':'cache-observation','error':str(error)})
+                result['restore']={'state':'not-needed'}
                 return result
             scratch=_physical(self.lab/'temp');scratch.mkdir(exist_ok=True)
             folder=scratch/('situation-'+uuid.uuid4().hex);folder.mkdir(exist_ok=False)
@@ -363,7 +385,12 @@ class SituationTools:
                         else:result['errors'].append({'phase':'restore',**result['restore']})
                 finally:
                     result['uncertain']=self.uncertain
-                    try:persist()
+                    try:
+                        try:result['skipped']=store._verify_situation_hits(observed,cache_hits,raster_cache)
+                        except (ValueError,OSError) as error:
+                            result['skipped']=0
+                            result['errors'].append({'phase':'cache-observation','error':str(error)})
+                        persist()
                     finally:
                         if pin_entered:pin.__exit__(None,None,None)
         return result
