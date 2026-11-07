@@ -10,6 +10,8 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 此 fork 的 [mcjo79 遷移對照表](MIGRATION.md)逐項列出 53 個來源工具的對應功能、測試與限制。既有原生測試是上游基線的歷史紀錄；遷移功能的實機操作、儲存後重開、匯出及畫面效果，仍須在相容的獨立副本中按[實機驗收清單](docs/superpowers/native-migration-acceptance.md)分別驗證。
 角色美術是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
 
+本分支提供 [143 個工具](tools/TOOLS.md)，保留遷移前的 103 個介面。`get_help` 接受 `{"topic":"migration","language":"zh"}`，可離線查閱對照表。從 `return_to_main_menu` 取得 `menu_token`，以 `expected_menu` 傳給 `create_from_menu` 或 `open_from_menu` 即可在同一程序繼續操作。
+
 試用遷移功能請使用 `BunnyBlack/VRoid-Character-MCP` 的 `feat/mcjo79-capability-migration` 分支。連線後可向 `get_preset_framing` 傳入 `{"category":"Clothing/Tops"}` 查看上衣的預設取景，不會啟動 VRoid。`search_preset_cache` 查詢本機目錄，首次在相容副本執行 `sync_preset_cache` 前，搜尋結果可能為空。
 
 已核構建支援同一進程連續編輯體型、貼圖及換裝；真實連接模式使用 VRoid 持有的完成回呼。
@@ -45,7 +47,7 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 使用獨立 profile、獨立登錄鍵與自己的 `TEMP`，以 Frida 附加，並在 Unity 主執行緒呼叫
 managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯直接作用於真實角色與 profile，
 不載入副本隔離守衛；`save_as` 保存新副本並保留原檔案關聯與未保存標記，`save_character` 原位保存前會保留核驗過的備份，`save_character_as` 可另存並關聯新檔案。
-斷開不會關閉視窗。相容視窗可打開指定人物、保存當前人物副本後進入換裝、匯入 XWear 並保存新 XRoid；新建／打開人物須 `discard_unsaved=true`，`new_character` 依原生退出流程完成新建替換，當前人物轉換裝須 `switch_to_wear=true`。人物／XWear／XRoid 流程支援明確的絕對路徑，普通檔名使用 lab 的 saves 目錄。普通編輯可匯出 VRM 0.x/1.0；
+斷開不會關閉視窗。相容視窗可打開指定人物、保存當前人物副本後進入換裝、匯入 XWear 並保存新 XRoid；取代當前人物須 `discard_unsaved=true`，`new_character` 依原生退出流程完成新建替換，當前人物轉換裝須 `switch_to_wear=true`。人物／XWear／XRoid 流程支援明確的絕對路徑，普通檔名使用 lab 的 saves 目錄。普通編輯可匯出 VRM 0.x/1.0；
 自訂物件保存到該視窗的原生衣櫃，核驗檔案與登記並保留人物檔案關聯及原有未保存標記。
 連接和部件操作詳見 [既有工作階段與普通匯出](ATTACHED_SESSION.md)。
 

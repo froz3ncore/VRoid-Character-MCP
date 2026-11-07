@@ -16,8 +16,7 @@ unsaved work or automatically retry an uncertain write.
 
 ## Run / 运行
 
-Install the repository's Python/npm dependencies, your own supported VRoid Studio
-2.14.0 installation, and Blender 4.2 or newer. Run in a normal terminal that
+Install the repository's Python/npm dependencies and Blender 4.2 or newer. The recorded upstream run used a recognized 2.14.0 package. A new run may use a verified 2.16.0 Steam or pixiv standalone source. Record the actual pair and keep its result separate. [Package identities](docs/native-evidence/2026-11-07-vroid-216.md) Run in a normal terminal that
 permits local loopback. The new lab requires space for a full application copy.
 `--lab` and `--out` must both be new directories, separate from each other, the
 repository and source installation. No live Blender session is used.

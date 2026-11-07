@@ -13,8 +13,7 @@ independent user's reproduction. No stable release is certified by this page.
 
 ## Tester task / 试用者任务
 
-Use a clean checkout or source archive, Windows x64, your own supported VRoid
-2.14.0 installation and Blender. Follow the README without copying the
+Use a clean checkout or source archive, Windows x64, Blender and a physical lab copy prepared from a recognized VRoid Studio 2.14.0 or 2.16.0 installation. Record the distribution and both file hashes using the [build list](docs/native-evidence/2026-11-07-vroid-216.md). Follow the README without copying the
 developer's environment or using private demonstration assets:
 
 1. Install Python/npm dependencies; record interpreter, OS and Blender versions.

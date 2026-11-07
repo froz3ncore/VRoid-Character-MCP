@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import struct
+import sys
 
 import pytest
 
@@ -303,8 +304,11 @@ def test_interrupted_post_mutation_preview_never_navigates(tmp_path, monkeypatch
         if interruption == 'cancel':
             await observed.wait()
             task.cancel('caller stopped observing preview')
-            with pytest.raises(asyncio.CancelledError, match='caller stopped observing preview'):
+            with pytest.raises(asyncio.CancelledError) as error:
                 await task
+            # Task.cancel(msg) propagates the message to awaiters from Python 3.11.
+            if sys.version_info >= (3, 11):
+                assert str(error.value) == 'caller stopped observing preview'
         else:
             with pytest.raises(RuntimeError) as error: await task
             assert error.value is failure

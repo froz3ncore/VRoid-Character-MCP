@@ -1,5 +1,7 @@
 # Visual regression and bounded coverage / 视觉回归与覆盖范围
 
+For the 2.16.0 Steam and standalone packages, record channel, assembly and metadata hashes independently. Retain the same camera, garment slider, selectable custom item and stored-set fixtures for each run. Record UI visibility, persistence and appearance for the actual package tested. [Package identities](docs/native-evidence/2026-11-07-vroid-216.md)
+
 For the mcjo79 migration, use the [native acceptance checklist](docs/superpowers/native-migration-acceptance.md). The historical F00 baseline below covers three fixed square views. It cannot establish whether a new current-editor capture preserves proportions, an application-frame capture includes the UI, or a situation thumbnail shows only the intended preset. Each of those cases needs its own fixture, readback and pixel review.
 
 本次迁移的实机验证请按[验收清单](docs/superpowers/native-migration-acceptance.md)执行。下文历史基准只覆盖 F00 的三个固定方形视图。当前编辑相机的画面比例、应用帧中的界面、预设缩略图中是否混入其他部件，都要用对应样本分别检查。离线测试和程序集静态核对不算实机或外观通过。

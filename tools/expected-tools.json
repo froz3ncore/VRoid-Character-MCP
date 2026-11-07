@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 103,
- "toolset_hash": "sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d",
+ "tool_count": 143,
+ "toolset_hash": "sha256:8708548d8f5d15b34abf8e78a14ec24fc5c07aad736089972f59b41a7aa64d70",
  "tools": {
   "acknowledge_attached_state": {
    "parameters": [
@@ -21,6 +21,21 @@
     "template_id"
    ]
   },
+  "annotate_preset_cache": {
+   "parameters": [
+    "author",
+    "colors",
+    "description",
+    "key",
+    "label",
+    "replace",
+    "tags"
+   ],
+   "required": [
+    "author",
+    "key"
+   ]
+  },
   "apply_clothing_preset": {
    "parameters": [
     "expected_model",
@@ -29,6 +44,26 @@
    "required": [
     "expected_model",
     "preset_id"
+   ]
+  },
+  "apply_custom_item": {
+   "parameters": [
+    "expected_model",
+    "filename"
+   ],
+   "required": [
+    "expected_model",
+    "filename"
+   ]
+  },
+  "apply_custom_item_by_key": {
+   "parameters": [
+    "expected_model",
+    "key"
+   ],
+   "required": [
+    "expected_model",
+    "key"
    ]
   },
   "apply_hair_preset": {
@@ -45,6 +80,7 @@
    "parameters": [
     "area",
     "expected_model",
+    "preserve_material",
     "preset_id"
    ],
    "required": [
@@ -59,6 +95,39 @@
     "pid"
    ],
    "required": []
+  },
+  "begin_clothing_edit": {
+   "parameters": [
+    "expected_model",
+    "group_id"
+   ],
+   "required": [
+    "expected_model",
+    "group_id"
+   ]
+  },
+  "begin_hair_edit": {
+   "parameters": [
+    "expected_model",
+    "material_id"
+   ],
+   "required": [
+    "expected_model",
+    "material_id"
+   ]
+  },
+  "build_preset_thumbnails": {
+   "parameters": [
+    "category",
+    "disposable_model",
+    "expected_model",
+    "limit",
+    "refresh"
+   ],
+   "required": [
+    "category",
+    "expected_model"
+   ]
   },
   "capture_body_reference": {
    "parameters": [
@@ -135,12 +204,54 @@
     "expected_wear"
    ]
   },
+  "clone_brush_hair": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "offset",
+    "scope"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "offset",
+    "scope"
+   ]
+  },
   "close_texture_editor": {
    "parameters": [
     "expected_model"
    ],
    "required": [
     "expected_model"
+   ]
+  },
+  "colorize": {
+   "parameters": [
+    "color",
+    "expected_model",
+    "group_id",
+    "layer_ids",
+    "material_ids",
+    "mode",
+    "strength",
+    "target"
+   ],
+   "required": [
+    "color",
+    "expected_model",
+    "group_id",
+    "target"
+   ]
+  },
+  "create_from_menu": {
+   "parameters": [
+    "confirm_attached",
+    "expected_menu",
+    "variant"
+   ],
+   "required": [
+    "expected_menu"
    ]
   },
   "delete_texture_layer": {
@@ -197,6 +308,43 @@
    "required": [
     "action",
     "category",
+    "expected_model"
+   ]
+  },
+  "editor_camera": {
+   "parameters": [
+    "action",
+    "angles",
+    "center",
+    "delta",
+    "expected_model",
+    "mode",
+    "pan",
+    "position"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "enter_category": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "section"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "section"
+   ]
+  },
+  "exit_vroid": {
+   "parameters": [
+    "close_attached",
+    "discard_unsaved",
+    "expected_model"
+   ],
+   "required": [
     "expected_model"
    ]
   },
@@ -267,6 +415,9 @@
     "author",
     "expected_model",
     "filename",
+    "leave",
+    "model_version",
+    "options",
     "title",
     "version"
    ],
@@ -290,6 +441,19 @@
     "title"
    ]
   },
+  "face_preview": {
+   "parameters": [
+    "expected_model",
+    "filter",
+    "name",
+    "reset",
+    "restore",
+    "weight"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
   "generate_hair_bones": {
    "parameters": [
     "category",
@@ -307,9 +471,31 @@
    "parameters": [],
    "required": []
   },
+  "get_help": {
+   "parameters": [
+    "language",
+    "topic"
+   ],
+   "required": []
+  },
+  "get_preset_framing": {
+   "parameters": [
+    "category"
+   ],
+   "required": []
+  },
   "get_status": {
    "parameters": [],
    "required": []
+  },
+  "get_vrm_export_options": {
+   "parameters": [
+    "expected_model",
+    "leave"
+   ],
+   "required": [
+    "expected_model"
+   ]
   },
   "get_wear_snapshot": {
    "parameters": [
@@ -362,6 +548,14 @@
    "required": [
     "expected_wear",
     "filename"
+   ]
+  },
+  "inspect_hair_materials": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
    ]
   },
   "inspect_native_api": {
@@ -434,6 +628,15 @@
    "parameters": [],
    "required": []
   },
+  "list_categories": {
+   "parameters": [
+    "expected_model",
+    "section"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
   "list_clothing_params": {
    "parameters": [],
    "required": []
@@ -454,6 +657,25 @@
    "parameters": [],
    "required": []
   },
+  "list_group_parameters": {
+   "parameters": [
+    "expected_model",
+    "group_id",
+    "kind"
+   ],
+   "required": [
+    "expected_model",
+    "group_id"
+   ]
+  },
+  "list_groups": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
   "list_hair_bone_groups": {
    "parameters": [
     "category"
@@ -470,6 +692,15 @@
     "category",
     "expected_model",
     "node_id"
+   ]
+  },
+  "list_hair_groups": {
+   "parameters": [
+    "category",
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
    ]
   },
   "list_hair_materials": {
@@ -532,10 +763,20 @@
     "area",
     "category",
     "limit",
-    "offset"
+    "offset",
+    "owned_only",
+    "search"
    ],
    "required": [
     "area"
+   ]
+  },
+  "list_sections": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
    ]
   },
   "list_shoe_templates": {
@@ -624,6 +865,17 @@
     "filename"
    ]
   },
+  "open_from_menu": {
+   "parameters": [
+    "confirm_attached",
+    "expected_menu",
+    "filename"
+   ],
+   "required": [
+    "expected_menu",
+    "filename"
+   ]
+  },
   "open_texture_editor": {
    "parameters": [
     "bake_colors",
@@ -691,6 +943,14 @@
     "seconds"
    ]
   },
+  "preset_thumbnail": {
+   "parameters": [
+    "key"
+   ],
+   "required": [
+    "key"
+   ]
+  },
   "preview_expression": {
    "parameters": [
     "expected_model",
@@ -726,6 +986,27 @@
     "preset_ids"
    ]
   },
+  "recolor_texture_layer": {
+   "parameters": [
+    "color",
+    "expected_layer_sha256",
+    "expected_model",
+    "expected_state_sha256",
+    "image_id",
+    "layer_id",
+    "mode",
+    "region_id",
+    "strength"
+   ],
+   "required": [
+    "color",
+    "expected_layer_sha256",
+    "expected_model",
+    "image_id",
+    "layer_id",
+    "region_id"
+   ]
+  },
   "redo": {
    "parameters": [
     "expected_model",
@@ -733,6 +1014,16 @@
    ],
    "required": [
     "expected_model"
+   ]
+  },
+  "remove_items": {
+   "parameters": [
+    "expected_model",
+    "group"
+   ],
+   "required": [
+    "expected_model",
+    "group"
    ]
   },
   "rename_texture_layer": {
@@ -777,11 +1068,57 @@
     "part_id"
    ]
   },
+  "replace_texture_layer": {
+   "parameters": [
+    "expected_layer_sha256",
+    "expected_model",
+    "expected_png_sha256",
+    "expected_state_sha256",
+    "filename",
+    "image_id",
+    "layer_id",
+    "region_id"
+   ],
+   "required": [
+    "expected_layer_sha256",
+    "expected_model",
+    "expected_png_sha256",
+    "filename",
+    "image_id",
+    "layer_id",
+    "region_id"
+   ]
+  },
+  "reset_preset_framing": {
+   "parameters": [
+    "category"
+   ],
+   "required": []
+  },
   "restart_session": {
    "parameters": [
     "discard_unsaved"
    ],
    "required": []
+  },
+  "return_to_main_menu": {
+   "parameters": [
+    "discard_unsaved",
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "run_batch": {
+   "parameters": [
+    "include_images",
+    "operations",
+    "stop_on_error"
+   ],
+   "required": [
+    "operations"
+   ]
   },
   "sample_wear_preview_rig": {
    "parameters": [
@@ -838,12 +1175,47 @@
     "filename"
    ]
   },
+  "scale_brush_hair": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "factor",
+    "scope"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "factor",
+    "scope"
+   ]
+  },
   "screenshot": {
    "parameters": [
+    "clean",
     "expected_model",
+    "height",
+    "msaa",
     "quality",
     "size",
-    "view"
+    "ssaa",
+    "view",
+    "width"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "screenshot_metadata": {
+   "parameters": [
+    "clean",
+    "expected_model",
+    "height",
+    "msaa",
+    "quality",
+    "size",
+    "ssaa",
+    "view",
+    "width"
    ],
    "required": [
     "expected_model"
@@ -857,6 +1229,20 @@
    "required": [
     "substring"
    ]
+  },
+  "search_preset_cache": {
+   "parameters": [
+    "annotated_only",
+    "category",
+    "include_locked",
+    "include_removed",
+    "kind",
+    "limit",
+    "owned",
+    "query",
+    "status"
+   ],
+   "required": []
   },
   "select_wear_preview_clip": {
    "parameters": [
@@ -877,6 +1263,18 @@
     "expected_model"
    ]
   },
+  "set_body_size": {
+   "parameters": [
+    "expected_model",
+    "height_cm",
+    "variant",
+    "weight_kg"
+   ],
+   "required": [
+    "expected_model",
+    "height_cm"
+   ]
+  },
   "set_clothing_params": {
    "parameters": [
     "changes",
@@ -895,6 +1293,18 @@
    "required": [
     "changes",
     "expected_model"
+   ]
+  },
+  "set_group_parameters": {
+   "parameters": [
+    "changes",
+    "expected_model",
+    "group_id"
+   ],
+   "required": [
+    "changes",
+    "expected_model",
+    "group_id"
    ]
   },
   "set_hair_color": {
@@ -925,6 +1335,20 @@
     "expected_model",
     "node_id",
     "shared_material_id"
+   ]
+  },
+  "set_hair_material_color": {
+   "parameters": [
+    "color",
+    "expected_model",
+    "key",
+    "material_id"
+   ],
+   "required": [
+    "color",
+    "expected_model",
+    "key",
+    "material_id"
    ]
   },
   "set_height": {
@@ -964,6 +1388,21 @@
     "target"
    ]
   },
+  "set_preset_framing": {
+   "parameters": [
+    "bottom",
+    "category",
+    "clear_half",
+    "distance",
+    "fit",
+    "half",
+    "top",
+    "yaw"
+   ],
+   "required": [
+    "category"
+   ]
+  },
   "set_preview_mode": {
    "parameters": [
     "expected_model",
@@ -972,6 +1411,20 @@
    "required": [
     "expected_model",
     "mode"
+   ]
+  },
+  "set_procedural_hair": {
+   "parameters": [
+    "category",
+    "expected_model",
+    "hair_count",
+    "length",
+    "scope"
+   ],
+   "required": [
+    "category",
+    "expected_model",
+    "scope"
    ]
   },
   "set_texture_layer_blend": {
@@ -1054,10 +1507,28 @@
     "visible"
    ]
   },
+  "sync_preset_cache": {
+   "parameters": [
+    "expected_model",
+    "icon_limit",
+    "icons"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
   "undo": {
    "parameters": [
     "expected_model",
     "steps"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "vroid_measure": {
+   "parameters": [
+    "expected_model"
    ],
    "required": [
     "expected_model"

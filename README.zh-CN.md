@@ -8,11 +8,13 @@ Windows · VRoid Studio 2.16.0 / 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · 
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
-连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。新建／打开人物须 `discard_unsaved=true`；`new_character` 按原生退出流程完成新建替换。当前人物转换装须 `switch_to_wear=true`。人物、XWear、XRoid 文件流程支持明确的绝对路径，普通文件名使用 lab 的 saves 目录。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。替换当前人物须 `discard_unsaved=true`；`new_character` 按原生退出流程完成新建替换。当前人物转换装须 `switch_to_wear=true`。人物、XWear、XRoid 文件流程支持明确的绝对路径，普通文件名使用 lab 的 saves 目录。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
 当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未发布新的稳定版。此 fork 的 [mcjo79 迁移对照表](MIGRATION.md)逐项列出 53 个源工具的去向、已验证的行为和限制。下文的原生测试是上游基线的历史记录；迁移功能的实机操作、保存重开、导出和画面效果须在兼容的独立副本中按[实机验收清单](docs/superpowers/native-migration-acceptance.md)分别验证。
+
+本分支提供 [143 个工具](tools/TOOLS.md)，保留迁移前的 103 个接口。`get_help` 接收 `{"topic":"migration","language":"zh"}`，可离线查阅对照表。`return_to_main_menu` 返回的 `menu_token` 可作为 `expected_menu` 传给 `create_from_menu` 或 `open_from_menu`，在同一进程继续操作。
 
 需要试用迁移功能时，请使用下方的 BunnyBlack 功能分支。连接 MCP 后，可以先用 `get_preset_framing` 传入 `{"category":"Clothing/Tops"}` 查看上衣的默认取景，无需启动 VRoid。`search_preset_cache` 查的是本地目录，第一次在兼容副本中执行 `sync_preset_cache` 前查不到条目是正常的。
 

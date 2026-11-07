@@ -29,9 +29,9 @@ sys.path.insert(0, str(PROJECT))
 from vroid_mcp import toolset  # noqa: E402
 from vroid_mcp.server import create_server  # noqa: E402
 
-ROOTS = ['agent', 'tools', 'vroid_mcp', 'tests', 'pipeline/tools', 'pipeline/blender-addons', '.github']
-SUFFIXES = {'.py', '.js', '.ps1', '.toml', '.json', '.md', '.yml', '.yaml'}
-SKIP_PARTS = {'__pycache__', 'node_modules', '.venv', 'data', 'pipeline'}
+ROOTS = ['agent', 'tools', 'vroid_mcp', 'tests', 'pipeline/tools', 'pipeline/blender-addons', '.github', 'docs', 'licenses']
+SUFFIXES = {'.py', '.js', '.ps1', '.toml', '.json', '.md', '.yml', '.yaml', '.txt'}
+SKIP_PARTS = {'__pycache__', 'node_modules', '.venv', 'pipeline'}
 SKIP_NAMES = {'expected-tools.json', 'TOOLS.md'}
 
 
@@ -39,20 +39,17 @@ def _candidates() -> list[pathlib.Path]:
     files: list[pathlib.Path] = []
     for name in ('launch.py', 'prepare_lab.py', 'pyproject.toml', 'package.json', 'SCOPE.md',
                  'CHANGELOG.md', 'README.md', 'README.zh-CN.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
-                 'LICENSING.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md', 'RECOVERY.md',
+                 'LICENSING.md', 'MIGRATION.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md', 'RECOVERY.md', 'REWRITE.md',
                  'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md', 'ATTACHED_SESSION.md', 'TEXTURE_LAYERS.md'):
         path = PROJECT / name
         if path.is_file():
             files.append(path)
-    upstream_license = PROJECT / 'licenses/karylcode-upstream-20261023.txt'
-    if upstream_license.is_file():
-        files.append(upstream_license)
     for root in ROOTS:
         base = PROJECT / root
         if not base.is_dir():
             continue
         for path in base.rglob('*'):
-            if not path.is_file() or path.suffix not in SUFFIXES:
+            if not path.is_file() or (path.suffix not in SUFFIXES and path.name not in {'LICENSE', 'NOTICE'}):
                 continue
             relative = path.relative_to(PROJECT)
             if relative.name in SKIP_NAMES:
@@ -76,7 +73,7 @@ def build(*, normalize_line_endings: bool = True) -> dict:
     return {'schema': ('vroid-source-manifest-v2' if normalize_line_endings
                        else 'vroid-source-manifest-v1'),
             'note': 'Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with '
-                    '--check. Assets, renders and native evidence stay local. '
+                    '--check. Native binaries, model assets and generated renders stay local. '
                     + ('SHA-256 and byte counts normalize CRLF to LF.'
                        if normalize_line_endings else 'SHA-256 uses exact on-disk bytes.'),
             'file_count': len(entries),
@@ -128,9 +125,8 @@ def main() -> int:
     data = build()
     target = pathlib.Path(args.out)
     target.parent.mkdir(parents=True, exist_ok=True)
-    # This manifest is marked -text in .gitattributes; write literal LF bytes
-    # rather than Windows text-mode CRLF so the hash file stays byte-stable.
-    target.write_bytes((json.dumps(data, indent=1, ensure_ascii=False) + '\n').encode('utf-8'))
+    # This -text file has identical UTF-8/CRLF bytes on all platforms.
+    target.write_text(json.dumps(data, indent=1, ensure_ascii=False) + '\n', encoding='utf-8', newline='\r\n')
     print(f"wrote {target}: {data['file_count']} files, {data['total_bytes']} bytes, "
           f"{data['tool_count']} tools {data['toolset_hash']}")
     return 0
