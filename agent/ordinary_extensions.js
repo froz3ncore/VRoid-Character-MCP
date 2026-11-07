@@ -162,7 +162,7 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         return meta;
     }
     const nativeVrm=createVrmExportApi({model,text,invokeManaged,retain,metadata:vrmMeta});
-    return {managedCallbacks, operations:{list_parts:listParts, replace_part:replacePart,
+    return {managedCallbacks, nativeVrm, operations:{list_parts:listParts, replace_part:replacePart,
         custom_item_state:customItemState, save_custom_item:saveCustomItem,
         preserve_attached_unsaved(args) {
             if(!ATTACHED)throw Error('ATTACHED_ONLY');

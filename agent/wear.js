@@ -626,7 +626,7 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
             const authors=meta.field('Authors').value;authors.method('Clear').invoke();authors.method('Add').invoke(Il2Cpp.string(args.author));
             const completion=type.method('ExportVrm10').parameters[2].type.class.alloc();invokeManaged(completion,'.ctor');s.handles.push(retain(completion));
             s.submitted=true;
-            return {...rememberTask(invokeManaged(exporter,'ExportVrm10',[Il2Cpp.string(args.path).handle,meta.handle,completion.handle])),wear_token:e.token};
+            return {...rememberTask(()=>invokeManaged(exporter,'ExportVrm10',[Il2Cpp.string(args.path).handle,meta.handle,completion.handle])),wear_token:e.token};
         },
         finish_wear_vrm_export(args){
             const e=expect(args),s=vrmExportSession;
@@ -676,7 +676,7 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
         wear_scope_save_cache:scopeSaveCache,
         open_wear_project(args){expect(args,false);if(args.discard_unsaved!==true)throw Error('EXPLICIT_DISCARD_REQUIRED');
             restorePreviewClip();
-            generation++;return rememberTask(invokeManaged(main(),args.path.toLowerCase().endsWith('.xroid')?'MoveToXWearEditRootWithXRoidFile':'MoveToXWearEditRootWithVRoidFile',[Il2Cpp.string(args.path).handle]));},
+            generation++;return rememberTask(()=>invokeManaged(main(),args.path.toLowerCase().endsWith('.xroid')?'MoveToXWearEditRootWithXRoidFile':'MoveToXWearEditRootWithVRoidFile',[Il2Cpp.string(args.path).handle]));},
         set_wear_fit(args){const e=expect(args),item=[...e.vm.method('get_DressItems').invoke()].find(o=>o.handle.toString()===args.item_id);
             if(!item)throw Error('UNKNOWN_WEAR_ITEM');
             if(!Number.isFinite(args.fit_y)||!Number.isFinite(args.fit_z)||args.fit_y<0||args.fit_y>2||args.fit_z<0||args.fit_z>2)throw Error('FIT_RANGE: 0..2');
@@ -699,7 +699,7 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
             // Opening a .vroid has no previous XRoid thumbnail. The native UI takes
             // this before saving; call the same API rather than inventing a cache file.
             invokeManaged(context,'TakeThumbnail',[mask]);
-            return {...rememberTask(invokeManaged(context,'SaveXRoid',[Il2Cpp.string(args.path).handle])),cache_path:scoped.cache_path};},
+            return {...rememberTask(()=>invokeManaged(context,'SaveXRoid',[Il2Cpp.string(args.path).handle])),cache_path:scoped.cache_path};},
         import_xwear(args){const e=expect(args);if(e.vm.method('get_Preview').invoke().method('get_IsPreview').invoke())throw Error('STOP_WEAR_ANIMATION_FIRST');
             const alert=e.vm.method('get_SettingsViewModel').invoke().method('get_AutoFitAlertSettingViewModel').invoke();
             const previous={alert:alert.method('get_IsAutoFitAlertDisplayed').invoke(),auto:alert.method('get_AlwaysRunAutoFit').invoke()};
@@ -710,7 +710,7 @@ function createWearApi({main,cls,core,text,invokeManaged,rememberTask,captureQua
                 invokeManaged(alert,'set_AlwaysRunAutoFit',[boolArg(false)]);
                 const path=cls('VRoid.Studio','VRoid.Studio.Util.ResourcePath.FullAccessibleResourcePath').alloc();
                 invokeManaged(path,'.ctor',[Il2Cpp.string(args.path).handle]);
-                const task=rememberTask(invokeManaged(e.vm,'ImportXWear',[path.handle]));
+                const task=rememberTask(()=>invokeManaged(e.vm,'ImportXWear',[path.handle]));
                 imports.set(task.task_id,{restore,hold:retain(alert)});generation++;return task;
             }catch(error){restore();throw error;}},
         wear_finish_import(args){const entry=imports.get(args.task_id);if(entry){try{entry.restore();}finally{entry.hold.free();imports.delete(args.task_id);}}return status();},

@@ -19,6 +19,77 @@ def public_server(monkeypatch, tmp_path, current):
     return lambda name: mcp._tool_manager.get_tool(name).fn
 
 
+@pytest.mark.parametrize('op', ['open_from_menu', 'start_vrm_export'])
+def test_cancelled_attached_dispatch_retains_worker_native_owner_and_pin(tmp_path, monkeypatch, op):
+    import threading
+    import zipfile
+    from test_ordinary_vrm_options import harness
+    runtime, _, _ = harness(tmp_path, monkeypatch)
+    runtime.mode, runtime.pid = 'attached', 42
+    entered, resume, terminal = (threading.Event() for _ in range(3))
+    events = []
+    native = runtime._call
+    runtime.status = lambda:native('status')
+    monkeypatch.setattr(bridge,'record',lambda *args:None)
+    def rpc(operation, args):
+        if operation in ('attached_review','attached_acknowledge'):
+            if not terminal.is_set(): raise ValueError('NATIVE_WORK_PENDING')
+            return {'recovery_token':'token', 'acknowledged':True}
+        if operation == op:
+            entered.set()
+            assert resume.wait(4)
+            return {}
+        raise AssertionError(operation)
+    def release():
+        events.append('release')
+        return {'released':terminal.is_set(), 'pending_work':[] if terminal.is_set() else [op]}
+    runtime.script = SimpleNamespace(exports_sync=SimpleNamespace(call=rpc, release=release),
+                                     unload=lambda:events.append('unload'))
+    runtime.session = SimpleNamespace(detach=lambda:events.append('detach'))
+    async def call(operation, args=None):
+        if operation in (op, 'attached_review', 'attached_acknowledge'): return await bridge.call(runtime, operation, args)
+        if operation == 'get_session_preflight': return {}
+        if operation == 'attached_edit_begin': return {'id':'our-edit'}
+        if operation == 'attached_edit_finish': return {'needs_review':True}
+        return await native(operation,args)
+    runtime._call = call
+    monkeypatch.setattr(bridge.attached_ui, 'window_state', lambda _:dict(blocked=False))
+    monkeypatch.setattr(runtime_session, 'verified_window', lambda _:'0x1')
+    fn = public_server(monkeypatch,tmp_path,runtime)
+    source=tmp_path/'model.vroid'
+    with zipfile.ZipFile(source,'w') as f: f.writestr('member','file')
+    async def scenario():
+        await fn('get_status')()
+        if op=='open_from_menu':
+            invocation=fn(op)('menu',str(source),True)
+        else:
+            invocation=fn('export_vrm')('live','output.vrm')
+        waiter=asyncio.create_task(invocation)
+        assert await asyncio.to_thread(entered.wait,3)
+        try:
+            waiter.cancel()
+            with pytest.raises(asyncio.CancelledError): await waiter
+            assert runtime.uncertain
+            if op=='open_from_menu': assert runtime._pending_custom_item_pins
+            result=await fn('detach_open_vroid')()
+            assert result.get('close_blocked') and not events
+            with pytest.raises(RuntimeError,match='WORK_PENDING'): await fn('get_attached_state')()
+        finally:
+            resume.set()
+        for _ in range(200):
+            if not bridge.pending_attached_workers(runtime): break
+            await asyncio.to_thread(threading.Event().wait,.005)
+        assert (await fn('detach_open_vroid')())['close_blocked'] and events==['release']
+        with pytest.raises(ValueError,match='WORK_PENDING'): await fn('get_attached_state')()
+        terminal.set()
+        assert (await fn('get_attached_state')())['recovery_token']=='token'
+        assert (await fn('acknowledge_attached_state')('token'))['acknowledged']
+        assert not runtime.uncertain and not getattr(runtime,'_pending_custom_item_pins',[])
+        assert (await fn('detach_open_vroid')())['detached']
+        assert events[-3:]==['release','unload','detach']
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize('operation', ['exit_vroid', 'return_to_main_menu'])
 @pytest.mark.parametrize('modal_persists',[True,False])
 def test_attached_modal_between_preflight_and_send_keeps_model_and_recovery(tmp_path, monkeypatch, operation, modal_persists):

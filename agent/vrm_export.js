@@ -135,10 +135,21 @@ function createVrmExportApi({model, text, invokeManaged, retain, metadata}) {
     function finish(args) {
         const result=status(args);
         if(!job||!result.done||args.output_stable!==true||!preview(args).ready)throw Error('VRM_EXPORT_NOT_SAFE_TO_RELEASE');
-        for(const handle of job.handles)handle.free();
-        job=null;
+        releaseWork();
         return {released:true};
     }
-    return {isPending:()=>!!job,operations:{vrm_export_options:snapshot,apply_vrm_export_options:apply,
+    function pendingWork() {
+        if (!job) return [];
+        try {
+            if (get(job.task,'IsCompleted')===true) return [];
+            return [{kind:'vrm_export',model_token:job.token}];
+        } catch(error) { return [{kind:'vrm_export',model_token:job.token,error:String(error)}]; }
+    }
+    function releaseWork() {
+        if (!job) return;
+        for (const handle of job.handles) handle.free();
+        job=null;
+    }
+    return {isPending:()=>!!job,pendingWork,releaseWork,operations:{vrm_export_options:snapshot,apply_vrm_export_options:apply,
         vrm_export_preview:preview,start_vrm_export:start,vrm_export_status:status,finish_vrm_export:finish}};
 }

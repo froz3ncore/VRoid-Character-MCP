@@ -14,11 +14,13 @@ further calls are refused until a restart.
 from __future__ import annotations
 
 import asyncio
+from contextvars import copy_context
 import hashlib
 import json
 import os
 import pathlib
 import time
+import threading
 import uuid
 from typing import Any
 
@@ -251,7 +253,7 @@ async def adopt(subject) -> dict:
             raise TimeoutError('Attached bridge did not become ready')
         await asyncio.sleep(.2)
     try:
-        result = await asyncio.wait_for(asyncio.to_thread(subject.script.exports_sync.adopt), 30)
+        result = await _attached_rpc(subject, 'adopt', subject.script.exports_sync.adopt, (), 30)
         deadline = time.monotonic() + 30
         while True:
             png = await call(subject, 'native_png_status')
@@ -274,12 +276,40 @@ class NativeCallNotSent(RuntimeError):
     """A host guard refused this operation before scheduling its Frida RPC."""
 
 
+def pending_attached_workers(subject):
+    return [name for name, done in getattr(subject, '_attached_workers', ()) if not done.is_set()]
+
+
+async def _attached_rpc(subject, name, function, args, timeout):
+    """Own the submitted worker even if its waiting task is canceled or times out."""
+    done = threading.Event()
+    def run():
+        try:
+            return function(*args)
+        finally:
+            done.set()
+    previous = getattr(subject, '_attached_workers', ())
+    subject._attached_workers = [(op, event) for op, event in previous if not event.is_set()] + [(name, done)]
+    try:
+        future = asyncio.get_running_loop().run_in_executor(None, copy_context().run, run)
+    except BaseException:
+        done.set()
+        raise
+    # A late failure is consumed even after the requesting client leaves.
+    future.add_done_callback(lambda completed: None if completed.cancelled() else completed.exception())
+    return await asyncio.wait_for(asyncio.shield(future), timeout)
+
+
 async def call(subject, operation: str, args: dict | None = None) -> Any:
     if subject.dead or subject.script is None:
         if getattr(subject, 'mode', 'copy') == 'attached':
             raise NativeCallNotSent('ATTACHED_VROID_DISCONNECTED: detach or attach again')
         raise NativeCallNotSent('COPY_DISCONNECTED: restart the MCP server')
     attached = getattr(subject, 'mode', 'copy') == 'attached'
+    if attached and operation in ('attached_review', 'attached_acknowledge', 'attached_edit_begin'):
+        pending = pending_attached_workers(subject)
+        if pending:
+            raise NativeCallNotSent('ATTACHED_NATIVE_WORK_PENDING: ' + ', '.join(pending))
     inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
         'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state',
         'enter_category', 'custom_item_validate_poll', 'custom_item_application_state', 'preserving_preset_state', 'preserved_preset_readback',
@@ -290,6 +320,9 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         raise NativeCallNotSent('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
     timeout = SLOW_OPERATIONS.get(operation, DEFAULT_TIMEOUT_SECONDS)
     payload = args or {}
+    if attached and operation == 'attached_edit_finish' and pending_attached_workers(subject):
+        payload = {**payload, 'success':False, 'uncertain':True}
+        subject.uncertain = True
     if getattr(subject, 'mode', 'copy') == 'attached':
         try:
             window = attached_ui.window_state(getattr(subject, 'pid', None))
@@ -325,9 +358,16 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         if operation == 'apply_registered_custom_item':
             from .preset_catalog import bind_custom_selection_export
             export = bind_custom_selection_export(export)
-        result = await asyncio.wait_for(asyncio.to_thread(export, operation, payload), timeout)
+        if attached:
+            result = await _attached_rpc(subject, operation, export, (operation, payload), timeout)
+        else:
+            result = await asyncio.wait_for(asyncio.to_thread(export, operation, payload), timeout)
         edit_sequence.after_call(subject, operation, payload, result)
         return result
+    except asyncio.CancelledError:
+        if attached and (not inspectable or operation in {'attached_edit_finish', 'attached_acknowledge'}):
+            subject.uncertain = True
+        raise
     except asyncio.TimeoutError:
         # No answer is not success: the model may have changed already.
         subject.uncertain = True
@@ -447,7 +487,10 @@ def close(subject) -> dict:
         elif getattr(subject, 'exit_stopped', False):
             outcome['native_process_stopped'] = True
         elif getattr(subject, 'mode', 'copy') == 'attached':
-            if pinned and (subject.script is None or subject.dead):
+            pending = pending_attached_workers(subject)
+            if pending and not subject.dead:
+                return blocked('ATTACHED_NATIVE_WORK_PENDING', pending_work=pending)
+            if (pinned or pending or subject.script is not None) and (subject.script is None or subject.dead):
                 # A lost agent is not proof that the user's process stopped.
                 try:
                     subject.device.get_process(subject.pid)

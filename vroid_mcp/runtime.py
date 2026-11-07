@@ -88,9 +88,11 @@ class Runtime(SessionTools, SituationTools, CatalogTools, PreviewTools, HairGrou
 
     def close(self) -> dict:
         result = frida_bridge.close(self)
-        if result.get('close_blocked'):
-            return result
+        if not result.get('close_blocked'):
+            self.release_source_pins()
+        return result
+
+    def release_source_pins(self):
         for pin in getattr(self, '_pending_custom_item_pins', []):
             pin.__exit__(None, None, None)
         self._pending_custom_item_pins = []
-        return result

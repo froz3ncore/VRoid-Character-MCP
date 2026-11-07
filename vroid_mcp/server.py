@@ -370,7 +370,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
 
         Inspect parameters, layers and created files before acknowledging an
         interrupted operation. This never retries or reverses the operation.
-        Dialogs and active native work must finish before review.
+        Dialogs, import tasks, VRM export and registered-item loading/selection
+        must finish before review. If their original agent was lost, process
+        exit may be the only available proof that native work has stopped.
         """
         async with session_gate():
             if getattr(runtime.current, 'exit_watch', None) or getattr(runtime.current, 'exit_stopped', False):
@@ -392,6 +394,10 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             if runtime.current.mode != 'attached':
                 raise RuntimeError('ATTACHED_ONLY')
             result = await runtime.current._call('attached_acknowledge', {'recovery_token': recovery_token})
+            if result.get('acknowledged') is not True:
+                raise RuntimeError('ATTACHED_ACKNOWLEDGMENT_UNCONFIRMED')
+            if getattr(runtime.current, '_pending_custom_item_pins', None):
+                runtime.current.release_source_pins()
             runtime.current.uncertain = False
             return result
 

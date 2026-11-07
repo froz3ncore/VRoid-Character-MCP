@@ -108,6 +108,11 @@ assert.throws(()=>ops.start_vrm_export({...args,version:1,path:'stage.vrm'}),/af
 assert.throws(()=>ops.start_vrm_export({...args,version:1,path:'stage.vrm'}),/BUSY/);
 assert.equal(frees,8);
 console.log('vrm_export native doubles: settings, readiness, signatures, completion, retention passed');
+assert.equal(api.pendingWork().length,1);
+assert.equal(frees,8);
+completed=true;fault=true;
+assert.equal(api.pendingWork().length,0);
+api.releaseWork();assert.equal(frees,12);
 
 // Exercise the existing metadata builder too: settings migration must not
 // replace stored permissions with source defaults while adding model_version.

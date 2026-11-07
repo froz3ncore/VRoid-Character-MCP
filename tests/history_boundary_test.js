@@ -24,7 +24,7 @@ const ctx = {
         if (loseReply) throw Error('STALE_MODEL');
         return {};
     },
-    rememberTask:() => ({task_id:'one'}),
+    rememberTask:invoke => {invoke();return {task_id:'one'};},
 };
 vm.runInNewContext(source.slice(start,end),ctx);
 const run = token => ctx.history({expected_model:token},'UndoAsync');

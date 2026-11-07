@@ -13,6 +13,29 @@
 // `dispatch` is the only export; the sub-APIs (parameters, wear, textures,
 // body reference, preset previews) register themselves into its table.
 
+function createPendingNativeWork(tasks, vrm, groups) {
+    function observe() {
+        const pending = [];
+        for (const [id, holder] of tasks) {
+            try {
+                if (!holder.task || holder.task.method('get_IsCompleted').invoke()!==true)
+                    pending.push({kind:'managed_task',task_id:id});
+            } catch (error) { pending.push({kind:'managed_task',task_id:id,error:String(error)}); }
+        }
+        pending.push(...vrm.pendingWork(), ...groups.pendingWork());
+        return {safe:pending.length===0, pending_work:pending};
+    }
+    function release() {
+        const result=observe();
+        if (!result.safe) return result;
+        for (const [id,holder] of tasks) { holder.handle.free(); tasks.delete(id); }
+        vrm.releaseWork();
+        const count=groups.releaseWork();
+        return {...result,custom_requests_released:count};
+    }
+    return {observe,release};
+}
+
 globalThis.vroid = (() => {
     // A model token is session-scoped and generation-scoped: opening another
     // file in the same copy invalidates every id issued before it.
@@ -34,7 +57,8 @@ globalThis.vroid = (() => {
     const parameterMetadata = createParameterSemantics({ text });
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
     const captureFraming = createCaptureFraming({ core, text, cls });
-    const attachedState = createAttachedState({main: mainViewModel, text, state});
+    const attachedState = createAttachedState({main: mainViewModel, text, state, sessionTag,
+        observeWork:()=>nativeWork.observe(), releaseWork:()=>nativeWork.release()});
     const session = createSessionWorkflows({main:mainViewModel, model:modelContext, ui:attachedState.snapshot,
         retain, sessionTag, invalidateModel:() => { boundEngine = ''; }, guard:attachedState.guard,
         nativeProfile:() => nativeBuildProfile(VROID_ASSEMBLY_SHA256), invoke:invokeManaged, newModel,
@@ -498,9 +522,15 @@ globalThis.vroid = (() => {
     }
 
     // ------------------------------------------------------------------ tasks
-    function rememberTask(task) {
+    function rememberTask(invoke) {
         const id = String(++nextTaskId);
-        tasks.set(id, { task, handle: retain(task) });
+        // A thrown invocation can have dispatched native work without returning
+        // its Task. Retain the unknown owner until the user process exits.
+        const holder = {task:null, handle:null};
+        tasks.set(id, holder);
+        const task = invoke();
+        holder.handle = retain(task);
+        holder.task = task;
         return { task_id: id };
     }
 
@@ -561,7 +591,7 @@ globalThis.vroid = (() => {
             if (error.attached_guard_prewrite) return rejected(error);
             throw error;
         }
-        return { ...rememberTask(invokeManaged(m.engine, method)),
+        return { ...rememberTask(()=>invokeManaged(m.engine, method)),
                  frame: state.frame || 0 };
     }
 
@@ -615,7 +645,7 @@ globalThis.vroid = (() => {
         const fromXRoid = Memory.alloc(1);
         dontSetPath.writeU8(withoutAssociation ? 1 : 0);
         fromXRoid.writeU8(0);
-        return rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
+        return rememberTask(()=>invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
             [path.handle, dontSetPath, fromXRoid]));
     }
 
@@ -798,6 +828,7 @@ globalThis.vroid = (() => {
         buildProfile:nativeBuildProfile(VROID_ASSEMBLY_SHA256)});
     const presetCatalog=createNativePresetCatalog({model:modelContext,presetEntries:collectPresets,
         helpers:groups.helpers,text,build:VROID_ASSEMBLY_SHA256,retain});
+    const nativeWork=createPendingNativeWork(tasks,ordinary.nativeVrm,groups);
     const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,
         invokeManaged,retain,state,assemblySha256:VROID_ASSEMBLY_SHA256,
         helpers:extended.hairGroupHelpers,groupHelpers:groups.helpers,
@@ -918,7 +949,13 @@ globalThis.vroid = (() => {
     }
 
     return {
-        prepareTeardown(){session.clearMenu();appFrame.dispose();presetCatalog.dispose();return groups.prepareTeardown();},
+        prepareTeardown(){
+            const evidence=nativeWork.release();
+            if (!evidence.safe) return evidence;
+            attachedState.confirmWorkReleased();
+            session.clearMenu();appFrame.dispose();presetCatalog.dispose();
+            return evidence;
+        },
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))

@@ -32,7 +32,10 @@ const main=()=>object({
     get_ActionHandler:()=>object({get_IsUnSaved:()=>true}),
 },{_mainModel:object({}, {currentFile:file}),_editModelTransform:object({get_IsUpdatingModel:()=>busy})});
 const state={pngDecoder:{pending:0,fatal:null}};
-const create=()=>createAttachedState({main,text:x=>x,state});
+let pending=[], releases=0, workOwner='original';
+const create=()=>createAttachedState({main,text:x=>x,state,sessionTag:workOwner,
+    observeWork:()=>({safe:!pending.length,pending_work:pending}),
+    releaseWork:()=>{assert.equal(pending.length,0);releases++;return {safe:true};}});
 let api=create();
 enabledDialog=true;
 assert.throws(()=>api.guard('attached_edit_begin'),/ATTACHED_UI_BLOCKED/);
@@ -51,9 +54,26 @@ const review=api.operations.attached_review();
 currentModel='model-2';
 assert.throws(()=>api.operations.attached_acknowledge({recovery_token:review.recovery_token}),/STALE_ATTACHED_REVIEW/);
 const fresh=api.operations.attached_review();
-const ack=api.operations.attached_acknowledge({recovery_token:fresh.recovery_token});
+pending=['custom selection'];
+assert.throws(()=>api.operations.attached_acknowledge({recovery_token:fresh.recovery_token}),/NATIVE_WORK_PENDING/);
+assert.throws(()=>api.operations.attached_review(),/NATIVE_WORK_PENDING/);
+assert.equal(JSON.parse(environment).id,receipt.id);assert.equal(releases,0);
+pending=[];
+const recovered=api.operations.attached_review();
+const ack=api.operations.attached_acknowledge({recovery_token:recovered.recovery_token});
 assert.equal(ack.interrupted_edit.tool,'import_texture_layer');assert.equal(ack.replayed,false);
 assert.equal(environment,null);
+for (const native of ['start_vrm_export','open_from_menu','custom_item_validate_begin']) {
+    const edit=api.operations.attached_edit_begin({tool:native});
+    api.guard(native);
+    api.operations.attached_edit_finish({id:edit.id,success:false,uncertain:true});
+    workOwner='new';const orphan=create();
+    assert.throws(()=>orphan.operations.attached_review(),/NATIVE_WORK_OWNER_LOST/);
+    workOwner='original';api.confirmWorkReleased();
+    const token=orphan.operations.attached_review().recovery_token;
+    orphan.operations.attached_acknowledge({recovery_token:token});
+}
+api=create();
 assert.throws(()=>api.operations.attached_acknowledge({recovery_token:fresh.recovery_token}),/STALE_ATTACHED_REVIEW/);
 // Rejection before any mutation clears the new receipt without claiming work.
 const rejected=api.operations.attached_edit_begin({tool:'save_custom_items'});

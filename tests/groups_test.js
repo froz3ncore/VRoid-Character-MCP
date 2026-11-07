@@ -79,7 +79,11 @@ function setup(options={}) {
         details:options.details || (entry=>({semantic_status:'complete',semantic_group:type,semantic_kind:'combined',
             semantic_bindings:[{key:'negative'},{key:'positive'}],min:-1,max:1,editable:true,value:entry.p.value})),
         presetEntries:(_model,area)=>{catalogCalls.push(area);return area==='clothing'?presets:[];},ordinary:{managedCallbacks:()=>({ok:{handle:1},fail:{handle:2}})}});
-    return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,catalogCalls,m,group,p,rawColor,classes,classFor,presets,type,active};
+    function teardown() {
+        const pending=api.pendingWork();
+        return pending.length?{safe:false,pending_work:pending}:{safe:true,custom_requests_released:api.releaseWork()};
+    }
+    return {api:api.operations,helpers:api.helpers,teardown,nativeState,calls,catalogCalls,m,group,p,rawColor,classes,classFor,presets,type,active};
 }
 
 function deserializedCustomItem(f) {

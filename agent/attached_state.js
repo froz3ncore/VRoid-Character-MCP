@@ -1,4 +1,4 @@
-function createAttachedState({main, text, state}) {
+function createAttachedState({main, text, state, sessionTag, observeWork, releaseWork}) {
     let historyRevision = 0;
     let commandRevision = 0;
     if (ATTACHED) bridge.hooks.push(Interceptor.attach(
@@ -54,6 +54,9 @@ function createAttachedState({main, text, state}) {
             if (r && !name.startsWith('attached_')) {
                 if (r.owner !== ATTACHED_OWNER_PID) throw Error('ATTACHED_EDIT_NEEDS_REVIEW');
                 r.dispatches++;
+                if (['open_from_menu','replace_with_file','undo','redo','start_vrm_export','custom_item_validate_begin',
+                    'write_wear_vrm_export','open_wear_project','save_wear_project','import_xwear'].includes(name))
+                    r.native_work_owner=sessionTag;
                 receiptWriteAttempted=true;
                 writeReceipt(r);
             }
@@ -80,6 +83,13 @@ function createAttachedState({main, text, state}) {
     }
     function requireIdle() {
         const f = fingerprint(), s = f.state;
+        if (s.pending_edit?.native_work_owner && s.pending_edit.native_work_owner!==sessionTag)
+            throw Error('ATTACHED_NATIVE_WORK_OWNER_LOST: close this VRoid process to establish termination');
+        const work=observeWork();
+        if (!work.safe) {
+            review=null;
+            throw Error('ATTACHED_NATIVE_WORK_PENDING: ' + JSON.stringify(work.pending_work));
+        }
         if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked || f.png_pending || f.png_fatal)
             throw Error('ATTACHED_STATE_NOT_IDLE: finish the active operation before review');
         if (!main().field('_mainModel').value.field('currentFile').value.handle.isNull()) {
@@ -108,7 +118,11 @@ function createAttachedState({main, text, state}) {
         writeReceipt(prior);
         return true;
     }
-    return {snapshot, guard, hairPrewriteCheckpoint, verifyHairPrewrite, operations: {
+    function confirmWorkReleased() {
+        const r=receipt();
+        if (r?.native_work_owner===sessionTag) { delete r.native_work_owner; writeReceipt(r); }
+    }
+    return {snapshot, guard, confirmWorkReleased, hairPrewriteCheckpoint, verifyHairPrewrite, operations: {
         attached_edit_begin(args) {
             if (!ATTACHED) throw Error('ATTACHED_ONLY');
             if (receipt()) throw Error('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state before acknowledgment');
@@ -119,7 +133,7 @@ function createAttachedState({main, text, state}) {
         attached_edit_finish(args) {
             const r = receipt();
             if (!r || r.owner !== ATTACHED_OWNER_PID || r.id !== args.id) throw Error('ATTACHED_EDIT_RECEIPT_CHANGED');
-            if (args.success || (!r.dispatches && !args.uncertain)) writeReceipt(null);
+            if ((args.success || (!r.dispatches && !args.uncertain)) && observeWork().safe) writeReceipt(null);
             return {needs_review: !!receipt()};
         },
         attached_review() {
@@ -133,6 +147,8 @@ function createAttachedState({main, text, state}) {
             const f = requireIdle();
             if (!review || args.recovery_token !== review.token || JSON.stringify(f) !== review.fingerprint)
                 throw Error('STALE_ATTACHED_REVIEW: inspect get_attached_state again');
+            const released=releaseWork();
+            if (!released.safe) throw Error('ATTACHED_NATIVE_WORK_PENDING');
             const prior = receipt(); writeReceipt(null); review = null;
             return {acknowledged: true, interrupted_edit: prior, replayed: false};
         },

@@ -654,7 +654,7 @@ function createGroupApi(H) {
         return {m,r};
     }
     function customLifetime(r) {
-        if (!r.task || !r.task.method('get_IsCompleted').invoke())
+        if (!r.task || r.task.method('get_IsCompleted').invoke()!==true)
             return {terminal:false,application_settled:false,reason:'native custom load has no terminal receipt'};
         if (!r.application_dispatched) return {terminal:true,application_settled:true};
         const s = H.teardownState();
@@ -686,21 +686,23 @@ function createGroupApi(H) {
         return {terminal:true,application_settled:r.quiet.count>=3,quiet_frames:r.quiet.count,
             reason:r.quiet.count>=3?null:'awaiting consecutive distinct quiet native observations'};
     }
-    function prepareTeardown() {
-        const pending = [], ready = [];
+    function pendingWork() {
+        const pending = [];
         for (const [id,r] of requests) {
             if (r.kind!=='custom') continue;
             try {
                 const evidence = customLifetime(r);
                 if (!evidence.terminal || !evidence.application_settled) pending.push({request_id:id,...evidence});
-                else ready.push([id,r]);
             } catch (error) { pending.push({request_id:id,error:String(error),terminal:false,application_settled:false}); }
         }
-        if (pending.length) return {safe:false,pending_work:pending};
-        // Do not sever any request's lifetime until every pending reader/apply
-        // has terminal and settled evidence. Model replacement alone is not it.
-        for (const [id,r] of ready) { r.handles.forEach(handle=>handle.free()); requests.delete(id); }
-        return {safe:true,custom_requests_released:ready.length,pending_work:[]};
+        return pending;
+    }
+    function releaseWork() {
+        let count=0;
+        for (const [id,r] of requests) if (r.kind==='custom') {
+            r.handles.forEach(handle=>handle.free()); requests.delete(id); count++;
+        }
+        return count;
     }
     const sameValue = (a,b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v,i) => Math.abs(v-b[i]) < 1e-5);
     function colorSnapshot(m) {
@@ -741,7 +743,7 @@ function createGroupApi(H) {
         outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
         return {outcomes,discovery_errors:after.errors,frame:state.frame};
     }
-    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,catalogRows,groupInventory,
+    return {pendingWork,releaseWork,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,catalogRows,groupInventory,
         membershipInventory:m=>groupInventory(m,false)},operations:{
         list_groups(args) {
             const m=requireModel(args),result=groupInventory(m);
