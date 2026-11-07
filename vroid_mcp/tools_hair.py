@@ -40,8 +40,11 @@ def register(ready_tool, runtime, lab, read, edit):
 
         At least one value is required. Only the statically verified pixiv-signed
         2.14.0 descriptor is enabled; other supported builds reject this operation.
-        Native VM setters own all managed history delegates. Configured Length has
-        native parameter units, separate from measured control-point geometry.
+        Existing exact native VM controls supply live ranges and setters. Other
+        paths use verified native managed modifiers and static native UI bounds,
+        without creating a property or JS-owned history delegate. Each scalar is
+        settled and read back before the next write. Configured Length has native
+        parameter units, separate from measured control-point geometry.
         """
         return await runtime.set_procedural_hair(expected_model, category, scope, length, hair_count)
 
@@ -62,8 +65,9 @@ def register(ready_tool, runtime, lab, read, edit):
         """Clone a whole brush group, then offset every cloned point including roots.
 
         Finite XYZ offset uses native control-point coordinates, without guide or
-        world conversion. Returns the unique new group/strand IDs and exact history
-        counts. Ambiguous or partial native results must not be retried blindly.
+        world conversion. Returns unique new group/strand IDs, completed native
+        command calls and verified geometry counts. Merged undo-entry counts are
+        unknown. Ambiguous or partial results must not be retried blindly.
         """
         return await runtime.clone_brush_hair(expected_model, category, scope, offset)
 

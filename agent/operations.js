@@ -760,7 +760,7 @@ globalThis.vroid = (() => {
     const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,
         invokeManaged,retain,state,assemblySha256:VROID_ASSEMBLY_SHA256,
         helpers:extended.hairGroupHelpers,groupHelpers:groups.helpers,
-        inventory:groups.helpers.groupInventory})});
+        inventory:groups.helpers.membershipInventory})});
 
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
@@ -890,14 +890,29 @@ globalThis.vroid = (() => {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
                 throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
-            attachedState.guard(name);
-            requireOrdinaryEditing(name, args);
-            if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
-                modelContext(args.expected_model);
-                if (attachedState.snapshot().history_revision !== args.expected_history_revision)
-                    throw Error('CHARACTER_CHANGED_AFTER_SNAPSHOT: inspect and save again');
+            const hairMutation=['scale_brush_hair','clone_brush_hair','set_procedural_hair'].includes(name);
+            const checkpoint=hairMutation?attachedState.hairPrewriteCheckpoint(name):null;
+            let entered=false,result;
+            try{
+                attachedState.guard(name);
+                requireOrdinaryEditing(name, args);
+                if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
+                    modelContext(args.expected_model);
+                    if (attachedState.snapshot().history_revision !== args.expected_history_revision)
+                        throw Error('CHARACTER_CHANGED_AFTER_SNAPSHOT: inspect and save again');
+                }
+                entered=true;result=operations[name](args);
+            }catch(error){
+                if(!hairMutation||entered)throw error;
+                result={model_token:args.expected_model,ok:false,uncertain:false,partial:false,
+                    dispatch_state:'prewrite_rejected',native_invocation_attempted:false,
+                    attempted_commands:0,command_count:0,error:String(error)};
             }
-            return operations[name](args);
+            if(hairMutation&&ATTACHED&&result.dispatch_state==='prewrite_rejected'){
+                result.attached_prewrite_verified=attachedState.verifyHairPrewrite(name,checkpoint,result);
+                if(!result.attached_prewrite_verified)result.uncertain=true;
+            }
+            return result;
         },
     };
 })();

@@ -129,6 +129,101 @@ async def test_transport_failure_reports_unknown_completion_without_zero_count()
 
 
 @async_test
+async def test_definite_native_prewrite_rejection_does_not_poison_copy():
+    r, calls = runtime()
+    async def prewrite(name, args):
+        return {'model_token': 'fresh', 'ok': False, 'partial': False, 'uncertain': False,
+                'dispatch_state': 'prewrite_rejected', 'native_invocation_attempted': False,
+                'attempted_commands': 0, 'command_count': 0, 'error': 'UNKNOWN_HAIR_GROUP'}
+    r._call = prewrite
+    result = await r.scale_brush_hair('fresh', 'HairFront', 'missing', 2)
+    assert result['uncertain'] is False
+    assert not r.uncertain
+
+
+@async_test
+async def test_procedural_changes_wait_for_delayed_scalar_before_next_setter():
+    r, calls = runtime()
+    configured = {'length': .2, 'hair_count': 8}
+    pending = []
+    setters = []
+    async def settle(frame=-1):
+        calls.append(('settle', frame))
+        if pending:
+            key, value = pending.pop()
+            configured[key] = value
+        return {'model_token': 'fresh'}
+    async def native(name, args):
+        assert r.lock.locked()
+        calls.append((name, args))
+        if name == 'get_procedural_hair_controls':
+            return {'model_token': 'fresh', 'configured': dict(configured),
+                    'controls': [{'key': 'length', 'min': .01, 'max': 2}, {'key': 'hair_count', 'min': 1, 'max': 100}]}
+        if name == 'set_procedural_hair':
+            changes = {k: args[k] for k in ('length', 'hair_count') if k in args}
+            assert len(changes) == 1
+            if setters:
+                assert configured['length'] == .5
+            key, value = next(iter(changes.items()))
+            setters.append(key)
+            pending.append((key, value))
+            return {'model_token': 'fresh', 'ok': True, 'frame': 9, 'setter_count': 1, 'attempted_setters': 1,
+                    'native_invocation_attempted': True, 'command_count': None,
+                    'verification_identity': {'scope': 't/g', 'type': 'procedural'},
+                    'requested_configured': {**configured, key: value}, 'verification_pending': True}
+        if name == 'get_hair_group_state':
+            return {'model_token': 'fresh', 'group': {'scope': 't/g', 'type': 'procedural',
+                    'configured': dict(configured), 'strands': ['regenerated']}}
+        raise AssertionError(name)
+    r._call, r._settle = native, settle
+    result = await r.set_procedural_hair('fresh', 'HairFront', 't/g', length=.5, hair_count=16)
+    assert result['ok'] and result['settled'] and not r.uncertain
+    assert result['configured'] == {'length': .5, 'hair_count': 16}
+    assert setters == ['length', 'hair_count']
+
+
+@async_test
+async def test_procedural_stops_after_real_uncertain_invocation():
+    r, calls = runtime()
+    original = r._call
+    async def native(name, args):
+        if name == 'set_procedural_hair':
+            calls.append((name, args))
+            return {'model_token': 'fresh', 'ok': False, 'uncertain': True,
+                    'setter_count': 0, 'attempted_setters': 1, 'native_invocation_attempted': True}
+        return await original(name, args)
+    r._call = native
+    result = await r.set_procedural_hair('fresh', 'HairFront', 't/g', length=.5, hair_count=16)
+    assert result['uncertain'] and r.uncertain
+    assert len([c for c in calls if c[0] == 'set_procedural_hair']) == 1
+
+
+@pytest.mark.parametrize('length,accepted', [(.1, True), (.099, False)])
+@async_test
+async def test_procedural_native_float_lower_endpoint(length, accepted):
+    from vroid_mcp.runtime_hair import native_float
+    r, calls = runtime()
+    minimum = native_float(.1)
+    async def native(name, args):
+        calls.append((name, args))
+        if name == 'get_procedural_hair_controls':
+            return {'model_token': 'fresh', 'controls': [{'key': 'length', 'min': minimum, 'max': 1}]}
+        if name == 'set_procedural_hair':
+            assert args['length'] == minimum
+            return {'model_token': 'fresh', 'ok': True, 'frame': 1, 'setter_count': 1, 'attempted_setters': 1,
+                    'verification_identity': {'scope': 't/g'}, 'requested_configured': {'length': minimum, 'hair_count': 8}}
+        return {'model_token': 'fresh', 'group': {'scope': 't/g', 'type': 'procedural', 'configured': {'length': minimum, 'hair_count': 8}}}
+    r._call = native
+    if accepted:
+        result = await r.set_procedural_hair('fresh', 'HairFront', 't/g', length=length)
+        assert result['ok'] and result['settled']
+    else:
+        with pytest.raises(ValueError, match='RANGE'):
+            await r.set_procedural_hair('fresh', 'HairFront', 't/g', length=length)
+        assert all(name != 'set_procedural_hair' for name, _ in calls)
+
+
+@async_test
 async def test_list_requires_token_and_checks_native_identity():
     r, calls = runtime()
     result = await r.list_hair_groups('fresh')
@@ -195,7 +290,8 @@ async def test_procedural_postsettle_geometry_may_regenerate_but_scalar_must_mat
     async def native(name, args):
         result = await original(name, args)
         if name == 'set_procedural_hair':
-            result['verification_snapshot'] = {'scope': 't/g', 'type': 'procedural', 'configured': {'length': .5, 'hair_count': 16}, 'strands': []}
+            result['verification_identity'] = {'scope': 't/g', 'type': 'procedural'}
+            result['requested_configured'] = {'length': .5, 'hair_count': 16}
         if name == 'get_hair_group_state':
             result['group'] = {'scope': 't/g', 'type': 'procedural', 'configured': {'length': .5, 'hair_count': 16}, 'strands': ['regenerated']}
         return result

@@ -37,7 +37,38 @@ At runtime both delegate code pointers must match the verified reflected
 methods, both delegate targets must be the same closure instance, their declaring
 class must be the current property class, and both engine/path owners must match.
 Item positions, localized labels and current-value coincidence are unused.
-Bounds are read from the live native control, rather than embedded constants.
+Existing, exact native UI-owned properties provide their live ranges. Looking
+up the current DesignEditor.Property does not create a property or alter selection.
+Its engine, model, file, action handler and exact procedural path are checked.
+
+For an unselected or hidden path, the descriptor can instead use the verified
+native managed modifier directly. The signed CreateGroups body supplies immutable
+UI bounds: Length min `Math.fround(0.1)`, max `1`, precision `3`; HairCount min
+`1`, max `20`. These are explicitly labeled static native UI bounds for this
+assembly. Values are converted to Single before range admission, so JSON `0.1`
+is accepted at the true native minimum. The ordinary VM and static routes must
+not be generalized to another assembly digest.
+
+The fallback allocates the existing native capture class, initializes its exact
+typed `v` field, and calls the real native Action constructor with that capture
+and the verified native modifier MethodInfo handle. It validates the closed
+Action Invoke signature, target and native code pointer before constructing
+`ModifyProceduralHairGroupParameterSetCommand("mcp", path, action, true)`.
+This follows the pinned bridge's native delegate constructor ABI without creating
+or substituting any JS callback. Native history owns the managed Action/capture.
+The exact active-owner binding and native GetIsPathValidQuery are checked before
+dispatch; neither an Accessor nor guide/property constructor is required.
+
+Direct property construction is deliberately unused: its constructor subscribes
+to engine updates, and CreateGroups also creates material listeners. Releasing
+a pin would not unregister those subscriptions after a partial constructor.
+No temporary property, subscription observer or process-wide hook is installed.
+
+Each requested procedural scalar is dispatched as one step, settled, and read
+from the real configured parameter set before another step begins. Immediate
+publication is not assumed. A genuine uncertain invocation stops the sequence.
+Receipts distinguish VM setter calls from explicit native command calls; merged
+history/undo-entry deltas remain unobserved.
 
 The pinned frida-il2cpp-bridge 0.14.0 maps the actual `System.Delegate.method_ptr`
 field's native signed-integer type to NativePointer. Pointer `.equals` therefore

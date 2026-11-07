@@ -158,7 +158,12 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                                 current.uncertain = True
                         raise
                     if receipt:
-                        if isinstance(result, dict) and result.get('ok') is False:
+                        definite_hair_prewrite = (function.__name__ in {'scale_brush_hair', 'clone_brush_hair', 'set_procedural_hair'}
+                            and isinstance(result, dict) and result.get('dispatch_state') == 'prewrite_rejected'
+                            and result.get('native_invocation_attempted') is False
+                            and result.get('attached_prewrite_verified') is True
+                            and result.get('uncertain') is False)
+                        if isinstance(result, dict) and result.get('ok') is False and not definite_hair_prewrite:
                             current.uncertain = True
                         try:
                             finished = await current._call('attached_edit_finish', {

@@ -78,7 +78,24 @@ function createAttachedState({main, text, state}) {
         }
         return f;
     }
-    return {snapshot, guard, operations: {
+    const hairMutation=name=>['scale_brush_hair','clone_brush_hair','set_procedural_hair'].includes(name);
+    function hairPrewriteCheckpoint(name){return ATTACHED&&hairMutation(name)?fingerprint():null;}
+    function verifyHairPrewrite(name,before,result){
+        if(!ATTACHED||!hairMutation(name)||!before||result.dispatch_state!=='prewrite_rejected'||
+            result.native_invocation_attempted!==false||result.uncertain||result.partial||
+            ['command_count','attempted_commands','setter_count','attempted_setters'].some(k=>result[k]))return false;
+        const after=fingerprint(),prior=before.state.pending_edit,current=after.state.pending_edit;
+        if(!prior||!current||prior.tool!==name||prior.id!==current.id||prior.owner!==ATTACHED_OWNER_PID||current.owner!==prior.owner||
+            ![prior.dispatches,prior.dispatches+1].includes(current.dispatches))return false;
+        if(JSON.stringify({...current,dispatches:prior.dispatches})!==JSON.stringify(prior))return false;
+        after.state.pending_edit=prior;
+        if(JSON.stringify(after)!==JSON.stringify(before))return false;
+        // Only the one synthetic dispatch increment is reverted, after proving
+        // model/screen/history/command identity and all remaining state unchanged.
+        writeReceipt(prior);
+        return true;
+    }
+    return {snapshot, guard, hairPrewriteCheckpoint, verifyHairPrewrite, operations: {
         attached_edit_begin(args) {
             if (!ATTACHED) throw Error('ATTACHED_ONLY');
             if (receipt()) throw Error('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state before acknowledgment');

@@ -48,10 +48,12 @@ globalThis.createProceduralHairBindings = H => {
                 if(validator.method('Invoke').invoke()!==true)throw Error('PROCEDURAL_CONTROL_NOT_VALID');
                 controls.push({key:descriptor.key,type:descriptor.type,min,max,value:prop(item,'Value'),
                     range_source:'native UI',binding_source:'verified assembly native delegate/accessor/parameter field mapping',
-                    write(value){
+                    write(value,onInvoke){
                         owned(property,path,engine);
                         if(validator.method('Invoke').invoke()!==true)throw Error('PROCEDURAL_CONTROL_NOT_VALID');
-                        invokeManaged(item,'set_Value',[boxArgument(descriptor.type,value)]);
+                        const argument=boxArgument(descriptor.type,value);
+                        onInvoke?.();
+                        invokeManaged(item,'set_Value',[argument]);
                     }});
             }
         }

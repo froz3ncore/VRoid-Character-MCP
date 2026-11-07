@@ -55,6 +55,7 @@ AGENT_MODULES = (
     'attached_state.js',
     'groups.js',
     'hair_procedural.js',
+    'hair_procedural_fallback.js',
     'hair_groups.js',
     'operations.js',
 )

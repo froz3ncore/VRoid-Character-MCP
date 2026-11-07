@@ -43,7 +43,7 @@ function setup() {
         LoadAndReplaceTransferableGroup:(id,ok,fail,flag)=>{calls.push(['preserve',flag.value]);rawColor.fields.color.fields.Color=rgba([.9,.9,.9,1]);}});
     const root=new Native('Root');
     const m={token:'live',context:nativeContext,root};
-    const calls=[];
+    const calls=[],catalogCalls=[];
     const clear=new Native('Clear',{_transferableGroupType:s(type)});
     const presets=[{id:'clothing/WholeBody/none',clear:true,p:clear}];
     const classes={};
@@ -76,8 +76,8 @@ function setup() {
         entries:(_model,area)=>area==='body'?[{id:'body/WholeBody/000',p}]:[],
         details:entry=>({semantic_status:'complete',semantic_group:type,semantic_kind:'combined',
             semantic_bindings:[{key:'negative'},{key:'positive'}],min:-1,max:1,editable:true,value:entry.p.value}),
-        presetEntries:(_model,area)=>area==='clothing'?presets:[],ordinary:{managedCallbacks:()=>({ok:{handle:1},fail:{handle:2}})}});
-    return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,m,group,p,rawColor,classes,classFor,presets,type,active};
+        presetEntries:(_model,area)=>{catalogCalls.push(area);return area==='clothing'?presets:[];},ordinary:{managedCallbacks:()=>({ok:{handle:1},fail:{handle:2}})}});
+    return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,catalogCalls,m,group,p,rawColor,classes,classFor,presets,type,active};
 }
 
 function customFixture(f) {
@@ -98,6 +98,11 @@ function customFixture(f) {
     return {item,native,nativeItem};
 }
 const args={expected_model:'live',group_id:'g'};
+{
+    const f=setup();const result=f.helpers.membershipInventory(f.m);
+    assert.equal(result.membership_complete,true);assert.equal(f.catalogCalls.length,0,'membership-only inventory must not visit catalogs');
+    f.api.list_groups(args);assert.equal(f.catalogCalls.length,4,'existing removal discovery retained');
+}
 {
     const f=setup(), custom=customFixture(f);
     f.api.custom_item_validate_begin({...args,registered_item:custom.item,

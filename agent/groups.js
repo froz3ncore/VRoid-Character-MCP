@@ -83,7 +83,7 @@ function createGroupApi(H) {
         }
         return null;
     }
-    function groupInventory(m) {
+    function groupInventory(m, removalCapabilities=true) {
         const found = new Map(), errors = [];
         const completeness = {active:false,active_leaf:false,stored:false};
         function merge(id, object, flags) {
@@ -118,7 +118,7 @@ function createGroupApi(H) {
             completeness.stored = true;
         } catch (error) { errors.push({source: 'stored', error: String(error)}); }
         const clears = [];
-        for (const area of ['face', 'body', 'hair', 'clothing']) {
+        for (const area of removalCapabilities ? ['face', 'body', 'hair', 'clothing'] : []) {
             try { clears.push(...presetEntries(m, area).filter(e => e.clear).map(e => ({type: clearType(e), id: e.id}))); }
             catch (error) { errors.push({source: 'removal_capability/' + area, error: String(error)}); }
         }
@@ -537,7 +537,8 @@ function createGroupApi(H) {
         outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
         return {outcomes,discovery_errors:after.errors,frame:state.frame};
     }
-    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,groupInventory},operations:{
+    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,groupInventory,
+        membershipInventory:m=>groupInventory(m,false)},operations:{
         list_groups(args) { return groupInventory(requireModel(args)); },
         list_group_parameters(args) {
             const result = collect(requireModel(args),args.group_id);

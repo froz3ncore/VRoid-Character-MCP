@@ -188,3 +188,25 @@ def test_public_edit_receipt_covers_entire_verified_tool_and_preserves_original_
         asyncio.run(tool(expected_model='live',part_id='part'))
     assert [e[0] for e in events]==['attached_edit_begin','native_and_verification','attached_edit_finish']
     assert events[-1][1]['success'] is (outcome in ('success','finish_failure'))
+
+
+def test_public_hair_prewrite_verified_receipt_finishes_without_poisoning_attachment(tmp_path, monkeypatch):
+    from vroid_mcp import server
+    instances, events = [], []
+    class FakeRuntime:
+        def __init__(self, lab):
+            self.mode = 'attached'; self.uncertain = False; instances.append(self)
+        def start(self): pass
+        async def initialize(self, *a): pass
+        async def _call(self, name, args):
+            events.append((name, args))
+            return {'id': 'receipt'} if name == 'attached_edit_begin' else {'needs_review': False}
+        async def scale_brush_hair(self, *a):
+            return {'ok': False, 'uncertain': False, 'native_invocation_attempted': False,
+                    'dispatch_state': 'prewrite_rejected', 'attached_prewrite_verified': True}
+    monkeypatch.setattr(server, 'Runtime', FakeRuntime)
+    mcp = server.create_server(tmp_path, 'F00')
+    result = asyncio.run(mcp._tool_manager.get_tool('scale_brush_hair').fn(
+        expected_model='live', category='HairFront', scope='missing', factor=2))
+    assert result['ok'] is False and not instances[0].uncertain
+    assert events[-1][1]['success'] is True

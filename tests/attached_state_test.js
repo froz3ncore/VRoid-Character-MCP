@@ -70,3 +70,21 @@ for(const name of ['rename_texture_layer','delete_texture_layer','reorder_textur
 }
 assert.throws(()=>api.guard('set_body_params'),/CLOSE_TEXTURE_EDITOR_FIRST/);
 console.log('attached state guards, cross-host receipt and stale review checks passed');
+activeScreen='EditRoot';
+assert.equal(typeof api.hairPrewriteCheckpoint,'function','native prewrite identity checkpoint missing');
+{
+    const receipt=api.operations.attached_edit_begin({tool:'scale_brush_hair'});
+    const checkpoint=api.hairPrewriteCheckpoint('scale_brush_hair');api.guard('scale_brush_hair');
+    const rejected={ok:false,dispatch_state:'prewrite_rejected',native_invocation_attempted:false,
+        attempted_commands:0,command_count:0,uncertain:false};
+    assert.equal(api.verifyHairPrewrite('scale_brush_hair',checkpoint,rejected),true);
+    assert.equal(api.operations.attached_edit_finish({id:receipt.id,success:false,uncertain:false}).needs_review,false);
+}
+{
+    const receipt=api.operations.attached_edit_begin({tool:'clone_brush_hair'});
+    const checkpoint=api.hairPrewriteCheckpoint('clone_brush_hair');api.guard('clone_brush_hair');
+    hooks.at(-1).onLeave(); // A native/manual history change invalidates the proof.
+    assert.equal(api.verifyHairPrewrite('clone_brush_hair',checkpoint,{ok:false,dispatch_state:'prewrite_rejected',
+        native_invocation_attempted:false,attempted_commands:0,command_count:0,uncertain:false}),false);
+    assert.equal(api.operations.attached_edit_finish({id:receipt.id,success:false,uncertain:true}).needs_review,true);
+}
