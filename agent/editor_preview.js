@@ -20,12 +20,19 @@ function createEditorPreview({adapter,beforeMutation=()=>{}}){
         return rows;
     }
     function execute(name,args,work){
-        let attempted=false;
-        try{return {...work(()=>{attempted=true;beforeMutation(name);}),ok:true,native_invocation_attempted:attempted,uncertain:false};}
-        catch(error){const uncertain=attempted||error.native_uncertain===true;
-            if(uncertain&&name==='face_preview'&&tracked)tracked.weights=null;
+        let attempted=false,guardState='not_entered';
+        try{return {...work(()=>{guardState='checking';beforeMutation(name);guardState='accepted';},()=>{attempted=true;}),
+            ok:true,native_invocation_attempted:attempted,guard_state:guardState,uncertain:false};}
+        catch(error){
+            const definiteGuard=guardState==='checking'&&error.attached_guard_prewrite===true
+                &&error.attached_guard_bookkeeping_attempted===false&&error.native_uncertain!==true;
+            const uncertain=attempted||error.native_uncertain===true||(guardState!=='not_entered'&&!definiteGuard);
+            if(attempted&&name==='face_preview'&&tracked)tracked.weights=null;
+            const dispatchState=!uncertain?'prewrite_rejected':attempted?'invocation_unconfirmed':
+                error.attached_guard_bookkeeping_attempted?'guard_bookkeeping_unconfirmed':guardState==='checking'?'guard_unconfirmed':'native_entry_unconfirmed';
             return {model_token:args.expected_model,ok:false,uncertain,
-            native_invocation_attempted:attempted,dispatch_state:uncertain?'invocation_unconfirmed':'prewrite_rejected',error:String(error)};}
+            native_invocation_attempted:attempted,guard_state:definiteGuard?'prewrite_rejected':guardState,
+            dispatch_state:dispatchState,error:String(error)};}
     }
     function open(expected){if(typeof expected!=='string'||!expected)throw Error('EXPECTED_MODEL_REQUIRED');return adapter.open(expected);}
     function verify(expected){
@@ -38,7 +45,7 @@ function createEditorPreview({adapter,beforeMutation=()=>{}}){
         }
         return c;
     }
-    function camera(args,enter=()=>{}){
+    function camera(args,guard=()=>{},nativeEntry=()=>{}){
         validateEditorCamera(args);const c=open(args.expected_model);adapter.identity(c);
         let action=args.action,request=args;
         const before=adapter.cameraState(c);
@@ -47,15 +54,15 @@ function createEditorPreview({adapter,beforeMutation=()=>{}}){
             validateEditorCamera({...request,action:'angles'});action='angles';
         }
         if(action!=='get'){
-            const invoke=adapter.prepareCameraAction?adapter.prepareCameraAction(c,action,request):()=>adapter.cameraAction(c,action,request);
-            enter();invoke();
+            const invoke=adapter.prepareCameraAction?adapter.prepareCameraAction(c,action,request):onEntry=>{onEntry();adapter.cameraAction(c,action,request);};
+            guard();invoke(nativeEntry);
         }
         const result=adapter.cameraState(c);adapter.identity(c);
         if(action==='projection'&&result.projection===before.projection)throw Error('CAMERA_PROJECTION_TOGGLE_UNCONFIRMED');
         return {model_token:c.token,...result,units:{angles:'degrees',pan:'native_delta',zoom:'native_delta'},
             unavailable_fields:['zoom_scalar','pan_scalar'],saved_model_changed:false};
     }
-    function face(args,enter=()=>{}){
+    function face(args,guard=()=>{},nativeEntry=()=>{}){
         if(args.name!=null&&(typeof args.name!=='string'||!args.name||args.name.length>256))throw Error('INVALID_BLENDSHAPE_NAME');
         if(args.filter!=null&&(typeof args.filter!=='string'||args.filter.length>256))throw Error('INVALID_BLENDSHAPE_FILTER');
         const weight=args.weight===undefined?100:args.weight;
@@ -77,11 +84,11 @@ function createEditorPreview({adapter,beforeMutation=()=>{}}){
             const original=snapshot&&snapshot.token===c.token&&snapshot.identity===identity?snapshot:{token:c.token,identity,shapes:all.map(s=>({...s}))};
             if(args.restore&&(original.shapes.length!==all.length||all.some((s,i)=>s.name!==original.shapes[i].name)))throw Error('PREVIEW_SNAPSHOT_UNAVAILABLE');
             // Snapshot precedes every raw write; partial failures retain the receipt.
-            const batch=adapter.beginFaceBatch?adapter.beginFaceBatch(c):{setWeight:(i,w)=>adapter.setWeight(c,i,w),dispose:()=>{}};
+            const batch=adapter.beginFaceBatch?adapter.beginFaceBatch(c):{setWeight:(i,w,onEntry)=>{onEntry();adapter.setWeight(c,i,w);},dispose:()=>{}};
             try{
-                enter();
+                guard();
                 snapshot=original;tracked={token:c.token,identity,names:all.map(s=>s.name),weights:null};
-                for(const shape of changed)batch.setWeight(shape.index,args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight);
+                for(const shape of changed)batch.setWeight(shape.index,args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight,nativeEntry);
                 const result=validShapes(adapter.face(c));adapter.identity(c);
                 for(const shape of changed){const expected=args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight;
                     if(result[shape.index].name!==all[shape.index].name||Math.abs(result[shape.index].weight-expected)>.001)throw Error('PREVIEW_WEIGHT_READBACK_FAILED');}
@@ -97,8 +104,8 @@ function createEditorPreview({adapter,beforeMutation=()=>{}}){
             persistence:'raw renderer weights; rebuild or animation may replace them; checked again at capture'};
     }
     return {verify,verifyIfTracked(expected){if(tracked&&tracked.token===expected)return verify(expected);return null;},open,adapter,operations:{
-        editor_camera:args=>execute('editor_camera',args,enter=>camera(args,enter)),
-        face_preview:args=>execute('face_preview',args,enter=>face(args,enter)),
+        editor_camera:args=>execute('editor_camera',args,(guard,entry)=>camera(args,guard,entry)),
+        face_preview:args=>execute('face_preview',args,(guard,entry)=>face(args,guard,entry)),
         get_editor_camera:args=>camera({...args,action:'get'}),
         list_face_preview:args=>face({...args,name:null,reset:false,restore:false}),
     }};
@@ -172,13 +179,10 @@ function createEditorPreviewNative({model,core,cls,text,retain=()=>({free(){}})}
             const field=enumClass.fields.find(f=>f.isStatic&&f.name===args.mode);
             if(!field)throw Error('NATIVE_CAMERA_MODE_UNAVAILABLE');mode=field.value;
         }
-        return ()=>{
-            if(action==='angles')method.invoke(vector(args.angles));
-            if(action==='pan')method.invoke(vector(args.pan));
-            if(action==='zoom')method.invoke(args.delta);
-            if(action==='reset'||action==='projection')method.invoke();
-            if(action==='custom')method.invoke(vector(args.position),vector(args.center));
-            if(action==='mode')method.invoke(mode);
+        return (onEntry=()=>{})=>{
+            const values=action==='angles'?[vector(args.angles)]:action==='pan'?[vector(args.pan)]:
+                action==='zoom'?[args.delta]:action==='custom'?[vector(args.position),vector(args.center)]:action==='mode'?[mode]:[];
+            onEntry();method.invoke(...values);
         };
     }
     const cameraAction=(c,action,args)=>prepareCameraAction(c,action,args)();
@@ -200,7 +204,7 @@ function createEditorPreviewNative({model,core,cls,text,retain=()=>({free(){}})}
                 if(failures.length){const error=Error('FACE_BATCH_PIN_CLEANUP_FAILED: '+failures.join('; '));error.native_uncertain=true;throw error;}}
             try{for(const object of [c.renderer,c.mesh,c.m.engine,c.m.root])pins.push(retain(object));}
             catch(error){error.native_uncertain=true;try{release();}catch(cleanup){error.message+='; '+String(cleanup);}throw error;}
-            return {setWeight(i,w){cheapFaceIdentity(c);c.renderer.method('SetBlendShapeWeight').invoke(i,w);},
+            return {setWeight(i,w,onEntry=()=>{}){cheapFaceIdentity(c);const setter=c.renderer.method('SetBlendShapeWeight');onEntry();setter.invoke(i,w);},
                 dispose:release};
         }};
 }

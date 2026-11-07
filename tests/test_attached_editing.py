@@ -213,13 +213,15 @@ def test_public_hair_prewrite_verified_receipt_finishes_without_poisoning_attach
 
 
 @pytest.mark.parametrize('mode', ['copy', 'attached'])
-def test_public_preview_dynamic_receipts_allow_reads_and_corrected_names(tmp_path, monkeypatch, mode):
+@pytest.mark.parametrize('uncertain_outcome', ['response_lost', 'response_lost_before_dispatch', 'receipt_write_lost'])
+def test_public_preview_dynamic_receipts_allow_reads_and_corrected_names(tmp_path, monkeypatch, mode, uncertain_outcome):
     from vroid_mcp import server
     from vroid_mcp.runtime_preview import PreviewTools
     events, instances = [], []
     class FakeRuntime(PreviewTools):
         def __init__(self, lab):
             self.mode = mode; self.uncertain = False; self.lock = asyncio.Lock(); self.pending = None
+            self.blocked = False; self.weight = 10; self.setters = 0
             instances.append(self)
         def start(self): pass
         async def initialize(self, *a): pass
@@ -239,10 +241,20 @@ def test_public_preview_dynamic_receipts_allow_reads_and_corrected_names(tmp_pat
             if args.get('name') == 'ile':
                 return {'model_token': 'live', 'ok': False, 'uncertain': False,
                         'native_invocation_attempted': False, 'dispatch_state': 'prewrite_rejected'}
+            if self.blocked:
+                return {'model_token': 'live', 'ok': False, 'uncertain': False,
+                        'native_invocation_attempted': False, 'guard_state': 'prewrite_rejected',
+                        'dispatch_state': 'prewrite_rejected', 'error': 'ATTACHED_UI_BLOCKED'}
+            if args.get('name') == 'late' and uncertain_outcome == 'response_lost_before_dispatch':
+                raise RuntimeError('NATIVE_RESPONSE_LOST')
             if self.pending:
                 self.pending['dispatches'] += 1
             if args.get('name') == 'late':
-                raise RuntimeError('NATIVE_RESPONSE_LOST')
+                if uncertain_outcome == 'response_lost':
+                    raise RuntimeError('NATIVE_RESPONSE_LOST')
+                return {'model_token': 'live', 'ok': False, 'uncertain': True,
+                        'native_invocation_attempted': False, 'dispatch_state': 'guard_bookkeeping_unconfirmed'}
+            self.weight = args['weight']; self.setters += 1
             return {'model_token': 'live', 'ok': True}
     monkeypatch.setattr(server, 'Runtime', FakeRuntime)
     mcp = server.create_server(tmp_path, 'F00')
@@ -253,9 +265,20 @@ def test_public_preview_dynamic_receipts_allow_reads_and_corrected_names(tmp_pat
     assert all(not name.startswith('attached_') for name, args in events)
     assert asyncio.run(face(expected_model='live', name='ile'))['ok'] is False
     assert not instances[0].uncertain and instances[0].pending is None
-    assert asyncio.run(face(expected_model='live', name='Smile'))['ok'] is True
+    assert asyncio.run(face(expected_model='live', name='Smile', weight=60))['ok'] is True
     assert not instances[0].uncertain and instances[0].pending is None
-    with pytest.raises(RuntimeError, match='NATIVE_RESPONSE_LOST'):
-        asyncio.run(face(expected_model='live', name='late'))
+    if mode == 'attached':
+        instances[0].blocked = True
+        assert asyncio.run(face(expected_model='live', name='Smile', weight=40))['uncertain'] is False
+        assert instances[0].weight == 60 and instances[0].setters == 1
+        assert not instances[0].uncertain and instances[0].pending is None
+        instances[0].blocked = False
+        assert asyncio.run(face(expected_model='live', name='Smile', weight=40))['ok'] is True
+        assert instances[0].weight == 40 and instances[0].setters == 2
+    if uncertain_outcome.startswith('response_lost'):
+        with pytest.raises(RuntimeError, match='NATIVE_RESPONSE_LOST'):
+            asyncio.run(face(expected_model='live', name='late'))
+    else:
+        assert asyncio.run(face(expected_model='live', name='late'))['uncertain'] is True
     assert instances[0].uncertain
     assert (instances[0].pending is not None) == (mode == 'attached')

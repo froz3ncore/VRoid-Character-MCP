@@ -40,18 +40,31 @@ function createAttachedState({main, text, state}) {
     }
     const readOnly = name => /^(status|native_png_status|task_status|get_|list_|inspect_|search_|enter_category|custom_item_validate_poll|custom_item_application_state|preserving_preset_state|preserved_preset_readback|custom_item_state|vrm_export_state|vrm_export_status|export_texture_|export_renderer_texture|attached_review)/.test(name);
     function guard(name) {
-        if (!ATTACHED || readOnly(name) || name === 'attached_edit_finish') return;
-        const s = snapshot();
-        if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked)
-            throw Error('ATTACHED_UI_BLOCKED: close the dialog or finish the manual operation in VRoid first');
-        if (s.active_screen === 'VRoid.Studio.TextureEditorScreen.ViewModel' && !name.startsWith('attached_')
-            && !/^(close_texture_editor|open_texture_editor|import_texture_layer|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|undo|redo|capture_texture_|pick_texture_)/.test(name))
-            throw Error('CLOSE_TEXTURE_EDITOR_FIRST: finish the active canvas before changing model or screen');
-        if (!name.startsWith('attached_')) review = null;
-        const r = receipt();
-        if (r && !name.startsWith('attached_')) {
-            if (r.owner !== ATTACHED_OWNER_PID) throw Error('ATTACHED_EDIT_NEEDS_REVIEW');
-            r.dispatches++; writeReceipt(r);
+        let receiptWriteAttempted=false;
+        try {
+            if (!ATTACHED || readOnly(name) || name === 'attached_edit_finish') return;
+            const s = snapshot();
+            if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked)
+                throw Error('ATTACHED_UI_BLOCKED: close the dialog or finish the manual operation in VRoid first');
+            if (s.active_screen === 'VRoid.Studio.TextureEditorScreen.ViewModel' && !name.startsWith('attached_')
+                && !/^(close_texture_editor|open_texture_editor|import_texture_layer|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|undo|redo|capture_texture_|pick_texture_)/.test(name))
+                throw Error('CLOSE_TEXTURE_EDITOR_FIRST: finish the active canvas before changing model or screen');
+            if (!name.startsWith('attached_')) review = null;
+            const r = receipt();
+            if (r && !name.startsWith('attached_')) {
+                if (r.owner !== ATTACHED_OWNER_PID) throw Error('ATTACHED_EDIT_NEEDS_REVIEW');
+                r.dispatches++;
+                receiptWriteAttempted=true;
+                writeReceipt(r);
+            }
+        } catch(error) {
+            const failure=error instanceof Error?error:Error(String(error));
+            // Only this guard can attest its actual control-flow boundary. A
+            // failed environment write may have committed despite its error.
+            failure.attached_guard_prewrite=!receiptWriteAttempted;
+            failure.attached_guard_bookkeeping_attempted=receiptWriteAttempted;
+            if(receiptWriteAttempted)failure.native_uncertain=true;
+            throw failure;
         }
     }
     function fingerprint() {

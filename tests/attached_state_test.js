@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 vm.runInThisContext(fs.readFileSync('agent/attached_state.js','utf8'));
-let environment=null, enabledDialog=false, busy=false, currentModel='model-1', activeScreen='EditRoot';
+let environment=null, enabledDialog=false, busy=false, currentModel='model-1', activeScreen='EditRoot',receiptWriteMode='ok';
 const nullHandle={isNull:()=>true,toString:()=> '0x0'};
 const handle=s=>({isNull:()=>false,toString:()=>s});
 const hooks=[];
@@ -13,7 +13,7 @@ global.NULL=null;
 global.Process={getModuleByName:()=>({getExportByName:name=>name})};
 global.NativeFunction=function(name){
     if(name==='GetEnvironmentVariableW')return (key,buffer)=>{buffer.text=environment;return environment?environment.length:0;};
-    if(name==='SetEnvironmentVariableW')return (key,value)=>{environment=value;return 1;};
+    if(name==='SetEnvironmentVariableW')return (key,value)=>{environment=value;return receiptWriteMode==='write_then_fail'?0:1;};
     throw Error(name);
 };
 const object=(methods={},fields={},id='object')=>({handle:handle(id),class:{type:{name:id}},
@@ -68,6 +68,52 @@ for(const name of ['rename_texture_layer','delete_texture_layer','reorder_textur
     api.guard(name);
     assert.equal(api.operations.attached_edit_finish({id:edit.id,success:true,uncertain:false}).needs_review,false);
 }
+// Exercise the real guard between receipt acquisition and native preview entry.
+vm.runInThisContext(fs.readFileSync('agent/editor_preview.js','utf8'));
+environment=null;enabledDialog=false;activeScreen='EditRoot';
+let previewWeight=10,setters=0,failSetter=false,cameraSetters=0;
+const preview=createEditorPreview({beforeMutation:name=>api.guard(name),adapter:{
+    open:()=>({token:'token',identity:'renderer:mesh'}),identity:()=> 'renderer:mesh',
+    face:()=>[{index:0,name:'Smile',weight:previewWeight}],
+    cameraState:()=>({angles:[0,0],rotating:false}),cameraAction:()=>cameraSetters++,
+    setWeight(c,i,value){setters++;previewWeight=value;if(failSetter)throw Error('NATIVE_SETTER_RESPONSE_LOST');},
+}});
+let edit=api.operations.attached_edit_begin({tool:'face_preview'});
+assert(preview.operations.face_preview({expected_model:'token',name:'Smile',weight:60}).ok);
+api.operations.attached_edit_finish({id:edit.id,success:true,uncertain:false});
+for(const blocker of ['dialog','canvas']){
+    edit=api.operations.attached_edit_begin({tool:'face_preview'});
+    enabledDialog=blocker==='dialog';activeScreen=blocker==='canvas'?'VRoid.Studio.TextureEditorScreen.ViewModel':'EditRoot';
+    const blocked=preview.operations.face_preview({expected_model:'token',name:'Smile',weight:40});
+    assert.equal(blocked.native_invocation_attempted,false);assert.equal(blocked.uncertain,false);
+    assert.equal(blocked.dispatch_state,'prewrite_rejected');assert.equal(JSON.parse(environment).dispatches,0);
+    const cameraBlocked=preview.operations.editor_camera({expected_model:'token',action:'angles',angles:[20,30]});
+    assert.equal(cameraBlocked.uncertain,false);assert.equal(cameraBlocked.native_invocation_attempted,false);
+    assert.equal(cameraSetters,0);assert.equal(JSON.parse(environment).dispatches,0);
+    assert.equal(previewWeight,60);assert.equal(setters,1);assert.doesNotThrow(()=>preview.verify('token'));
+    assert.equal(api.operations.attached_edit_finish({id:edit.id,success:false,uncertain:false}).needs_review,false);
+    enabledDialog=false;activeScreen='EditRoot';
+}
+edit=api.operations.attached_edit_begin({tool:'face_preview'});
+assert(preview.operations.face_preview({expected_model:'token',name:'Smile',weight:40}).ok);
+assert.equal(setters,2);assert.equal(previewWeight,40);
+api.operations.attached_edit_finish({id:edit.id,success:true,uncertain:false});
+edit=api.operations.attached_edit_begin({tool:'face_preview'});receiptWriteMode='write_then_fail';
+const uncertainGuard=preview.operations.face_preview({expected_model:'token',name:'Smile',weight:30});
+receiptWriteMode='ok';assert.equal(uncertainGuard.uncertain,true);assert.equal(uncertainGuard.native_invocation_attempted,false);
+assert.equal(uncertainGuard.dispatch_state,'guard_bookkeeping_unconfirmed');
+assert.equal(JSON.parse(environment).dispatches,1);assert.equal(setters,2);assert.equal(previewWeight,40);
+assert.doesNotThrow(()=>preview.verify('token'));
+assert(api.operations.attached_edit_finish({id:edit.id,success:false,uncertain:true}).needs_review);
+environment=null;edit=api.operations.attached_edit_begin({tool:'face_preview'});failSetter=true;
+const uncertainSetter=preview.operations.face_preview({expected_model:'token',name:'Smile',weight:20});
+assert.equal(uncertainSetter.native_invocation_attempted,true);assert.equal(uncertainSetter.uncertain,true);assert.equal(setters,3);
+assert.equal(uncertainSetter.dispatch_state,'invocation_unconfirmed');
+assert.throws(()=>preview.verify('token'),/UNCONFIRMED/);
+assert(api.operations.attached_edit_finish({id:edit.id,success:false,uncertain:true}).needs_review);
+console.log('real attached preview boundary: blocked UI/canvas, preserved weights, dismissal, receipt-write loss and partial setter passed');
+// Restore the fixture baseline for the pre-existing texture/hair guard cases.
+environment=null;activeScreen='VRoid.Studio.TextureEditorScreen.ViewModel';
 assert.throws(()=>api.guard('set_body_params'),/CLOSE_TEXTURE_EDITOR_FIRST/);
 console.log('attached state guards, cross-host receipt and stale review checks passed');
 activeScreen='EditRoot';
