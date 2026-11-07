@@ -272,22 +272,48 @@ class TextureTools:
                         row = item['row']
                         receipt = await self._texture_write('set_group_parameters', expected_model, group_id=group_id,
                             changes=[{'id': row['id'], 'type': 'color', 'units': row['units'], 'value': color}])
-                        fresh = await self._texture_read('list_group_parameters', expected_model, group_id=group_id, kind='color')
-                        values = [r['value'] for r in fresh['parameters'] if r['id'] == row['id']]
-                        if receipt.get('ok') is not True or len(values) != 1 or any(abs(a-b) > 1e-5 for a, b in zip(values[0], color)):
-                            self.uncertain = True
-                            raise RuntimeError('GARMENT_COLOR_READBACK_MISMATCH')
-                        receipt['readback_verified'] = True
+                        # Dispatch and settle are known even if verification fails.
+                        # Append before the next await so cancellation cannot erase it.
+                        applied.append({**self._color_target(item), 'receipt': receipt})
+                        await self._verify_garment_color(expected_model, group_id, row, color, receipt)
+                        continue
                     else:
                         row = item['row']
                         receipt = await self._replace_raster(expected_model, item['region_id'],
                             json.dumps(row['image'], separators=(',', ':')), row['layer_id'], item['data'], item['snapshot'])
                     applied.append({'kind': item['kind'], 'receipt': receipt})
-                except Exception as error:
-                    return self._colorize_partial(expected_model, applied, self._color_target(item),
+                except BaseException as error:
+                    partial = self._colorize_partial(expected_model, applied, self._color_target(item),
                         [self._color_target(w) for w in work[index+1:]], error)
+                    if isinstance(error, Exception):
+                        return partial
+                    # Keep cancellation semantics and retain completed work for
+                    # callers handling the cancellation; never invent a rollback.
+                    error.partial_result = partial
+                    raise
             return {'model_token': expected_model, 'ok': True, 'partial': False, 'applied': applied,
                     'remaining': [], 'automatic_rollback': False, 'visible_change_verified': False}
+
+    async def _verify_garment_color(self, expected_model, group_id, row, color, receipt):
+        receipt.update(readback_verified=False, verification_status='unresolved')
+        try:
+            fresh = await self._texture_read('list_group_parameters', expected_model, group_id=group_id, kind='color')
+            values = [r['value'] for r in fresh['parameters'] if r['id'] == row['id']]
+            valid = len(values) == 1 and isinstance(values[0], (list, tuple)) and len(values[0]) == 4
+            if valid:
+                try:
+                    actual = validate_color(values[0])
+                    valid = all(abs(a-b) <= 1e-5 for a, b in zip(actual, color))
+                except ValueError:
+                    valid = False
+            if receipt.get('ok') is not True or not valid:
+                receipt['verification_status'] = 'failed'
+                raise RuntimeError('GARMENT_COLOR_READBACK_MISMATCH')
+            receipt.update(readback_verified=True, verification_status='verified', after=list(values[0]))
+        except BaseException as error:
+            self.uncertain = True
+            receipt['verification_error'] = type(error).__name__+': '+str(error)
+            raise
 
     async def _colorize_globals(self, expected_model, group_id, scoped):
         work, seen = [], set()

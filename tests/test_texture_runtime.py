@@ -275,3 +275,76 @@ def test_incomplete_worn_color_discovery_refuses_composition(tmp_path):
             await r.colorize('m', 'global', [1, 0, 0], group_id='r')
         assert not r.writes
     asyncio.run(run())
+
+
+def garment_readback_subject(tmp_path, fault):
+    runtime = subject(tmp_path)
+    original = runtime._call
+    rows = [{'id': 'garment-'+str(i), 'group_id': 'owner', 'source': 'worn_color_query',
+             'editable': True, 'binding_keys': ['owner/path-'+str(i)], 'units': 'native_rgba',
+             'value': [0, 0, 0, 1]} for i in range(2)]
+    async def call(op, args=None):
+        if op == 'inspect_hair_materials':
+            return {'model_token': 'm', 'materials': []}
+        if op == 'list_group_parameters':
+            if runtime.writes:
+                if fault == 'query':
+                    raise RuntimeError('exact post-write readback query failed')
+                if fault == 'cancel':
+                    raise asyncio.CancelledError('cancelled during exact garment readback')
+                rows[0]['value'] = fault
+            return {'model_token': 'm', 'parameters': copy.deepcopy(rows), 'errors': []}
+        if op == 'set_group_parameters':
+            runtime.writes.append((op, args))
+            rows[0]['value'] = args['changes'][0]['value']
+            return {'model_token': 'm', 'frame': 1, 'ok': True, 'history_command_count': 1}
+        return await original(op, args)
+    runtime._call = call
+    return runtime
+
+
+def assert_failed_garment_receipt(runtime, result):
+    assert len(runtime.writes) == 1 and runtime.uncertain
+    assert result['partial'] and result['uncertain'] and not result['ok']
+    assert not result['automatic_rollback'] and len(result['applied']) == 1
+    applied = result['applied'][0]
+    assert applied['parameter_id'] == 'garment-0' and applied['group_id'] == 'owner'
+    receipt = applied['receipt']
+    assert receipt['ok'] and receipt['settled'] and receipt['history_command_count'] == 1
+    assert receipt['readback_verified'] is False
+    assert receipt['verification_status'] in ('failed', 'unresolved')
+    assert receipt['verification_error']
+    assert result['remaining'] == [{'kind': 'garment', 'parameter_id': 'garment-1', 'group_id': 'owner'}]
+
+
+def test_garment_postwrite_query_failure_retains_settled_receipt_and_blocks_later_targets(tmp_path):
+    async def run():
+        runtime = garment_readback_subject(tmp_path, 'query')
+        result = await runtime.colorize('m', 'global', [.5, .2, .8], group_id='r')
+        assert_failed_garment_receipt(runtime, result)
+        assert 'exact post-write readback query failed' in result['error']
+        assert result['applied'][0]['receipt']['verification_status'] == 'unresolved'
+    asyncio.run(run())
+
+
+def test_garment_postwrite_cancellation_preserves_partial_receipt_and_propagates(tmp_path):
+    async def run():
+        runtime = garment_readback_subject(tmp_path, 'cancel')
+        with pytest.raises(asyncio.CancelledError) as cancelled:
+            await runtime.colorize('m', 'global', [.5, .2, .8], group_id='r')
+        assert_failed_garment_receipt(runtime, cancelled.value.partial_result)
+        assert cancelled.value.partial_result['applied'][0]['receipt']['verification_status'] == 'unresolved'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('readback', [None, [.5, .2, .8], [.5, .2, .8, 1, 0],
+    [.5, .2, float('nan'), 1], [.5, .2, float('inf'), 1], [.5, .2, 'bad', 1],
+    [True, .2, .8, 1], [.5, .2, .8, 0]])
+def test_garment_postwrite_readback_requires_four_finite_matching_channels(tmp_path, readback):
+    async def run():
+        runtime = garment_readback_subject(tmp_path, readback)
+        result = await runtime.colorize('m', 'global', [.5, .2, .8], group_id='r')
+        assert_failed_garment_receipt(runtime, result)
+        assert result['applied'][0]['receipt']['verification_status'] == 'failed'
+        assert 'GARMENT_COLOR_READBACK_MISMATCH' in result['error']
+    asyncio.run(run())
