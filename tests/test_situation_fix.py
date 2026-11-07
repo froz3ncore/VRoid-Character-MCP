@@ -250,6 +250,29 @@ def test_malformed_situation_members_preserve_separate_native_icon(tmp_path, ico
         assert historical.read_bytes() == original
 
 
+def test_historical_nested_situation_shapes_and_exact_dirty_flag(tmp_path):
+    n=Native(tmp_path)
+    assert run(n)['processed']==1
+    store=PresetCatalog(tmp_path/'preset_cache')
+    key=n.rows[0]['resource']
+    row=store.get(key)
+    original=row['images']['situation']
+    store.publish_image(key,png(),{'kind':'native-icon','source':'native'},row['fingerprint'])
+    for fields,bad in [(('membership','root','updated_since_last_revision'),0),
+                       (('native_definition','root','updated_since_last_revision'),0),
+                       (('membership','root','revision'),[]),(('tested',),None),
+                       (('framing','source_bounds'),None)]:
+        image=deepcopy(original)
+        target=image
+        for name in fields[:-1]:target=target[name]
+        target[fields[-1]]=bad
+        with store.locked():
+            catalog=store._load()
+            catalog['presets'][key]['images']['situation']=image
+            store._write(store.path,catalog)
+        assert store.resolve_image(key)[0]['kind']=='native-icon',fields
+
+
 def test_single_color_subject_on_transparent_background_is_not_a_uniform_frame():
     from vroid_mcp.texture_mapping import png_rgba
     from vroid_mcp.situation_proof import raster_evidence

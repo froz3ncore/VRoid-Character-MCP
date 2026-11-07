@@ -261,13 +261,20 @@ function createGroupApi(H) {
     }
     function typedRows(m, group, inventory, errors) {
         const rows = [];
+        let clothingTarget;
         for (const area of ['face', 'body', 'clothing']) {
             try {
                 for (const entry of entries(m, area)) {
                     const d = details(entry);
                     if (area === 'clothing') {
                         const owner = entry.id.slice('clothing/'.length,entry.id.lastIndexOf('/'));
-                        if (owner !== group.id) continue;
+                        if (owner !== group.id) {
+                            const sibling = inventory.groups.find(g=>g.id===owner);
+                            if (d.semantic_group===group.type || sibling?.type===group.type
+                                || (!sibling?.type && !d.semantic_group))
+                                errors.push({source:'typed/'+area,error:'CLOTHING_VM_SIBLING_OWNER_UNPROVEN'});
+                            continue;
+                        }
                         if (d.semantic_group !== group.type) {
                             errors.push({source:'typed/'+area,error:'CLOTHING_VM_GROUP_TYPE_UNPROVEN'});
                             continue;
@@ -283,10 +290,20 @@ function createGroupApi(H) {
                     }
                     if (!inventory.membership_complete || !group.active) continue;
                     const sameType = inventory.groups.filter(g => g.active && g.type === group.type);
-                    if (area !== 'clothing' && (sameType.length !== 1 || sameType[0].id !== group.id
-                            || inventory.groups.some(g=>g.active && !g.type))) {
+                    if (sameType.length !== 1 || sameType[0].id !== group.id
+                            || inventory.groups.some(g=>g.active && !g.type)) {
                         errors.push({source:'typed/'+area,error:'TYPED_VM_OWNER_AMBIGUOUS'});
                         continue;
+                    }
+                    if (area === 'clothing') {
+                        // The VM resolves the type on its current model. Its
+                        // containing editor instance alone cannot bind the setter.
+                        if (clothingTarget === undefined)
+                            clothingTarget = str(active(m).method('GetTransferableGroupIdOfType',1).invoke(Il2Cpp.string(group.type)));
+                        if (clothingTarget !== group.id) {
+                            errors.push({source:'typed/'+area,error:'CLOTHING_VM_RESOLVED_OWNER_MISMATCH'});
+                            continue;
+                        }
                     }
                     const native = d.semantic_bindings.map(b => {
                         // Existing semantic metadata captures concrete path and
@@ -780,7 +797,7 @@ function createGroupApi(H) {
         custom_item_validate_begin(args) {
             const m = requireModel(args), item = registryMatch(m,args.registered_item);
             const id = String(++nextRequest);
-            const r = {kind:'custom',token:m.token,task:null,handles:[retain(item)],item:args.registered_item,
+            const r = {kind:'custom',token:m.token,task:null,handles:[retain(item)],fileModel:item,item:args.registered_item,
                 metadata:args.metadata,completed:false};
             requests.set(id,r);
             r.task = item.method('LoadCustomItemContents').invoke();
@@ -795,18 +812,26 @@ function createGroupApi(H) {
             try {
                 if (r.task.method('get_IsFaulted').invoke() || r.task.method('get_IsCanceled').invoke()) throw Error('NATIVE_CUSTOM_ITEM_LOAD_FAILED');
                 const contents = r.task.method('get_Result').invoke();
+                r.handles.push(retain(contents));
                 const object = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil')
                     .method('DeserializeCustomItem').invoke(contents);
-                r.handles.push(retain(contents),retain(object));
+                r.handles.push(retain(object));
                 if (object.method('IsNecessarilyMigrateBodySuitsCustomItemV2').invoke()) throw Error('CUSTOM_ITEM_MIGRATION_REQUIRED');
                 const meta = prop(object,'customItemMetaData');
-                if (str(prop(meta,'rootTransferableGroupId')) !== r.item.id || r.metadata.rootTransferableGroupId !== r.item.id
-                    || r.metadata.rootTransferableGroupTypeId !== r.item.group_type) throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
-                const groups = pairs(prop(object,'transferableGroups'));
-                const root = groups.find(([id])=>id===r.item.id)?.[1];
-                if (!root || str(prop(root,'Type')) !== r.item.group_type || str(prop(root,'ResourceName')) !== r.item.resource_name
-                    || str(prop(root,'Revision')) !== r.item.revision) throw Error('NATIVE_CUSTOM_ITEM_TYPE_OR_REVISION_MISMATCH');
-                registryMatch(m,r.item);
+                for (const [field,key] of [['rootTransferableGroupId','id'],['rootTransferableGroupTypeId','group_type'],
+                    ['rootTransferableGroupResourceName','resource_name'],['rootTransferableGroupRevision','revision']]) {
+                    if (str(prop(meta,field)) !== r.item[key]
+                        || (Object.hasOwn(r.metadata,field) && r.metadata[field] !== r.item[key]))
+                        throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+                }
+                if (!r.metadata.rootTransferableGroupId || !r.metadata.rootTransferableGroupTypeId)
+                    throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+                const roots = sequence(prop(object,'transferableGroups')).filter(g=>str(prop(prop(g,'Header'),'Id'))===r.item.id);
+                if (roots.length !== 1) throw Error('NATIVE_CUSTOM_ITEM_ROOT_NOT_UNIQUE');
+                const header = prop(roots[0],'Header');
+                if (str(prop(roots[0],'TypeId')) !== r.item.group_type || str(prop(header,'ResourceName')) !== r.item.resource_name
+                    || str(prop(prop(header,'Custom'),'Revision')) !== r.item.revision) throw Error('NATIVE_CUSTOM_ITEM_TYPE_OR_REVISION_MISMATCH');
+                if (!registryMatch(m,r.item).handle.equals(r.fileModel.handle)) throw Error('CUSTOM_ITEM_REGISTERED_MODEL_STALE');
                 r.compatible = true;
                 r.result = {model_token:m.token,completed:true,compatible:true,
                     evidence:'native LoadCustomItemContents + DeserializeCustomItem, root/type/revision and no required migration'};
@@ -816,15 +841,15 @@ function createGroupApi(H) {
         apply_registered_custom_item(args) {
             const {m,r} = request(args,'custom');
             if (!r.completed || !r.compatible || JSON.stringify(args.registered_item) !== JSON.stringify(r.item)) throw Error('CUSTOM_ITEM_NOT_VALIDATED');
-            registryMatch(m,r.item);
+            const registered = registryMatch(m,r.item);
+            if (!registered.handle.equals(r.fileModel.handle)) throw Error('CUSTOM_ITEM_REGISTERED_MODEL_STALE');
             // Exact registered option, including file/resource/revision identity.
             // This route preserves the target's native custom-selection behavior.
             const c = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemOptionViewModel');
             const options = Il2Cpp.gc.choose(c).filter(o=> {
                 const context = o.field('_context').value, item = o.field('_model').value;
                 return alive(context) && context.handle.equals(m.context.handle) && alive(item)
-                    && str(prop(item,'FilePath')) === r.item.path && str(prop(item,'TransferableGroupRevision')) === r.item.revision
-                    && str(prop(item,'TransferableGroupResourceName')) === r.item.resource_name;
+                    && item.handle.equals(registered.handle);
             });
             if (options.length !== 1) throw Error('CUSTOM_ITEM_OPTION_NOT_READY_OR_AMBIGUOUS');
             const enabled = Memory.alloc(1); enabled.writeU8(1);

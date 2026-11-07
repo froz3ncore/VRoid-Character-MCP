@@ -1,5 +1,6 @@
 """Serialized exact group discovery, registered imports and silhouette workflows."""
 import asyncio
+from contextlib import nullcontext
 from pathlib import Path
 import time
 
@@ -189,13 +190,12 @@ class GroupTools:
                     raise ValueError('CUSTOM_ITEM_INCOMPATIBLE: ' + str(result.get('error')))
                 if inspect_custom_item(registered_path, **inspection)['sha256'] != info['sha256']:
                     raise ValueError('CUSTOM_ITEM_CHANGED')
-                if catalog_row is not None:
-                    current = PresetCatalog(self.lab/'preset_cache').current_custom(catalog_row['key'])
-                    if any(current[k] != catalog_row[k] for k in ('scan_id','fingerprint','source','id')):
-                        raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_CHANGED')
-                self.body_edited_tokens.add(expected_model)
-                dispatched = True
-                started = await self._call('apply_registered_custom_item', {**args, 'request_id': receipt})
+                authorization = (PresetCatalog(self.lab/'preset_cache').authorize_custom_dispatch(catalog_row)
+                                 if catalog_row is not None else nullcontext())
+                async with authorization:
+                    self.body_edited_tokens.add(expected_model)
+                    dispatched = True
+                    started = await self._call('apply_registered_custom_item', {**args, 'request_id': receipt})
                 deadline = time.monotonic() + 30
                 while True:
                     await self._settled_for(expected_model, started.get('frame', -1))

@@ -18,6 +18,9 @@ def definition(value, version=True):
     if any(not isinstance(root.get(k),str) or not root[k] for k in keys):
         raise ValueError('SITUATION_DEFINITION_IDENTITY_UNAVAILABLE')
     if not version:return {k:root[k] for k in keys}
+    if (not isinstance(root.get('revision'),str) or not root['revision']
+            or root.get('updated_since_last_revision') is not False):
+        raise ValueError('SITUATION_ROOT_VERSION_UNPROVEN')
     members=value.get('members')
     if (value.get('revision_verified') is not True or not isinstance(members,list)
             or not 1<=len(members)<=512):
@@ -46,7 +49,9 @@ def capture_proof(effective,requested,width=512,height=512):
             or type(effective.get('source_renderer_count')) is not int or not 1<=effective['source_renderer_count']<=4096
             or not isinstance(effective.get('source_root_id'),str) or not effective['source_root_id']):
         raise ValueError('SITUATION_FRAMING_UNVERIFIED')
-    bounds=effective.get('source_bounds',{});lo,hi=bounds.get('min'),bounds.get('max')
+    bounds=effective.get('source_bounds')
+    if not isinstance(bounds,dict):raise ValueError('SITUATION_BOUNDS_UNVERIFIED')
+    lo,hi=bounds.get('min'),bounds.get('max')
     if not vector(lo,3) or not vector(hi,3) or any(a>=b for a,b in zip(lo,hi)):
         raise ValueError('SITUATION_BOUNDS_UNVERIFIED')
     names=('aspect','fov_degrees','near_clip','far_clip','distance','source_span','region_world_top',

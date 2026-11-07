@@ -3,6 +3,8 @@ import asyncio
 import hashlib
 import os
 import shutil
+import subprocess
+import sys
 
 import pytest
 from test_custom_item_generation import archive
@@ -12,7 +14,7 @@ from vroid_mcp.preset_catalog import PresetCatalog
 from vroid_mcp.runtime import Runtime
 
 
-def setup(tmp_path, monkeypatch, mode, change=None):
+def setup(tmp_path, monkeypatch, mode, change=None, dispatch_hook=None):
     runtime = Runtime(tmp_path)
     runtime.mode = mode
     root = tmp_path / ('external' if mode == 'attached' or change == 'escaped' else 'profile')
@@ -53,6 +55,8 @@ def setup(tmp_path, monkeypatch, mode, change=None):
             return dict(completed=True, compatible=True, model_token='live', request_id='job')
         if op == 'apply_registered_custom_item':
             assert args['registered_item'] == registered
+            if dispatch_hook:
+                await dispatch_hook(store)
             return {'frame':12}
         if op == 'list_groups':
             return dict(model_token='live', groups=[dict(registered, active=True, type='Tops')])
@@ -115,3 +119,51 @@ def test_registered_generation_cannot_be_replaced_by_identical_link_before_pin(t
     with pytest.raises(ValueError,match='ALIAS|GENERATION'):
         asyncio.run(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))
     assert 'custom_item_validate_begin' not in calls
+
+
+def test_key_selection_excludes_catalog_retirement_during_native_dispatch(tmp_path,monkeypatch):
+    # A separate process attempts the actual store transaction while the
+    # simulated native selector still has control. The event loop stays free.
+    writer = """from pathlib import Path
+import sys
+from vroid_mcp.preset_catalog import PresetCatalog
+s=PresetCatalog(Path(sys.argv[1]),lock_timeout=.15)
+try:
+    s.sync([],{'session':'other','build':'a'*64},{'custom':True,'builtin':True})
+except TimeoutError as exc:
+    if 'CATALOG_LOCK_TIMEOUT' not in str(exc): raise
+    print('contended')
+else:
+    print('retired')
+"""
+    async def race(store):
+        result=await asyncio.to_thread(subprocess.run,[sys.executable,'-B','-c',writer,str(store.root)],
+                                       capture_output=True,text=True,check=True,timeout=10)
+        assert result.stdout.strip()=='contended'
+    manager,key,calls=setup(tmp_path,monkeypatch,'copy',dispatch_hook=race)
+    assert asyncio.run(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))['applied']
+    store=PresetCatalog(tmp_path/'preset_cache')
+    store.sync([],{'session':'other','build':'a'*64},{'custom':True,'builtin':True})
+    assert store.get(key)['removed'] and calls.count('apply_registered_custom_item')==1
+
+
+@pytest.mark.parametrize('cancel',[False, True])
+def test_catalog_dispatch_wait_yields_event_loop_and_is_cancellable(tmp_path,monkeypatch,cancel):
+    manager,key,calls=setup(tmp_path,monkeypatch,'copy')
+    store=PresetCatalog(tmp_path/'preset_cache')
+    async def run():
+        with store.locked():
+            job=asyncio.create_task(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))
+            for _ in range(100):
+                if 'custom_item_validate_begin' in calls:break
+                await asyncio.sleep(.01)
+            assert 'custom_item_validate_begin' in calls
+            await asyncio.sleep(.05)
+            assert not job.done() and 'apply_registered_custom_item' not in calls
+            if cancel:
+                job.cancel()
+                with pytest.raises(asyncio.CancelledError):await job
+                assert 'custom_item_validate_release' in calls
+        if not cancel:assert (await asyncio.wait_for(job,2))['applied']
+    asyncio.run(run())
+    with store.locked():pass

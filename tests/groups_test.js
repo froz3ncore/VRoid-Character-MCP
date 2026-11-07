@@ -82,14 +82,21 @@ function setup(options={}) {
     return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,catalogCalls,m,group,p,rawColor,classes,classFor,presets,type,active};
 }
 
+function deserializedCustomItem(f) {
+    const meta=new Native('CustomItemMetaData',{rootTransferableGroupId:s('g'),rootTransferableGroupTypeId:s(f.type),
+        rootTransferableGroupResourceName:s('resource'),rootTransferableGroupRevision:s('r')});
+    const header=new Native('TransferableHeader',{Id:s('g'),ResourceName:s('resource'),Custom:new Native('Custom',{Revision:s('r')})});
+    const group=new Native('TransferableGroup',{TypeId:s(f.type),Header:header});
+    return new Native('CustomItemTransferableObject',{customItemMetaData:meta,transferableGroups:[group]},
+        {IsNecessarilyMigrateBodySuitsCustomItemV2:()=>false});
+}
 function customFixture(f) {
     const item={id:'g',group_type:f.type,path:'registered.vroidcustomitem',resource_name:'resource',revision:'r',
         custom_resource_name:'user/custom',custom_revision:'c'};
     const nativeItem=new Native('FileCustomItemModel',{FilePath:s(item.path),TransferableGroupId:s('g'),
         TransferableGroupTypeId:s(f.type),TransferableGroupResourceName:s('resource'),TransferableGroupRevision:s('r'),
         CustomItemId:new Native('CustomItemId',{ResourceName:s(item.custom_resource_name),Revision:s('c')})});
-    const deserialized=new Native('CustomObject',{customItemMetaData:new Native('Meta',{rootTransferableGroupId:s('g')}),
-        transferableGroups:dict([['g',f.group]])},{IsNecessarilyMigrateBodySuitsCustomItemV2:()=>false});
+    const deserialized=deserializedCustomItem(f);
     const native={terminal:false};
     const task=new Native('Task',{}, {get_IsCompleted:()=>native.terminal,get_IsCanceled:()=>false,get_IsFaulted:()=>false,get_Result:()=>new Native('Contents')});
     nativeItem.calls.LoadCustomItemContents=()=>task;
@@ -97,7 +104,7 @@ function customFixture(f) {
         _pathToFileCustomItemModels:new Native('Dictionary',{}, {get_Values:()=>[nativeItem]})},
         {CheckIfIsRegisteredInAssetStorage:resource=>resource.content==='resource'});
     f.classFor('VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil').method=()=>({invoke:()=>deserialized});
-    return {item,native,nativeItem};
+    return {item,native,nativeItem,deserialized};
 }
 const args={expected_model:'live',group_id:'g'};
 const verifiedGarmentBuilds=[
@@ -113,11 +120,22 @@ function garment(build,scenario='template') {
     path.class.type={name:'VRoidCore.Common.TransferableTypes.Path.'+path.class.name};
     const paired=new Native('CombinedBlendShapeTransformParameterViewModel',{
         _negativeBlendShapePath:path,_positiveBlendShapePath:new Native('BlendShapeTransformPath',{Key:s('other')})});
+    paired.calls.set_CombinedValue=value=>f.calls.push(value.value);
     const f=setup({type,build,entries:(_m,a)=>{
         if(scenario==='failed' && a==='face') throw Error('incomplete typed discovery');
-        return a==='clothing' && ['paired','partial','conflict'].includes(scenario)?[{id:'clothing/g/000',p:paired}]:[];
+        if (a!=='clothing') return [];
+        if (scenario==='sibling-vm') return [{id:'clothing/other/000',p:paired}];
+        return ['paired','partial','conflict','ambiguous-vm','wrong-resolver'].includes(scenario)?[{id:'clothing/g/000',p:paired}]:[];
     },details:()=>({semantic_group:scenario==='conflict'?'Other':type,semantic_kind:'combined',
-        semantic_status:scenario==='partial'?'partial':'complete',semantic_bindings:[{},{}],editable:true})});
+        semantic_status:scenario==='partial'?'partial':'complete',semantic_bindings:[{},{}],min:-100,max:100,editable:true})});
+    f.active.calls.GetTransferableGroupIdOfType=t=>{assert.equal(t.content,type);return s(scenario==='wrong-resolver'?'other':'g');};
+    if (['ambiguous-vm','sibling-vm'].includes(scenario)) {
+        const other=new Native('Group',{Id:s('other'),Type:s(type),Revision:s('r2'),ResourceName:s('other/resource')});
+        f.active.calls.GetActiveTransferableGroups=()=>dict([['g',f.group],['other',other]]);
+        f.m.context.calls.GetActiveLeafTransferableGroups=f.active.calls.GetActiveTransferableGroups;
+        f.m.context.calls.GetActiveTransferableGroupInfo=id=>id.content==='g'?f.group:other;
+        f.active.calls.GetTransferableGroupIdOfType=()=>s('other');
+    }
     let value=37.5, leaf='cloth', reads=0;
     const raw=new Native('Parameter',{Key:s('hem'),blendShapeTransform:new Native('Scalar',{Value:value})});
     const item=new Native('Shape',{path});
@@ -181,6 +199,21 @@ for(const scenario of ['duplicate','paired','partial','conflict','failed']){
     assert.throws(()=>g.set(row,8),/BINDING_UNSUPPORTED/);assert.deepEqual(g.f.calls,[]);
 }
 assert.equal(garment(undefined).listed()[0].editable,false);
+for (const mode of ['ambiguous-vm','sibling-vm','wrong-resolver']) {
+    const g=garment(verifiedGarmentBuilds[0],mode);
+    const rows=g.f.api.list_group_parameters(args).parameters;
+    assert.equal(rows.some(r=>r.source==='exact_native_vm'&&r.editable),false,mode);
+    assert.equal(rows.find(r=>r.item_slider).editable,false,mode);
+    assert.throws(()=>g.set(rows.find(r=>r.item_slider),40),/BINDING_UNSUPPORTED/);
+    assert.deepEqual(g.f.calls,[]);
+}
+{
+    const g=garment(verifiedGarmentBuilds[0],'paired');
+    const typed=g.f.api.list_group_parameters(args).parameters.find(row=>row.source==='exact_native_vm');
+    assert.ok(typed.editable);
+    g.set(typed,25);
+    assert.deepEqual(g.f.calls,[25]);
+}
 {
     const f=setup();const result=f.helpers.membershipInventory(f.m);
     assert.equal(result.membership_complete,true);assert.equal(f.catalogCalls.length,0,'membership-only inventory must not visit catalogs');
@@ -206,6 +239,19 @@ assert.equal(garment(undefined).listed()[0].editable,false);
     assert.equal(f.api.custom_item_validate_poll({...args,request_id:started.request_id}).compatible,true);
     const option=new Native('CustomOption',{_context:f.m.context,_model:custom.nativeItem},
         {set_IsSelected:()=>{f.nativeState.presets_loading=true;}});
+    const stale=new Native('FileCustomItemModel',{...custom.nativeItem.fields,TransferableGroupId:s('alien')});
+    const staleOption=new Native('Option',{_context:f.m.context,_model:stale},{set_IsSelected:()=>{throw Error('WRONG_FILE_MODEL');}});
+    context.Il2Cpp.gc.choose=()=>[staleOption];
+    assert.throws(()=>f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:custom.item}),
+        /OPTION_NOT_READY/);
+    const registry=f.m.root.fields._customItemRegistry.fields._pathToFileCustomItemModels;
+    const values=registry.calls.get_Values;
+    registry.calls.get_Values=()=>[new Native('FileCustomItemModel',{...custom.nativeItem.fields})];
+    context.Il2Cpp.gc.choose=()=>[option];
+    assert.throws(()=>f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:custom.item}),/MODEL_STALE/);
+    registry.calls.get_Values=values;
+    context.Il2Cpp.gc.choose=()=>[option,option];
+    assert.throws(()=>f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:custom.item}),/AMBIGUOUS/);
     context.Il2Cpp.gc.choose=()=>[option];
     f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:custom.item});
     const before=freed;
@@ -221,6 +267,23 @@ assert.equal(garment(undefined).listed()[0].editable,false);
     assert.equal(f.teardown().safe,true);
     assert.equal(freed-before,4);
     context.Il2Cpp.gc.choose=()=>[];
+}
+for (const change of ['duplicate','header-id','type','resource','revision','meta-type','meta-resource','meta-revision']) {
+    const f=setup(),custom=customFixture(f);
+    const fields=custom.deserialized.fields, root=fields.transferableGroups[0];
+    const header=root.fields.Header.fields;
+    if(change==='duplicate')fields.transferableGroups.push(root);
+    if(change==='header-id')header.Id=s('other');
+    if(change==='type')root.fields.TypeId=s('other');
+    if(change==='resource')header.ResourceName=s('other');
+    if(change==='revision')header.Custom.fields.Revision=s('other');
+    const metaNames={'meta-type':'rootTransferableGroupTypeId','meta-resource':'rootTransferableGroupResourceName','meta-revision':'rootTransferableGroupRevision'};
+    if(metaNames[change])fields.customItemMetaData.fields[metaNames[change]]=s('other');
+    const result=f.api.custom_item_validate_begin({...args,registered_item:custom.item,
+        metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
+    custom.native.terminal=true;
+    assert.equal(f.api.custom_item_validate_poll({...args,request_id:result.request_id}).compatible,false,change);
+    f.api.custom_item_validate_release({...args,request_id:result.request_id});
 }
 {
     const f=setup();
@@ -373,8 +436,7 @@ assert.equal(garment(undefined).listed()[0].editable,false);
     const nativeItem=new Native('FileCustomItemModel',{FilePath:s(item.path),TransferableGroupId:s('g'),
         TransferableGroupTypeId:s(f.type),TransferableGroupResourceName:s('resource'),TransferableGroupRevision:s('r'),
         CustomItemId:new Native('CustomItemId',{ResourceName:s(item.custom_resource_name),Revision:s('c')})});
-    const deserialized=new Native('CustomObject',{customItemMetaData:new Native('Meta',{rootTransferableGroupId:s('g')}),
-        transferableGroups:dict([['g',f.group]])},{IsNecessarilyMigrateBodySuitsCustomItemV2:()=>false});
+    const deserialized=deserializedCustomItem(f);
     const task=new Native('Task',{}, {get_IsCompleted:()=>true,get_IsCanceled:()=>false,get_IsFaulted:()=>false,get_Result:()=>new Native('Contents')});
     nativeItem.calls.LoadCustomItemContents=()=>task;
     const values=new Native('Dictionary',{}, {get_Values:()=>[nativeItem]});

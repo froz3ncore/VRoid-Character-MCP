@@ -11,7 +11,8 @@ that fingerprint, validated PNG bytes and explicit provenance. resolve_image
 revalidates the actual file and returns (metadata, bytes), preferring situation
 then native-icon. Situation callers own native/restoration verification.
 """
-from contextlib import contextmanager
+import asyncio
+from contextlib import asynccontextmanager, contextmanager, ExitStack
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
@@ -182,7 +183,7 @@ class PresetCatalog:
         self.lock_timeout = lock_timeout
 
     @contextmanager
-    def locked(self):
+    def locked(self, *, wait=True):
         self.scratch.mkdir(parents=True, exist_ok=True)
         # Persistent lock inode; never delete/replace a lock another process holds.
         with self.lock_path.open('a+b') as lock:
@@ -198,7 +199,8 @@ class PresetCatalog:
                         import fcntl
                         fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                     break
-                except OSError:
+                except OSError as error:
+                    if not wait: raise BlockingIOError('CATALOG_LOCK_BUSY') from error
                     if time.monotonic() >= deadline: raise TimeoutError('CATALOG_LOCK_TIMEOUT')
                     time.sleep(.02)
             try: yield
@@ -279,6 +281,23 @@ class PresetCatalog:
                 or not _digest(row.get('sha256'))):
             raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_STALE_OR_UNUSABLE')
         return row
+
+    @asynccontextmanager
+    async def authorize_custom_dispatch(self, observed):
+        """Exclude catalog publication from the last comparison through native dispatch."""
+        deadline = time.monotonic() + self.lock_timeout
+        with ExitStack() as stack:
+            while True:
+                try:
+                    stack.enter_context(self.locked(wait=False))
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline: raise TimeoutError('CATALOG_LOCK_TIMEOUT')
+                    await asyncio.sleep(.02)
+            current = await asyncio.to_thread(self.current_custom, observed['key'])
+            if any(current[k] != observed[k] for k in ('scan_id','fingerprint','source','id')):
+                raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_CHANGED')
+            yield
 
     def _situation_candidates(self, category):
         """Private complete bounded snapshot; public search remains capped at 200."""
@@ -535,9 +554,10 @@ class PresetCatalog:
                     decode_capture({**image,'base64':base64.b64encode(data).decode('ascii')},512,'balanced')
                     capture_proof(image.get('framing'),image['requested_framing'])
                     native=definition(image.get('membership'))
-                    if image.get('native_definition')!=native:continue
-                    tested=image.get('tested',{});root=native['root']
-                    if (tested.get('resource')!=row['resource'] or tested.get('kind')!=row['kind']
+                    # Serialized equality preserves the distinction between JSON false and 0.
+                    if _hash(image.get('native_definition'))!=_hash(native):continue
+                    tested=image.get('tested');root=native['root']
+                    if (not isinstance(tested,dict) or tested.get('resource')!=row['resource'] or tested.get('kind')!=row['kind']
                             or any(tested.get(k)!=root[k] for k in ('id','type','revision'))
                             or tested.get('group_resource')!=root['resource_name']
                             or row['kind']=='custom' and any(tested.get(k)!=row.get(k) for k in ('custom_revision','sha256'))):continue
