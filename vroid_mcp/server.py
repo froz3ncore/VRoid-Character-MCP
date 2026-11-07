@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from pathlib import Path
 
+from anyio import CancelScope
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
@@ -78,6 +79,25 @@ EDIT = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
 
 
+async def _acquire_runtime(function, *args):
+    """Keep the session gate until the exact acquiring thread has stopped."""
+    worker = asyncio.create_task(asyncio.to_thread(function, *args))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError as cancelled:
+        with CancelScope(shield=True):
+            while not worker.done():
+                try:
+                    await asyncio.shield(worker)
+                except asyncio.CancelledError:
+                    continue
+                except Exception:
+                    break
+        if not worker.cancelled() and worker.exception() is not None:
+            add_exception_note(cancelled, 'Acquisition worker failed: ' + str(worker.exception()))
+        raise
+
+
 def create_server(lab: Path, variant: str, model_file: Path | None = None) -> FastMCP:
     runtime = RuntimeHandle(Runtime(lab))
     state = {'initialized': False, 'retained_pending': None, 'stopped': False}
@@ -103,12 +123,13 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         if state['initialized']:
             return
         try:
-            await asyncio.to_thread(runtime.current.start)
+            await _acquire_runtime(runtime.current.start)
             await runtime.current.initialize(variant, model_file)
             state['initialized'] = True
         except BaseException as failure:
             try:
-                closed = await asyncio.to_thread(runtime.current.close)
+                with CancelScope(shield=True):
+                    closed = await _acquire_runtime(runtime.current.close)
             except BaseException as cleanup_error:
                 retain_pending('initialization', failure, {'cleanup_error': str(cleanup_error)})
                 add_exception_note(failure, 'Session cleanup failed; runtime retained: ' + str(cleanup_error))
@@ -234,7 +255,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 return {**closed, 'attached': False}
             rebind_runtime()
             try:
-                await asyncio.to_thread(runtime.current.attach, pid)
+                await _acquire_runtime(runtime.current.attach, pid)
                 adopted = await runtime.current.adopt()
                 state['initialized'] = True
                 status = await runtime.current.status()
@@ -243,7 +264,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                         'notice': 'Editing the real VRoid session; isolation guard is not loaded.'}
             except BaseException as failure:
                 try:
-                    closed = await asyncio.to_thread(runtime.current.close)
+                    with CancelScope(shield=True):
+                        closed = await _acquire_runtime(runtime.current.close)
                 except BaseException as cleanup_error:
                     retain_pending('adoption', failure, {'cleanup_error': str(cleanup_error)})
                     add_exception_note(failure, 'Attachment cleanup failed; runtime retained: ' + str(cleanup_error))

@@ -101,6 +101,44 @@ def test_failed_adoption_releases_attachment_and_allows_retry(session_tools, mon
     assert ('close', 'attached', 100) in events
 
 
+@pytest.mark.parametrize('method,tool', [('start','get_status'), ('attach','attach_open_vroid')])
+@pytest.mark.parametrize('acquired', [False, True])
+def test_cancel_retains_acquiring_worker_through_cleanup(session_tools, monkeypatch, method, tool, acquired):
+    import threading
+    invoke, instances, _ = session_tools
+    cls = type(instances[0])
+    entered, resume = threading.Event(), threading.Event()
+    ordering = []
+    def acquire(self, *args):
+        if acquired: self.owned = True
+        entered.set()
+        assert resume.wait(3)
+        self.owned = True
+        ordering.append(('finished', self))
+    def close(self):
+        ordering.append(('closed', self))
+        self.owned = False
+        return {}
+    monkeypatch.setattr(cls, method, acquire)
+    monkeypatch.setattr(cls, 'close', close)
+    async def scenario():
+        waiter = asyncio.create_task(invoke(tool))
+        assert await asyncio.to_thread(entered.wait, 2)
+        owner = instances[-1]
+        try:
+            waiter.cancel()
+            await asyncio.sleep(.02)
+            waiter.cancel()
+            await asyncio.sleep(.02)
+            assert instances[-1] is owner and ('closed', owner) not in ordering
+        finally:
+            resume.set()
+            with pytest.raises(asyncio.CancelledError): await waiter
+        assert ordering[-2:] == [('finished', owner), ('closed', owner)]
+        assert instances[-1] is not owner and not owner.owned
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize('tool',['detach_open_vroid','restart_session','attach_open_vroid'])
 def test_pending_native_release_does_not_rebind_attached_session(session_tools,monkeypatch,tool):
     invoke,instances,events=session_tools
