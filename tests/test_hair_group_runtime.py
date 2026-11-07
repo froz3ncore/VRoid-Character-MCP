@@ -1,5 +1,6 @@
 """Real serialized runtime behavior and public wrapper routing, with native doubles."""
 import asyncio
+from copy import deepcopy
 from functools import wraps
 import pytest
 
@@ -12,6 +13,55 @@ def async_test(function):
     def run(*args, **kwargs):
         return asyncio.run(function(*args, **kwargs))
     return run
+
+
+@pytest.mark.parametrize('case', ['noop_prewrite', 'setter_noop', 'setter_prewrite', 'setter_response_lost', 'noop_response_lost'])
+@async_test
+async def test_public_procedural_receipt_aggregates_invocations_without_mutating_steps(case):
+    r, calls = runtime()
+    noop = {'model_token': 'fresh', 'ok': True, 'settled': True, 'partial': False,
+            'uncertain': False, 'setter_count': 0, 'attempted_setters': 0, 'command_count': None,
+            'attempted_commands': None, 'native_invocation_attempted': False, 'dispatch_state': 'completed'}
+    setter = {**noop, 'setter_count': 1, 'attempted_setters': 1, 'native_invocation_attempted': True}
+    prewrite = {**noop, 'ok': False, 'settled': False, 'dispatch_state': 'prewrite_rejected',
+                'attached_prewrite_verified': True, 'error': 'known prewrite rejection'}
+    lost = {'model_token': 'fresh', 'ok': False, 'settled': False, 'partial': None, 'uncertain': True,
+            'setter_count': None, 'attempted_setters': None, 'command_count': None, 'attempted_commands': None,
+            'native_invocation_attempted': None, 'dispatch_state': 'response_lost', 'error': 'no native response'}
+    first = noop if case.startswith('noop_') else setter
+    second = noop if case.endswith('_noop') else lost if case.endswith('_response_lost') else prewrite
+    steps = [deepcopy(first), deepcopy(second)]
+    original = deepcopy(steps)
+    async def step(*args, **kwargs):
+        assert r.lock.locked()
+        receipt = steps[len([c for c in calls if c[0] == 'step'])]
+        calls.append(('step', kwargs))
+        return receipt
+    r._hair_step = step
+    result = await r.set_procedural_hair('fresh', 'HairFront', 't/g', length=.5, hair_count=16)
+    assert steps == original, 'aggregate flags must not rewrite original native step receipts'
+    assert result['steps'] == original
+    if case == 'noop_prewrite':
+        assert result['native_invocation_attempted'] is False
+        assert result['dispatch_state'] == 'prewrite_rejected'
+        assert result['partial'] is False and result['uncertain'] is False and not r.uncertain
+        assert result['setter_count'] == result['attempted_setters'] == 0
+    elif case == 'setter_noop':
+        assert result['ok'] and result['settled'] and not r.uncertain
+        assert result['native_invocation_attempted'] is True and result['dispatch_state'] == 'completed'
+        assert result['setter_count'] == result['attempted_setters'] == 1
+        assert result['partial'] is False and result['uncertain'] is False
+    elif case == 'setter_prewrite':
+        assert result['native_invocation_attempted'] is True
+        assert result['dispatch_state'] == 'partially_completed'
+        assert result['partial'] and result['uncertain'] and r.uncertain
+        assert result['setter_count'] == result['attempted_setters'] == 1
+    else:
+        assert result['dispatch_state'] == 'response_lost' and result['uncertain'] and r.uncertain
+        assert result['native_invocation_attempted'] is (True if case.startswith('setter_') else None)
+        assert result['setter_count'] is None and result['attempted_setters'] is None
+        assert result['partial'] is None, 'lost response leaves whole-operation completion unknown'
+        assert result['steps'][1]['partial'] is None and result['steps'][1]['native_invocation_attempted'] is None
 
 
 def runtime():

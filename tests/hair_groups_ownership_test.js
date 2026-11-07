@@ -25,11 +25,13 @@ function fixture(){
             assert(found,'exact key');return found[1];
         }});return rows;
     };
-    const context=o({get_ActiveModel:()=>o(),GetActiveLeafTransferables:()=>dictionary(groups.map(g=>[g.t,o({get_GroupId:()=>g.t==='t'?owner:'sibling-owner',get_Type:()=> 'front-type'})]),true),
+    const context=o({get_ActiveModel:()=>o(),GetActiveLeafTransferables:()=>dictionary([...new Map(groups.map(g=>[g.t,o({get_GroupId:()=>g.t==='t'?owner:'sibling-owner',get_Type:()=> 'front-type'})])).entries()],true),
         GetActiveLeafTransferableGroups:()=>dictionary(['owner','sibling-owner','other-active'].map(id=>[id,o()]),false),
         GetActiveTransferableGroupInfo:()=>o({get_Type:()=> 'owner-type',get_Revision:()=> 'r1',get_ResourceName:()=>ownerResource}),
         ExecuteSyncCommand:command=>{commands++;const c=command.owner;if(c.name==='MoveBrushHairStrandControlPointCommand'){
             const [p,i,value]=c.args;assert.equal(value.owner.field('unknown').value,987);p.owner.native.s.points[i]=read({unbox:()=>value.owner}).point;
+        }else if(c.name==='CloneBrushHairGroupCommand'){
+            const copy=structuredClone(c.args[0].owner.native.g);copy.g='new';groups.push(copy);
         }}});
     const main=o({get_GlobalBus:()=>o({get_ScreenNavigation:()=>o({get_ActiveScreen:()=>({class:{type:{name:'VRoid.Studio.EditRootScreen.ViewModel'}}})})})});
     const m={token:'fresh',context,main};
@@ -87,6 +89,24 @@ const args={expected_model:'fresh',category:'HairFront',scope:'t/g'};
     assert.equal(f.count().lists,2,'point commands must not rediscover all groups');f.adapter.end(s);assert.equal(f.count().pins,0);
 }
 console.log('Native active siblings, full grouplet identity, original owner and bounded catalog-free work passed');
+for(const [sourceCount,siblingCount] of [[1,127],[128,0],[1,126]]){
+    const f=fixture();f.groups.splice(1);
+    for(let i=1;i<sourceCount;i++)f.groups.push({t:'t',g:'source'+i,strands:[]});
+    for(let i=0;i<siblingCount;i++)f.groups.push({t:'sibling',g:'sibling'+i,strands:[]});
+    const before=structuredClone(f.groups),api=createHairGroupApi({adapter:f.adapter});
+    const r=api.operations.clone_brush_hair({...args,offset:[1,2,3]});
+    if(before.length===128){
+        assert.equal(r.dispatch_state,'prewrite_rejected');assert.equal(r.uncertain,false);
+        assert.equal(r.native_invocation_attempted,false);assert.equal(r.partial,false);
+        assert.match(r.error,/CLONE_POST_GROUP_CAPACITY_EXCEEDED/);
+        assert.equal(r.attempted_commands,0);assert.equal(r.command_count,0);assert.equal(f.count().commands,0);
+        assert.deepEqual(f.groups,before);
+    }else{
+        assert.equal(r.ok,true);assert.equal(f.groups.length,128);assert.equal(r.new_scope,'t/new');
+        assert.equal(r.command_count,3);assert.equal(r.affected_points,2);
+    }
+    assert.equal(f.count().pins,0);
+}
 {
     const f=fixture(),s=f.adapter.begin(args),g=f.adapter.snapshot(s,'HairFront','t/g');f.changeResource();let invoked=0;
     assert.throws(()=>f.adapter.move(s,g.scope,g.strands[0].id,0,{point:[8,8,8]},()=>invoked++),/OWNERSHIP/);

@@ -290,6 +290,8 @@ globalThis.createHairGroupApi = ({adapter}) => {
         const invoke=()=>{result.attempted_commands++;result.native_invocation_attempted=true;result.dispatch_state='invoked';};
         try{
             if(kind==='clone'){
+                if(adapter.list(s,args.category).length>=128)
+                    throw Error('CLONE_POST_GROUP_CAPACITY_EXCEEDED: one free category group slot is required before cloning');
                 const initial=adapter.list(s,args.category,before),ids=new Set(initial.map(g=>g.scope));
                 const original=g=>g.scope===before.scope&&g.transferable_id===before.transferable_id&&g.group_id===before.group_id&&
                     g.native_type===before.native_type&&g.type===before.type&&same(g.owner,before.owner);

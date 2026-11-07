@@ -150,10 +150,7 @@ class HairGroupTools:
                 step = await self._hair_step('set_procedural_hair', expected_model, category, scope,
                     expected_identity=native.get('identity'), **{key: value})
                 steps.append(step)
-                if not step.get('ok'):
-                    if len(steps) > 1:
-                        self.uncertain = True
-                        step.update(partial=True, uncertain=True)
+                if not step.get('ok') or step.get('uncertain') or step.get('partial'):
                     break
             last = dict(steps[-1])
             last.update(steps=steps,
@@ -161,4 +158,31 @@ class HairGroupTools:
                 explicit_command_count=sum(s.get('command_count') or 0 for s in steps),history_entry_count=None)
             for counter in ('setter_count', 'attempted_setters', 'command_count', 'attempted_commands'):
                 last[counter] = None if any(s.get(counter) is None for s in steps) else sum(s[counter] for s in steps)
+            counters = ('setter_count', 'attempted_setters', 'command_count', 'attempted_commands')
+            invoked = any(s.get('native_invocation_attempted') is True or any(
+                (s.get(counter) or 0) > 0 for counter in counters) for s in steps)
+            unknown_invocation = any(s.get('native_invocation_attempted') is None for s in steps)
+            invocation = True if invoked else None if unknown_invocation else False
+            complete = len(steps) == len(changes) and all(
+                s.get('ok') and not s.get('uncertain') and not s.get('partial') for s in steps)
+            response_lost = any(s.get('dispatch_state') == 'response_lost' for s in steps)
+            completed_call = any((s.get('setter_count') or s.get('command_count') or 0) > 0 for s in steps)
+            uncertain = any(s.get('uncertain') for s in steps) or (not complete and invocation is not False)
+            partial = not complete and completed_call
+            if response_lost:
+                partial = None
+            if response_lost:
+                dispatch_state = 'response_lost'
+            elif complete:
+                dispatch_state = 'completed'
+            elif invocation is False:
+                dispatch_state = 'prewrite_rejected'
+            elif completed_call and steps[-1].get('dispatch_state') == 'prewrite_rejected':
+                dispatch_state = 'partially_completed'
+            else:
+                dispatch_state = 'invocation_unconfirmed'
+            last.update(ok=complete, settled=complete and all(s.get('settled') for s in steps),
+                native_invocation_attempted=invocation, dispatch_state=dispatch_state,
+                partial=partial, uncertain=uncertain)
+            self.uncertain |= uncertain
             return last
