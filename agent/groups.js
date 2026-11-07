@@ -22,12 +22,14 @@ function createGroupApi(H) {
         throw Error('NATIVE_PROPERTY_UNAVAILABLE: ' + name);
     }
     function optional(o, name) { try { return prop(o, name); } catch (_) { return null; } }
-    function sequence(o) {
+    function sequence(o, limit=Infinity) {
         if (!alive(o)) return [];
-        if (Array.isArray(o)) return o;
-        if (typeof o[Symbol.iterator] === 'function') return [...o];
+        if (Array.isArray(o)) {if(o.length>limit)throw Error('NATIVE_ENUMERATION_LIMIT');return o;}
+        if (typeof o[Symbol.iterator] === 'function') {
+            const out=[];for(const item of o){if(out.length>=limit)throw Error('NATIVE_ENUMERATION_LIMIT');out.push(item);}return out;
+        }
         const array = o.tryField('array');
-        if (array) return sequence(array.value);
+        if (array) return sequence(array.value,limit);
         const bound = (object,name) => {
             const direct = object.tryMethod(name);
             if (direct) return direct;
@@ -40,7 +42,7 @@ function createGroupApi(H) {
         const method = name => bound(it,name);
         const move = method('MoveNext'), current = method('get_Current');
         if (!move || !current) throw Error('NATIVE_ENUMERATOR_LAYOUT_UNSUPPORTED');
-        try { while (move.invoke()) out.push(current.invoke()); }
+        try { while (move.invoke()) {if(out.length>=limit)throw Error('NATIVE_ENUMERATION_LIMIT');out.push(current.invoke());} }
         finally { const dispose = method('Dispose'); if (dispose) dispose.invoke(); }
         return out;
     }
@@ -398,23 +400,44 @@ function createGroupApi(H) {
         return {model_token:m.token,categories:[...categories.values()],unclassified_groups:unknown,
             errors:inventory.errors,ui_navigation:false,scope:'active leaf group discovery facade'};
     }
+    function catalogRows(m,selectable) {
+        const byId=new Map();
+        for(const entry of selectable){
+            if(entry.clear)continue;
+            const id=str(entry.p.method('get_TransferableGroupId').invoke()),list=byId.get(id)||[];
+            list.push(entry);byId.set(id,list);
+        }
+        const mainModel=prop(m.main,'_mainModel'),user=prop(mainModel,'playFabUser');
+        const dictionary=user.method('GetTransferableGroupIdToPresetModel').invoke();
+        if(!alive(dictionary))throw Error('CATALOG_DICTIONARY_UNAVAILABLE');
+        const count=Array.isArray(dictionary)?dictionary.length:dictionary.method('get_Count').invoke();
+        if(!Number.isInteger(count)||count<0||count>20000)throw Error('CATALOG_METADATA_LIMIT');
+        const catalogPairs=sequence(dictionary,20000);
+        if(catalogPairs.length!==count)throw Error('CATALOG_METADATA_INCOMPLETE');
+        const ids=new Set();
+        const result=catalogPairs.map(pair=>{
+            const id=str(prop(pair,'Key')),p=prop(pair,'Value');
+            if(!id||ids.has(id))throw Error('CATALOG_DUPLICATE_METADATA_ID');ids.add(id);
+            const declared=str(prop(p,'transferableGroupId'));
+            if(declared!==id)throw Error('CATALOG_METADATA_ID_MISMATCH');
+            const resource=str(prop(p,'resourceName')),price=prop(p,'priceInCoin'),owned=prop(p,'isOwned');
+            if(typeof owned!=='boolean'||!Number.isFinite(price)||!resource)throw Error('CATALOG_METADATA_INVALID');
+            const options=byId.get(id)||[],segments=resource.split('/'),n=segments.indexOf('N00');
+            return {id,resource_name:resource,owned,usable:owned||price===0,locked:!owned&&price!==0,
+                price_in_coin:price,is_set_item:prop(p,'isSetItem'),catalog_only:options.length===0,
+                selectable:options.some(e=>e.owned),selectable_preset_ids:options.map(e=>e.id),
+                catalog_category:n>=2?segments.slice(n-2,n).join('/'):null,
+                category_identity_status:'resource segments only; not a native section identity'};
+        });
+        if(!Array.isArray(dictionary)&&dictionary.method('get_Count').invoke()!==count)throw Error('CATALOG_METADATA_CHANGED');
+        return result;
+    }
     function catalogPage(m,args,selectable) {
         const offset = args.offset ?? 0, limit = args.limit ?? 100;
         if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 200)
             throw Error('INVALID_PAGINATION');
         try {
-            const mainModel = prop(m.main,'_mainModel'), user = prop(mainModel,'playFabUser');
-            const catalog = user.method('GetTransferableGroupIdToPresetModel').invoke();
-            const all = pairs(catalog).map(([id,p]) => {
-                const resource = str(prop(p,'resourceName')), price = prop(p,'priceInCoin'), owned = prop(p,'isOwned');
-                const ids = selectable.filter(e=>!e.clear && str(e.p.method('get_TransferableGroupId').invoke())===id).map(e=>e.id);
-                const segments = (resource || '').split('/'), n = segments.indexOf('N00');
-                return {id,resource_name:resource,owned,usable:owned || price === 0,locked:!owned && price !== 0,
-                    price_in_coin:price,is_set_item:prop(p,'isSetItem'),catalog_only:ids.length===0,
-                    selectable:ids.length>0 && selectable.some(e=>ids.includes(e.id)&&e.owned),selectable_preset_ids:ids,
-                    catalog_category:n>=2?segments.slice(n-2,n).join('/'):null,
-                    category_identity_status:'resource segments only; not a native section identity'};
-            });
+            const all = catalogRows(m,selectable);
             const search = (args.search || '').toLowerCase();
             const matching = all.filter(row=>(args.owned_only===false || row.usable)
                 && (!search || row.id.toLowerCase().includes(search) || (row.resource_name || '').toLowerCase().includes(search)))
@@ -537,7 +560,7 @@ function createGroupApi(H) {
         outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
         return {outcomes,discovery_errors:after.errors,frame:state.frame};
     }
-    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,groupInventory,
+    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,catalogRows,groupInventory,
         membershipInventory:m=>groupInventory(m,false)},operations:{
         list_groups(args) { return groupInventory(requireModel(args)); },
         list_group_parameters(args) {

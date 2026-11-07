@@ -111,8 +111,9 @@ globalThis.vroid = (() => {
     }
 
     // ---------------------------------------------------------------- reading
-    function toArray(immutable) {
+    function toArray(immutable, limit=Infinity) {
         const data = immutable.field('array').value;
+        if(!data.handle.isNull()&&data.length>limit)throw Error('NATIVE_ARRAY_LIMIT');
         return data.handle.isNull() ? [] : [...data];
     }
 
@@ -143,15 +144,16 @@ globalThis.vroid = (() => {
             .method('get_PresetsSelector').invoke();
     }
 
-    function categories(m, area) {
+    function categories(m, area, limit=Infinity) {
         const found = [];
         const seen = new Set();
         function visit(category) {
             const address = category.handle.toString();
             if (seen.has(address)) return;
+            if(found.length>=limit)throw Error('CATALOG_CATEGORY_LIMIT');
             seen.add(address);
             found.push(category);
-            for (const child of toArray(category.method('get_Children').invoke())) visit(child);
+            for (const child of toArray(category.method('get_Children').invoke(),limit)) visit(child);
         }
         visit(selector(m, area).method('get_Categories').invoke());
         return found;
@@ -299,7 +301,9 @@ globalThis.vroid = (() => {
         if (!['face', 'body', 'hair', 'clothing'].includes(area)) throw Error('UNSUPPORTED_PRESET_AREA');
         const entries = [];
         const clears = [];
-        for (const category of categories(m, area)) {
+        const allCategories=categories(m,area,256);
+        if(allCategories.length>256)throw Error('CATALOG_CATEGORY_LIMIT');
+        for (const category of allCategories) {
             const withModel = category.tryMethod('get_PresetCategoryViewModel');
             const container = withModel ? withModel.invoke()
                 : category.tryMethod('get_PresetOptions') ? category : null;
@@ -308,6 +312,7 @@ globalThis.vroid = (() => {
             const name = text(category.method('get_Name').invoke());
             const options = container.method('get_PresetOptions').invoke();
             const count = options.method('get_Count').invoke();
+            if(!Number.isInteger(count)||count<0||count+entries.length+clears.length>20000)throw Error('CATALOG_OPTION_LIMIT');
             for (let index = 0; index < count; index += 1) {
                 const option = options.method('get_Item').invoke(index);
                 if (option.class.name === 'ClearOptionViewModel') {
@@ -748,6 +753,8 @@ globalThis.vroid = (() => {
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
     const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
         details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status});
+    const presetCatalog=createNativePresetCatalog({model:modelContext,presetEntries:collectPresets,
+        helpers:groups.helpers,text,build:VROID_ASSEMBLY_SHA256,retain});
     const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,
         invokeManaged,retain,state,assemblySha256:VROID_ASSEMBLY_SHA256,
         helpers:extended.hairGroupHelpers,groupHelpers:groups.helpers,
@@ -765,6 +772,7 @@ globalThis.vroid = (() => {
         poll_app_frame(args){return appFrame.poll(args);},
         ...hairGroups.operations,
         ...groups.operations,
+        ...presetCatalog.operations,
         ...textureApi.operations,
         ...ordinary.operations,
         ...attachedState.operations,
@@ -866,7 +874,7 @@ globalThis.vroid = (() => {
     }
 
     return {
-        prepareTeardown(){appFrame.dispose();return groups.prepareTeardown();},
+        prepareTeardown(){appFrame.dispose();presetCatalog.dispose();return groups.prepareTeardown();},
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))

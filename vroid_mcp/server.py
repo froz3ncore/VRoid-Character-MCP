@@ -23,7 +23,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from . import (toolset, tools_accessories, tools_capture, tools_hair, tools_parameters,
-               tools_wear, tools_ordinary, tools_groups, bridge)
+               tools_wear, tools_ordinary, tools_groups, tools_catalog, bridge)
 from .runtime import Runtime
 from .runtime_handle import RuntimeHandle
 from .texture_tools import register_texture_tools
@@ -315,6 +315,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
     for module in (tools_wear, tools_parameters, tools_hair, tools_accessories, tools_capture, tools_ordinary, tools_groups):
         module.register(ready_tool, runtime, lab, READ_ONLY, EDIT)
     register_texture_tools(ready_tool, runtime, lab, READ_ONLY, EDIT)
+    tools_catalog.register(mcp, ready_tool, runtime, lab, READ_ONLY, EDIT)
     return mcp
 
 

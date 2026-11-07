@@ -63,7 +63,7 @@ def register(ready_tool, runtime, lab, read, edit):
         return Image(data=await runtime.screenshot(view, expected_model, size, quality,
             width=width, height=height, msaa=msaa, ssaa=ssaa, clean=clean), format='png')
 
-    @ready_tool(annotations=read)
+    @ready_tool(annotations=read, structured_output=False)
     async def screenshot_metadata(expected_model: str, view: str = 'front', size: StrictInt = 512,
                          quality: Literal['legacy', 'balanced', 'high'] = 'balanced',
                          width: StrictInt | None = None, height: StrictInt | None = None,

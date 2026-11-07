@@ -256,8 +256,8 @@ const args={expected_model:'live',group_id:'g'};
 }
 {
     const f=setup();
-    const catalog = dict([['locked',new Native('PresetModel',{resourceName:s('pixiv/VRoid/Hair/Front/N00/locked'),isOwned:false,priceInCoin:100,isSetItem:false})],
-        ['free',new Native('PresetModel',{resourceName:s('pixiv/VRoid/Hair/Front/N00/free'),isOwned:false,priceInCoin:0,isSetItem:true})]]);
+    const catalog = dict([['locked',new Native('PresetModel',{transferableGroupId:s('locked'),resourceName:s('pixiv/VRoid/Hair/Front/N00/locked'),isOwned:false,priceInCoin:100,isSetItem:false})],
+        ['free',new Native('PresetModel',{transferableGroupId:s('free'),resourceName:s('pixiv/VRoid/Hair/Front/N00/free'),isOwned:false,priceInCoin:0,isSetItem:true})]]);
     f.m.main=new Native('Main',{_mainModel:new Native('MainModel',{playFabUser:new Native('User',{},
         {GetTransferableGroupIdToPresetModel:()=>catalog})})});
     const defaults=f.helpers.catalogPage(f.m,{offset:0,limit:1},[]);
@@ -268,6 +268,19 @@ const args={expected_model:'live',group_id:'g'};
     assert.equal(all.total,2);assert.equal(all.next_offset,1);assert.equal(all.complete,false);
     const locked=f.helpers.catalogPage(f.m,{offset:0,limit:10,owned_only:false,search:'LOCKED'},[]);
     assert.equal(locked.presets[0].locked,true);assert.equal(locked.presets[0].selectable,false);
+}
+{
+    const f=setup();let optionIdReads=0;
+    const selectable=Array.from({length:600},(_,i)=>({id:'clothing/Tops/id'+i,owned:true,
+        p:new Native('PresetOptionViewModel',{}, {get_TransferableGroupId:()=>{optionIdReads++;return s('id'+i);}})}));
+    const catalog=dict(Array.from({length:617},(_,i)=>['id'+i,new Native('PresetModel',{
+        transferableGroupId:s('id'+i),resourceName:s('pixiv/VRoid/Clothing/Tops/N00/'+i),
+        isOwned:i<600,priceInCoin:i<600?0:100,isSetItem:false})]));
+    f.m.main=new Native('Main',{_mainModel:new Native('MainModel',{playFabUser:new Native('User',{},
+        {GetTransferableGroupIdToPresetModel:()=>catalog})})});
+    const all=f.helpers.catalogRows(f.m,selectable);
+    assert.equal(all.length,617);assert.equal(optionIdReads,600,'native option ID discovery must be linear');
+    assert.equal(all[616].catalog_only,true);assert.equal(all[616].selectable,false);
 }
 {
     const f=setup();
