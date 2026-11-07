@@ -98,6 +98,16 @@ async def _acquire_runtime(function, *args):
         raise
 
 
+class _VRoidServer(FastMCP):
+    async def call_tool(self, name, arguments):
+        # The SDK's default argument model drops extras before invoking the
+        # registered function. Check the original write request first.
+        tool = self._tool_manager.get_tool(name)
+        if tool and tool.annotations and tool.annotations.readOnlyHint is False:
+            batch.check_argument_names(tool, arguments)
+        return await super().call_tool(name, arguments)
+
+
 def create_server(lab: Path, variant: str, model_file: Path | None = None) -> FastMCP:
     runtime = RuntimeHandle(Runtime(lab))
     state = {'initialized': False, 'retained_pending': None, 'stopped': False}
@@ -160,7 +170,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                     raise
                 add_exception_note(primary, 'Session shutdown incomplete; runtime retained: ' + str(cleanup_error))
 
-    mcp = FastMCP('VRoid Character MCP', lifespan=lifespan, instructions=INSTRUCTIONS)
+    mcp = _VRoidServer('VRoid Character MCP', lifespan=lifespan, instructions=INSTRUCTIONS)
 
     def ready_tool(**options):
         """Register the tool now, launch the app on first use."""

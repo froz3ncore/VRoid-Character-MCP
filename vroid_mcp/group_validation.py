@@ -25,6 +25,19 @@ def item_readback(changes, applied, parameters):
     return receipts
 
 
+def change_shape(change):
+    if not isinstance(change, dict) or change.keys() != {'id', 'type', 'units', 'value'}:
+        raise ValueError('INVALID_GROUP_CHANGE_FIELDS: expected id, type, units and value')
+    value, kind = change['value'], change['type']
+    if not isinstance(change['id'], str) or not isinstance(change['units'], str):
+        raise ValueError('INVALID_GROUP_CHANGE_FIELDS')
+    if not (kind == 'bool' and type(value) is bool or kind == 'float' and finite(value)
+            or kind == 'color' and isinstance(value, list) and len(value) == 4
+            and all(finite(v) and 0 <= v <= 1 for v in value)):
+        raise ValueError('INVALID_TYPED_NATIVE_VALUE')
+    return change
+
+
 def validate_changes(parameters, changes):
     if not isinstance(changes, list) or not 1 <= len(changes) <= 64:
         raise ValueError('BATCH_SIZE: 1..64')
@@ -33,7 +46,8 @@ def validate_changes(parameters, changes):
         index.setdefault(row['id'], []).append(row)
     seen = set()
     for change in changes:
-        if not isinstance(change, dict) or len(index.get(change.get('id'), [])) != 1:
+        change_shape(change)
+        if len(index.get(change['id'], [])) != 1:
             raise ValueError('UNKNOWN_OR_AMBIGUOUS_BINDING: relist exact IDs')
         row = index[change['id']][0]
         if not row.get('editable'):
@@ -45,15 +59,7 @@ def validate_changes(parameters, changes):
             raise ValueError('OVERLAPPING_BINDINGS')
         seen.update(keys)
         value, kind = change.get('value'), row['type']
-        if kind == 'bool':
-            valid = type(value) is bool
-        elif kind == 'color':
-            valid = isinstance(value, list) and len(value) == 4 and all(finite(v) and 0 <= v <= 1 for v in value)
-        elif kind == 'float':
-            valid = (finite(value) and finite(row.get('min')) and finite(row.get('max'))
-                     and row['min'] <= value <= row['max'])
-        else:
-            valid = False
-        if not valid:
+        if kind == 'float' and not (finite(row.get('min')) and finite(row.get('max'))
+                                    and row['min'] <= value <= row['max']):
             raise ValueError('INVALID_TYPED_NATIVE_VALUE: ' + row['id'])
     return changes

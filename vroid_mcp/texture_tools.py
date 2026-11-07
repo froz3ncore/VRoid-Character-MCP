@@ -1,11 +1,15 @@
 """Native cosmetics addressing, raster overlays and guarded layer-state editing."""
 import asyncio,json
+from typing import Annotated
 from pydantic import Field
 from .texture_input import read_texture_input
 from .texture_targets import register_texture_targets
 from .makeup_tools import register_makeup_tools
 from .texture_layer_state import describe_layers,register_layer_state_tools
 from .texture_layer_management import register_layer_management_tools
+
+Channel = Annotated[float, Field(strict=True, ge=0, le=1)]
+Color = Annotated[list[Channel], Field(min_length=3, max_length=4)]
 
 def register_texture_tools(ready_tool,runtime,lab,read,edit):
     register_texture_targets(ready_tool,runtime,lab,read)
@@ -101,8 +105,8 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
 
     @ready_tool(annotations=edit)
     async def recolor_texture_layer(expected_model: str, region_id: str, image_id: str,
-            layer_id: str, color: list[float], expected_layer_sha256: str,
-            mode: str = 'multiply', strength: float = Field(default=1, ge=0, le=1),
+            layer_id: str, color: Color, expected_layer_sha256: str,
+            mode: str = 'multiply', strength: Channel = 1,
             expected_state_sha256: str | None = None) -> dict:
         """Recolor exact existing raster RGB with source multiply or luminance colorize math.
 
@@ -115,7 +119,7 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
 
     @ready_tool(annotations=edit)
     async def set_hair_material_color(expected_model: str, material_id: str, key: str,
-                                       color: list[float]) -> dict:
+                                       color: Color) -> dict:
         """Write one discovered exact shared material channel or global base:<id> overlay.
 
         Ordinary material readback uses its actual section path. Global base IDs
@@ -125,9 +129,9 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
         return await runtime.set_hair_material_color(expected_model, material_id, key, color)
 
     @ready_tool(annotations=edit)
-    async def colorize(expected_model: str, target: str, color: list[float], group_id: str,
+    async def colorize(expected_model: str, target: str, color: Color, group_id: str,
             material_ids: list[str] | None = None, layer_ids: list[str] | None = None,
-            mode: str = 'multiply', strength: float = Field(default=1, ge=0, le=1)) -> dict:
+            mode: str = 'multiply', strength: Channel = 1) -> dict:
         """Compose global|texture|both writes within one exact active group.
 
         Exact optional material/layer filters restrict scope. Shared bindings and

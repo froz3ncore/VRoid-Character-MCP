@@ -471,6 +471,9 @@ function createGroupApi(H) {
         if (!Array.isArray(changes) || changes.length < 1 || changes.length > 64) throw Error('BATCH_SIZE: 1..64');
         const seen = new Set();
         const validated = changes.map(change => {
+            if (!change || Object.keys(change).length !== 4 ||
+                !['id','type','units','value'].every(key=>Object.hasOwn(change,key)))
+                throw Error('INVALID_GROUP_CHANGE_FIELDS');
             const matches = rows.filter(r => r.data.id === change.id);
             if (matches.length !== 1) throw Error('UNKNOWN_OR_STALE_BINDING');
             const row = matches[0], d = row.data, value = change.value;

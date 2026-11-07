@@ -331,6 +331,9 @@ for (const change of ['duplicate','header-id','type','resource','revision','meta
     assert.throws(()=>f.api.list_groups({...args,expected_model:'old'}),/STALE_MODEL/);
     const typed=parameters.find(p=>p.source==='exact_native_vm');
     assert.throws(()=>f.api.set_group_parameters({...args,changes:[{id:typed.id,type:'float',units:'native_vm',value:.2},
+        {id:typed.id,type:'float',units:'native_vm',value:.3,dry_run:true}]}),/INVALID_GROUP_CHANGE_FIELDS/);
+    assert.equal(f.p.value,0);
+    assert.throws(()=>f.api.set_group_parameters({...args,changes:[{id:typed.id,type:'float',units:'native_vm',value:.2},
         {id:'label',type:'float',units:'native_vm',value:.3}]}),/UNKNOWN_OR_STALE_BINDING/);
     assert.equal(f.p.value,0);
     const result=f.api.set_group_parameters({...args,changes:[{id:typed.id,type:'float',units:'native_vm',value:-.3}]});

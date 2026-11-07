@@ -45,6 +45,11 @@ IMAGE_LIMIT = 8
 BYTE_LIMIT = 16 * 1024 * 1024
 
 
+def check_argument_names(tool, arguments):
+    if arguments.keys() - tool.parameters.get('properties', {}).keys():
+        raise ValueError('UNKNOWN_TOOL_ARGUMENT: ' + tool.name)
+
+
 def _plan(mcp, operations):
     if not isinstance(operations, list) or not 1 <= len(operations) <= 200:
         raise ValueError('BATCH_SIZE: expected 1..200 operations')
@@ -57,8 +62,10 @@ def _plan(mcp, operations):
         tool = mcp._tool_manager.get_tool(name)
         if tool is None or name in EXCLUDED:
             raise ValueError(f'BATCH_TOOL_UNAVAILABLE at {index}: {name}')
-        if op['args'].keys() - tool.parameters.get('properties', {}).keys():
-            raise ValueError(f'UNKNOWN_TOOL_ARGUMENT at {index}: {name}')
+        check_argument_names(tool, op['args'])
+        if name in {'set_group_parameters', 'set_hair_material_color', 'colorize', 'recolor_texture_layer'}:
+            meta = tool.fn_metadata
+            meta.arg_model.model_validate(meta.pre_parse_json(op['args']))
         plan.append((tool, op['args']))
     return plan
 

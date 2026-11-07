@@ -1,6 +1,7 @@
 """Group-bound native discovery and validated editing tools."""
 from typing import Annotated, Literal
-from pydantic import Field
+from pydantic import AfterValidator, Field
+from .group_validation import change_shape
 
 PhysicalValue = Annotated[float, Field(strict=True)]
 
@@ -23,7 +24,9 @@ def register(ready_tool, runtime, lab, read, edit):
         return await runtime.list_group_parameters(expected_model, group_id, kind)
 
     @ready_tool(annotations=edit)
-    async def set_group_parameters(expected_model: str, group_id: str, changes: list[dict]) -> dict:
+    async def set_group_parameters(expected_model: str, group_id: str,
+                                   changes: Annotated[list[Annotated[dict, AfterValidator(change_shape)]],
+                                                      Field(min_length=1, max_length=64)]) -> dict:
         """Write exact {id,type,units,value} rows from a fresh group parameter list.
 
         Every row validates before the first native command. Batches can require
