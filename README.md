@@ -3,13 +3,14 @@
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 A local MCP server that normally drives **one disposable copy of VRoid Studio** through
-the application's own managed API, with optional attachment to an existing session. It exposes 103 tools for character
+the application's own managed API, with optional attachment to an existing session. It exposes tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **103 tools**.
-Local code and controlled native checks have passed; independent external-user
-acceptance is pending. This snapshot has no new stable release or release tag.
+Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), with no new stable release or tag.
+For this fork's changes, see the [53-tool mcjo79 migration matrix](MIGRATION.md).
+It distinguishes implemented operations, offline tests and remaining limits. Earlier native runs cover the upstream baseline;
+the migrated operations still need [native, save/reopen, export and visual checks](docs/superpowers/native-migration-acceptance.md) on an eligible disposable installation.
 Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).
 
 Validated copies support body, texture and Dress-up editing in one process.
@@ -199,7 +200,7 @@ own report is not the evidence.
 
 ## Known limitations
 
-Latest code checks: **564 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+Before this migration, the upstream snapshot recorded **564 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
 **ten JS suites**, **103 tools** and a 340-file source manifest. The earlier 99
 input schemas are unchanged; four raster-layer tools were added. F00 and M00
 each passed 11 dedicated layer checks, including cold persistence and actual
@@ -267,7 +268,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 103 tools |
+| `tools/TOOLS.md` | generated tool reference; `tools/list` gives the schemas served by a running checkout |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

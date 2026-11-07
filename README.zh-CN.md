@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
@@ -12,7 +12,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · 
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
-当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未创建新的稳定版或发布标签。本机代码和受控原生验收通过，独立外测仍待进行。工具功能与角色美术分别验收：可以完成操作、保存重开和导出，不代表服装已无穿插或已完成游戏引擎物理验证。
+当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未发布新的稳定版。此 fork 的 [mcjo79 迁移对照表](MIGRATION.md)逐项列出 53 个源工具的去向、已验证的行为和限制。下文的原生测试是上游基线的历史记录；迁移功能的实机操作、保存重开、导出和画面效果须在兼容的独立副本中按[实机验收清单](docs/superpowers/native-migration-acceptance.md)分别验证。
 
 ## 效果展示
 
@@ -64,7 +64,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · 
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [103 个工具参考](tools/TOOLS.md)。
+工具名称、参数、前置条件和错误处理见[工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
@@ -142,7 +142,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **103 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后可通过 MCP `tools/list` 查看当前服务实际提供的工具和参数。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -208,7 +208,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-当前代码验收在 Python 3.10／3.12 均为 **564 个测试通过、1 个跳过**；**10 组 JavaScript 行为检查、103 工具合同与 340 文件源码清单通过**。原有 99 工具输入 schema 保持，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
+迁移前的上游基线在 Python 3.10／3.12 均为 **564 个测试通过、1 个跳过**；**10 组 JavaScript 行为检查、103 个工具合同与 340 个文件的源码清单通过**。当时保留了 99 个既有工具的输入 schema，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本记录见 [CHANGELOG.md](CHANGELOG.md)，范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 
@@ -238,7 +238,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 103 个工具与参数。
+- [工具参考](tools/TOOLS.md)：工具名称、参数和调用说明。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。
