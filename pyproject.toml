@@ -25,6 +25,7 @@ packages = ["vroid_mcp"]
 
 [tool.setuptools.data-files]
 "share/vroid-character-mcp" = ["MIGRATION.md"]
+"share/vroid-character-mcp/licenses" = ["licenses/mcjo79-0dc7d5e.txt"]
 
 [tool.setuptools.package-data]
 vroid_mcp = [

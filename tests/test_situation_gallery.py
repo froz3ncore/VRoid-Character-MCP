@@ -37,7 +37,8 @@ class Native:
     async def call(self,op,args=None):
         self.calls.append((op,deepcopy(args)))
         if op=='preset_catalog_begin':return {'request_id':'catalog'}
-        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':self.rows}
+        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':self.rows,
+                                             'base_path':str(self.runtime.lab/'profile')}
         if op=='preset_catalog_release':return {'released':True}
         if op=='save_as':
             if self.failure=='snapshot':raise RuntimeError('snapshot failed')

@@ -1,10 +1,10 @@
 # Changelog
 
+## Unreleased — mcjo79 capability migration
+
 - Menu receipts allow same-process create/open. Guarded graceful exit waits for process termination. Help and migration resources are available offline in English and Chinese. `run_batch` reports ordered per-call results and caps returned images at eight and 16 MiB.
 - Situation thumbnails require an acknowledged disposable copy and preserve restoration evidence. Registered custom files and catalog keys require one matching selectable native option. Audited garment item controls accept 0..100 in native slider units.
 - The fork registers 143 tools, retains the 103 baseline interfaces and recognizes the two verified VRoid Studio 2.16.0 packages alongside the two historical 2.14.0 builds.
-
-## Unreleased — mcjo79 capability migration
 
 The fork adapts capabilities from `mcjo79/vroid-mcp` at `0dc7d5e` in the existing Python MCP / Frida / JavaScript implementation. [MIGRATION.md](MIGRATION.md) maps all 53 source tools to their target operations, including deliberately narrower behavior and the evidence for each row.
 
