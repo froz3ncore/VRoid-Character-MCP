@@ -5,6 +5,7 @@ import time
 
 from .custom_item_file import inspect_custom_item, resolve_registered, pinned_application
 from .file_paths import file_input
+from .exception_notes import add_exception_note
 from .group_validation import validate_changes
 from .silhouette import validate_size, solve
 
@@ -215,7 +216,7 @@ class GroupTools:
                         self._custom_item_cleanup_errors.append({'request_id':receipt,'error':str(cleanup_error)})
                         if primary_error is None:
                             raise
-                        primary_error.add_note('Custom-item cleanup failed; native lifetime retained: ' + str(cleanup_error))
+                        add_exception_note(primary_error, 'Custom-item cleanup failed; native lifetime retained: ' + str(cleanup_error))
 
     async def set_body_size(self, expected_model, height_cm, weight_kg=None, variant='F00'):
         validate_size(height_cm, weight_kg, variant)

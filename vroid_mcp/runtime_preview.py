@@ -4,6 +4,8 @@ import math
 import time
 from contextlib import asynccontextmanager
 
+from .exception_notes import add_exception_note
+
 MODES = ('Front', 'Right', 'Top', 'Reverse', 'RotateUp', 'RotateLeft', 'RotateRight', 'RotateDown')
 
 
@@ -56,7 +58,7 @@ class PreviewTools:
                     self.uncertain = True
                     if failure is None:
                         raise
-                    failure.add_note('Preview receipt cleanup failed: ' + str(cleanup_error))
+                    add_exception_note(failure, 'Preview receipt cleanup failed: ' + str(cleanup_error))
 
     def _preview_rejected(self, result, mutation):
         if result.get('ok') is not False:

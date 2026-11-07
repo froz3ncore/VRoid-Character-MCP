@@ -25,6 +25,7 @@ from mcp.types import ToolAnnotations
 from . import (toolset, tools_accessories, tools_capture, tools_hair, tools_parameters,
                tools_wear, tools_ordinary, tools_groups, tools_catalog, bridge)
 from .runtime import Runtime
+from .exception_notes import add_exception_note
 from .runtime_handle import RuntimeHandle
 from .texture_tools import register_texture_tools
 
@@ -101,11 +102,11 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 closed = await asyncio.to_thread(runtime.current.close)
             except BaseException as cleanup_error:
                 retain_pending('initialization', failure, {'cleanup_error': str(cleanup_error)})
-                failure.add_note('Session cleanup failed; runtime retained: ' + str(cleanup_error))
+                add_exception_note(failure, 'Session cleanup failed; runtime retained: ' + str(cleanup_error))
                 raise failure
             if closed.get('close_blocked'):
                 retain_pending('initialization', failure, closed)
-                failure.add_note('NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
+                add_exception_note(failure, 'NATIVE_WORK_PENDING; runtime retained: ' + str(closed))
                 raise
             rebind_runtime()
             raise
@@ -126,7 +127,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             except BaseException as cleanup_error:
                 if primary is None:
                     raise
-                primary.add_note('Session shutdown incomplete; runtime retained: ' + str(cleanup_error))
+                add_exception_note(primary, 'Session shutdown incomplete; runtime retained: ' + str(cleanup_error))
 
     mcp = FastMCP('VRoid Character MCP', lifespan=lifespan, instructions=INSTRUCTIONS)
 
@@ -229,11 +230,11 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                     closed = await asyncio.to_thread(runtime.current.close)
                 except BaseException as cleanup_error:
                     retain_pending('adoption', failure, {'cleanup_error': str(cleanup_error)})
-                    failure.add_note('Attachment cleanup failed; runtime retained: ' + str(cleanup_error))
+                    add_exception_note(failure, 'Attachment cleanup failed; runtime retained: ' + str(cleanup_error))
                     raise failure
                 if closed.get('close_blocked'):
                     retain_pending('adoption', failure, closed)
-                    failure.add_note('NATIVE_WORK_PENDING; attached runtime retained: ' + str(closed))
+                    add_exception_note(failure, 'NATIVE_WORK_PENDING; attached runtime retained: ' + str(closed))
                     raise
                 rebind_runtime()
                 raise
