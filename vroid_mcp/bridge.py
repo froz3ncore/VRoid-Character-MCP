@@ -352,6 +352,8 @@ async def wait_task(subject, task: dict) -> None:
         if result['completed']:
             if result['faulted'] or result['canceled']:
                 raise RuntimeError(result.get('error', 'Operation canceled'))
+            if result.get('result') is False:
+                raise RuntimeError('MANAGED_TASK_FAILED: terminal Boolean result was false')
             return
         await asyncio.sleep(.1)
     subject.uncertain = True

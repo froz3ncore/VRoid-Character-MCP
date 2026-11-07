@@ -23,6 +23,7 @@ import struct
 import tempfile
 import time
 import zlib
+import uuid
 
 from . import catalog_framing as framing
 
@@ -44,6 +45,13 @@ def _text(value, name, maximum=2048, empty=False):
 def _hash(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
                                     separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+
+
+def capture_identity(row):
+    """Capture inputs exclude independent annotations and model-generation tokens."""
+    return {**{k:deepcopy(row.get(k)) for k in ('fingerprint','id','kind','resource','category','revision',
+        'custom_revision','group_type','sha256','path','resource_name','selectable_preset_ids','area')},
+        'build':row['source']['build']}
 
 
 def _digest(value):
@@ -221,11 +229,16 @@ class PresetCatalog:
         if (not isinstance(data,dict) or type(data.get('schema')) is not int or data['schema']!=1
                 or not {'schema','source','updated','presets'}<=set(data) or not isinstance(data.get('presets'),dict)
                 or len(data['presets'])>MAX_ROWS): raise ValueError('CATALOG_SCHEMA_INVALID')
+        def scan(value):
+            if not isinstance(value,str) or re.fullmatch('[0-9a-f]{32}',value) is None:
+                raise ValueError('CATALOG_SCAN_ID_INVALID')
+        if 'scan_id' in data:scan(data['scan_id'])
         if data != {'schema':1,'presets':{},'source':None,'updated':None}:
             _source(data['source']);_text(data['updated'],'updated',100)
             if not _digest(data.get('fingerprint')) or not _completeness(data.get('completeness')):
                 raise ValueError('CATALOG_HEADER_INVALID')
         for key, row in data['presets'].items():
+            if 'scan_id' in row:scan(row['scan_id'])
             normalized = _row(row)
             if (key != normalized['key'] or row.get('key') != key or row.get('fingerprint') != normalized['fingerprint']
                     or row.get('status') not in STATUSES or not isinstance(row.get('removed'),bool)
@@ -261,6 +274,17 @@ class PresetCatalog:
             if r['category']==category and not r['removed'] and r['owned'] and r['usable'] and r['selectable']),
             key=lambda r:r['key']))
 
+    def _situation_snapshot(self, category, scan_id):
+        framing.category(category)
+        with self.locked():
+            data=self._load()
+            if data.get('scan_id')!=scan_id:raise ValueError('CATALOG_SITUATION_SCAN_CHANGED')
+            profile=self.get_framing(category)
+            rows=sorted((deepcopy(r) for r in data['presets'].values() if r['category']==category
+                and not r['removed'] and r['owned'] and r['usable'] and r['selectable']
+                and r.get('scan_id')==scan_id and r['source']==data['source']),key=lambda r:r['key'])
+            return {'scan_id':scan_id,'source':deepcopy(data['source']),'framing':profile,'rows':rows}
+
     def sync(self, rows, source, complete):
         if (not isinstance(rows,list) or len(rows)>MAX_ROWS or not isinstance(source,dict)
                 or not _completeness(complete)):
@@ -274,7 +298,7 @@ class PresetCatalog:
                 if row['id'] in ids:raise ValueError('CATALOG_DUPLICATE_NATIVE_ID')
                 ids.add(row['id'])
             observed[row['key']] = row
-        now = _now()
+        now = _now();scan_id=uuid.uuid4().hex
         with self.locked():
             data = self._load()
             for key, row in observed.items():
@@ -289,7 +313,7 @@ class PresetCatalog:
                 else:
                     status = 'new'
                     row.update(first_seen=now,manual_label=None,description='',tags=[],colors=[],annotations=[],history=[],images={})
-                row.update(status=status,removed=False,removed_since=None,last_seen=now,source=deepcopy(source))
+                row.update(status=status,removed=False,removed_since=None,last_seen=now,source=deepcopy(source),scan_id=scan_id)
                 row['label'] = row['manual_label'] or row.get('name') or row['resource']
                 data['presets'][key] = row
             for key, row in data['presets'].items():
@@ -298,11 +322,11 @@ class PresetCatalog:
                     row.update(status='removed',removed=True,removed_since=row.get('removed_since') or now)
                 elif not row['removed']:
                     row['status'] = 'unknown'
-            data.update(source=deepcopy(source),updated=now,completeness=complete,
+            data.update(source=deepcopy(source),updated=now,completeness=complete,scan_id=scan_id,
                         fingerprint=_hash(sorted((key,row['fingerprint']) for key,row in observed.items())))
             if len(data['presets'])>MAX_ROWS: raise ValueError('CATALOG_ROW_LIMIT')
             self._write(self.path,data)
-        return {'observed':len(observed),'complete':complete,'fingerprint':data['fingerprint'], 'source':source}
+        return {'observed':len(observed),'complete':complete,'fingerprint':data['fingerprint'], 'source':source,'scan_id':scan_id}
 
     def search(self, query='', category=None, kind=None, annotated_only=False, include_locked=False,
                status=None, include_removed=False, limit=50, owned=None):
@@ -383,7 +407,7 @@ class PresetCatalog:
             self._write(self.root/'framing_overrides.json',data)
         return self.get_framing(category)
 
-    def publish_image(self, key, data, provenance, expected_fingerprint):
+    def publish_image(self, key, data, provenance, expected_fingerprint, *, expected_situation=None):
         if (not isinstance(provenance,dict) or provenance.get('kind') not in ('native-icon','situation')
                 or not isinstance(provenance.get('source'),str)
                 or provenance['kind']=='situation' and provenance.get('verified') is not True):
@@ -396,6 +420,14 @@ class PresetCatalog:
             row = catalog['presets'].get(key)
             if not row or row['fingerprint'] != expected_fingerprint or row['removed']:
                 raise ValueError('CATALOG_IMAGE_IDENTITY_STALE')
+            if expected_situation is not None:
+                if (kind!='situation' or catalog.get('scan_id')!=expected_situation['scan_id']
+                        or row.get('scan_id')!=expected_situation['scan_id']
+                        or capture_identity(row)!=expected_situation['identity']
+                        or self.get_framing(row['category'])!=expected_situation['framing']
+                        or provenance.get('capture_input')!=expected_situation['identity']
+                        or provenance.get('requested_framing')!=expected_situation['framing']):
+                    raise ValueError('CATALOG_IMAGE_CAPTURE_INPUT_STALE')
             relative = 'images/' + info['sha256'] + '.png'
             folder = self.root/'images'
             folder.mkdir(parents=True,exist_ok=True)
@@ -419,10 +451,17 @@ class PresetCatalog:
             return deepcopy(metadata)
 
     def resolve_image(self, key):
-        row = self.get(key)
+        return self._resolve_observed_image(self.get(key))
+
+    def _resolve_observed_image(self, row):
+        """Validate a bounded frozen row's blob without decoding the catalog again."""
         for kind in ('situation','native-icon'):
             image = row['images'].get(kind)
             if image is None: continue
+            if kind=='situation' and 'capture_input' in image and (
+                    image['capture_input']!=capture_identity(row)
+                    or image.get('requested_framing')!=self.get_framing(row['category'])):
+                continue
             _image_metadata(image,kind)
             if not isinstance(image,dict) or image.get('kind')!=kind or image.get('fingerprint')!=row['fingerprint']:
                 raise ValueError('CATALOG_IMAGE_METADATA_INVALID')

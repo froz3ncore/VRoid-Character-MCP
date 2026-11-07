@@ -10,11 +10,12 @@ function certifySituationMembers(root,inventory,read){
         const matches=inventory.filter(g=>g.id===id);
         if(matches.length!==1)throw Error('SITUATION_MEMBER_NOT_UNIQUELY_ACTIVE');
         const info=matches[0],node=read(id);
-        if(!node||['id','type','resource_name'].some(k=>node[k]!==info[k])||!info.revision)
+        if(!node||['id','type','resource_name','revision'].some(k=>node[k]!==info[k])||!info.revision
+            ||node.updated_since_last_revision!==false)
             throw Error('SITUATION_MEMBER_IDENTITY_MISMATCH');
         if(id===root.id&&['id','type','resource_name','revision'].some(k=>info[k]!==root[k]))throw Error('SITUATION_ROOT_IDENTITY_MISMATCH');
         if(!Array.isArray(node.entries)||node.entries.length>4096)throw Error('SITUATION_MEMBER_ENTRY_LIMIT');
-        members.push({...info});
+        members.push({...info,updated_since_last_revision:false});
         for(const entry of node.entries){
             if(entry.type==='Transferable')continue;
             if(entry.type!=='TransferableGroup'||typeof entry.id!=='string'||!entry.id)throw Error('SITUATION_MEMBER_EDGE_UNPROVEN');
@@ -23,7 +24,8 @@ function certifySituationMembers(root,inventory,read){
         visiting.delete(id);visited.add(id);
     }
     visit(root.id,0);
-    return {verified:true,root:{...root},members,policy:'exact active root; direct TransferableGroup entries only; Transferable entries are leaf content'};
+    return {verified:true,revision_verified:true,root:members.find(g=>g.id===root.id),members,
+        policy:'exact active/stored clean revisions; direct TransferableGroup entries only; Transferable entries are leaf content'};
 }
 function createGroupApi(H) {
     const {model, cls, text, invokeManaged, entries, details, state, ordinary, presetEntries} = H;
@@ -110,13 +112,16 @@ function createGroupApi(H) {
     }
     function groupInventory(m, removalCapabilities=true) {
         const found = new Map(), errors = [];
-        const completeness = {active:false,active_leaf:false,stored:false};
+        const completeness = {active:false,active_leaf:false,stored:false};let coherent=true;
         function merge(id, object, flags) {
             const row = found.get(id) || {id, type: null, resource_name: null, revision: null,
                 active: false, active_leaf: false, stored: false, errors: []};
             Object.assign(row, flags);
             for (const [name, native] of [['type', 'Type'], ['resource_name', 'ResourceName'], ['revision', 'Revision']]) {
-                try { const value = str(prop(object, native)); if (value != null) row[name] = value; }
+                try { const value = str(prop(object, native)); if (value != null){
+                    if(row[name]!=null&&row[name]!==value){coherent=false;errors.push({source:'identity_conflict',id,field:name});}
+                    row[name] = value;
+                } }
                 catch (error) { row.errors.push(String(error)); }
             }
             found.set(id, row);
@@ -127,7 +132,8 @@ function createGroupApi(H) {
             completeness.active = true;
         } catch (error) { errors.push({source: 'active', error: String(error)}); }
         try {
-            for (const [id] of pairs(m.context.method('GetActiveLeafTransferableGroups').invoke())) {
+            for (const [id,leaf] of pairs(m.context.method('GetActiveLeafTransferableGroups').invoke())) {
+                merge(id,leaf,{active:true,active_leaf:true});
                 const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
                 merge(id, info, {active: true, active_leaf: true});
             }
@@ -137,6 +143,17 @@ function createGroupApi(H) {
             for (const [id, group] of pairs(prop(active(m), 'TransferableGroups'))) {
                 const info = m.context.method('GetActiveTransferableGroupInfo').invoke(Il2Cpp.string(id));
                 merge(id, alive(info) ? info : group, {stored: true});
+                try{
+                    const header=prop(group,'Header'),custom=prop(header,'Custom'),row=found.get(id);
+                    const stored={id:str(prop(header,'Id')),type:str(prop(group,'TypeId')),
+                        resource_name:str(prop(header,'ResourceName')),revision:str(prop(custom,'Revision'))};
+                    if(row.active&&['id','type','resource_name','revision'].some(k=>row[k]!==stored[k])){
+                        coherent=false;errors.push({source:'stored_identity_conflict',id});
+                    }
+                    if(!row.active)Object.assign(row,stored);
+                    row.updated_since_last_revision=prop(custom,'UpdatedSinceLastRevision');
+                }
+                catch(_){found.get(id).updated_since_last_revision=null;}
                 const elements = optional(group, 'EditableElements');
                 found.get(id).editable_element_count = alive(elements) ? prop(elements, 'Count') : null;
             }
@@ -148,7 +165,7 @@ function createGroupApi(H) {
             catch (error) { errors.push({source: 'removal_capability/' + area, error: String(error)}); }
         }
         const groups = [...found.values()].sort((a,b) => a.id.localeCompare(b.id));
-        const complete = Object.values(completeness).every(value=>value);
+            const complete = coherent&&Object.values(completeness).every(value=>value);
         for (const g of groups) {
             g.fingerprint = fingerprint(g);
             g.removal_evidence = clears.filter(c => c.type && c.type === g.type);
@@ -166,9 +183,7 @@ function createGroupApi(H) {
         if (!rows[0].revision || !rows[0].type) throw Error('GROUP_IDENTITY_UNAVAILABLE');
         return {inventory, group: rows[0]};
     }
-    function situationMembership(m,root,inventory){
-        if(!root||!['id','type','resource_name','revision'].every(k=>typeof root[k]==='string'&&root[k]))
-            throw Error('INVALID_SITUATION_ROOT');
+    function situationDefinitions(m){
         const dictionary=prop(active(m),'TransferableGroups'),table=new Map();
         for(const item of sequence(dictionary,20000)){
             const key=str(prop(item,'Key'));if(table.has(key))throw Error('SITUATION_DUPLICATE_GROUP_ID');
@@ -177,15 +192,51 @@ function createGroupApi(H) {
         const enumType=cls('VRoidCore','VRoidCore.Common.TransferableTypes.TransferableGroupEntryType');
         const types=new Map(['TransferableGroup','Transferable','Clear','ClearByResourceName','RecommendedTransferableGroup']
             .map(name=>[enumType.field(name).value,name]));
-        return certifySituationMembers(root,inventory.groups.filter(g=>g.active),id=>{
+        const read=id=>{
             const group=table.get(id);if(!group)throw Error('SITUATION_MEMBER_DEFINITION_UNAVAILABLE');
-            const header=prop(group,'Header');
+            const header=prop(group,'Header'),custom=prop(header,'Custom');
             return {id:str(prop(header,'Id')),resource_name:str(prop(header,'ResourceName')),type:str(prop(group,'TypeId')),
+                revision:str(prop(custom,'Revision')),updated_since_last_revision:prop(custom,'UpdatedSinceLastRevision'),
                 entries:sequence(prop(group,'Entries'),4096).map(entry=>{
                     const type=types.get(prop(entry,'Type'));
                     return {type,id:type==='TransferableGroup'?str(prop(entry,'TransferableGroupId')):null};
                 })};
-        });
+        };return {read,table};
+    }
+    function situationMembership(m,root,inventory){
+        if(!root||!['id','type','resource_name','revision'].every(k=>typeof root[k]==='string'&&root[k])
+            ||inventory.membership_complete!==true)throw Error('INVALID_OR_INCOMPLETE_SITUATION_ROOT');
+        const {read}=situationDefinitions(m);
+        const result=certifySituationMembers(root,inventory.groups.filter(g=>g.active),read);
+        for(const member of result.members){
+            const row=inventory.groups.find(g=>g.id===member.id);
+            if(!row||!row.stored||!row.active)throw Error('SITUATION_MEMBER_VIEW_INCOHERENT');
+        }
+        return result;
+    }
+    function situationCandidate(m,candidate){
+        if(!candidate||!['id','resource_name'].every(k=>typeof candidate[k]==='string'&&candidate[k]))throw Error('INVALID_SITUATION_CANDIDATE');
+        const restoration=prop(m.context,'RestorationInfo'),storage=prop(restoration,'AssetStorage'),catalog=prop(storage,'AssetCatalog');
+        const entry=catalog.method('GetTransferableGroupByName').invoke(Il2Cpp.string(candidate.resource_name));
+        if(!alive(entry)||str(prop(entry,'id'))!==candidate.id||str(prop(entry,'resourceName'))!==candidate.resource_name)
+            throw Error('SITUATION_CATALOG_BINDING_CHANGED');
+        const root={...candidate,type:str(prop(entry,'transferableGroupType'))};
+        if(!root.type)throw Error('SITUATION_CATALOG_TYPE_UNAVAILABLE');
+        const {read,table}=situationDefinitions(m);
+        if(!table.has(root.id))return {verified:true,root,revision_verified:false,members:null};
+        const infos=[],visiting=new Set();
+        function collect(id,depth){
+            if(depth>32||infos.length>=512||visiting.has(id))throw Error('SITUATION_DEFINITION_GRAPH_LIMIT');
+            visiting.add(id);const node=read(id);
+            infos.push({id:node.id,type:node.type,resource_name:node.resource_name,revision:node.revision});
+            for(const e of node.entries)if(e.type==='TransferableGroup')collect(e.id,depth+1);
+        }
+        try{
+            collect(root.id,0);
+            const stored=infos.find(g=>g.id===root.id);
+            if(['id','type','resource_name'].some(k=>stored[k]!==root[k]))throw Error('SITUATION_STORED_CATALOG_BINDING_CHANGED');
+            return certifySituationMembers(stored,infos,read);
+        }catch(error){return {verified:true,root,revision_verified:false,members:null,version_error:String(error)};}
     }
     function rowId(m, group, topology, binding) {
         return 'group/' + encodeURIComponent(JSON.stringify([m.token, group.fingerprint, topology, binding]));
@@ -616,6 +667,8 @@ function createGroupApi(H) {
             const m=requireModel(args),result=groupInventory(m);
             if(args.situation_root)try{result.situation_membership=situationMembership(m,args.situation_root,result);}
             catch(error){result.situation_membership={verified:false,error:String(error),root:args.situation_root};}
+            if(args.situation_candidate)try{result.situation_definition=situationCandidate(m,args.situation_candidate);}
+            catch(error){result.situation_definition={verified:false,error:String(error),root:args.situation_candidate};}
             return result;
         },
         list_group_parameters(args) {

@@ -4,6 +4,7 @@ const captureRegions={body:[.50,1],face:[.91,.24/.86],head:[.90,.33/.86],
     upper:[.72,.58/.86],legs:[.33,.62/.86],feet:[.11,.28/.86]};
 // Observer sides when looking at the model from +Z. Front camera's right is -X.
 const captureAngles={front:0,back:180,left:90,right:-90,three_quarter_left:45,three_quarter_right:-45};
+function captureModelOwnership(m,text){return {engine_id:m.engine.handle.toString(),file_path:text(m.file.field('path').value)};}
 function parseCaptureView(view,wear=false){
     const old=wear?['front','side','back','three_quarter']:
         ['front','side','back','three_quarter','full_front','full_side','full_back','full_three_quarter','photo'];
@@ -66,6 +67,37 @@ function situationCameraPlan(bounds,profile,aspect=1){
         adjustment_reason:distance>requested?'perspective region containment including model depth':null,
         fov_degrees:30,aspect,near_clip:.01,far_clip:Math.max(1000,distance+depth+H+1),target,
         position:[target[0]+dx*distance,target[1],target[2]+dz*distance]};
+}
+function situationProjection(plan){
+    const f=1/Math.tan(plan.fov_degrees*Math.PI/360),n=plan.near_clip,a=plan.far_clip;
+    if(![f,n,a,plan.aspect].every(Number.isFinite)||n<=0||a<=n||plan.aspect<=0)throw Error('SITUATION_INVALID_CLIPS');
+    return [f/plan.aspect,0,0,0,0,f,0,0,0,0,-(a+n)/(a-n),-2*a*n/(a-n),0,0,-1,0];
+}
+function verifySituationOptics(actual,plan){
+    const matrix=actual.projection_matrix,expected=situationProjection(plan),near=(a,b)=>Math.abs(a-b)<=1e-4*Math.max(1,Math.abs(b));
+    if(actual.projection!=='perspective'||!Array.isArray(matrix)||matrix.length!==16||!matrix.every(Number.isFinite)
+        ||matrix.some((v,i)=>!near(v,expected[i]))||![actual.near_clip,actual.far_clip].every(Number.isFinite)
+        ||!near(actual.near_clip,plan.near_clip)||!near(actual.far_clip,plan.far_clip))throw Error('SITUATION_OPTICAL_READBACK_MISMATCH');
+    const rad=plan.yaw_degrees*Math.PI/180;
+    for(const [key,want] of [['forward',[-Math.sin(rad),0,-Math.cos(rad)]],['right_vector',[-Math.cos(rad),0,Math.sin(rad)]],['up_vector',[0,1,0]]])
+        if(actual[key].some((v,i)=>!Number.isFinite(v)||!near(v,want[i])))throw Error('SITUATION_ORIENTATION_READBACK_MISMATCH');
+    const lo=plan.source_bounds.min,hi=plan.source_bounds.max,points=[];
+    if(plan.fit==='full-body'){
+        for(const x of [lo[0],hi[0]])for(const y of [lo[1],hi[1]])for(const z of [lo[2],hi[2]])points.push([x,y,z]);
+    }else{
+        const rad=plan.yaw_degrees*Math.PI/180,n=[Math.sin(rad),0,Math.cos(rad)],r=[-n[2],0,n[0]],
+            depth=Math.abs(n[0])*(hi[0]-lo[0])/2+Math.abs(n[2])*(hi[2]-lo[2])/2;
+        for(const x of [-plan.effective_half_width,plan.effective_half_width])for(const y of [plan.region_world_bottom,plan.region_world_top])
+            for(const z of [-depth,depth])points.push(plan.target.map((v,i)=>v+r[i]*x+n[i]*z+(i===1?y-v:0)));
+    }
+    for(const point of points){
+        const rel=point.map((v,i)=>v-actual.position[i]);
+        const v=['right_vector','up_vector','forward'].map(k=>rel.reduce((s,x,i)=>s+x*actual[k][i],0));
+        if(!(v[2]>actual.near_clip&&v[2]<actual.far_clip))throw Error('SITUATION_CLIPPED_CORNER');
+        const camera=[v[0],v[1],-v[2],1],clip=Array.from({length:4},(_,i)=>camera.reduce((s,x,j)=>s+matrix[i*4+j]*x,0));
+        if(!(clip[3]>0)||clip.slice(0,3).some(x=>Math.abs(x/clip[3])>1.0001))throw Error('SITUATION_CLIPPED_CORNER');
+    }
+    return {...actual,projection_verified:true,containment_verified:true};
 }
 function createCaptureFraming({core,text,cls=null}){
     const xyz=v=>['x','y','z'].map(k=>v.field(k).value);
@@ -137,8 +169,14 @@ function createCaptureFraming({core,text,cls=null}){
         if(![...p,...forward,fov].every(Number.isFinite)||p.some((v,i)=>Math.abs(v-plan.position[i])>1e-4*Math.max(1,plan.distance))
             ||forward.some((v,i)=>Math.abs(v-intended[i])>1e-4)||Math.abs(fov-30)>1e-4)
             throw Error('CAPTURE_CAMERA_READBACK_MISMATCH');
-        return {...plan,position:p,forward,right_vector:[1-2*(y*y+z*z),2*(x*y+w*z),2*(x*z-w*y)],
+        const result={...plan,position:p,forward,right_vector:[1-2*(y*y+z*z),2*(x*y+w*z),2*(x*z-w*y)],
+            up_vector:[2*(x*y-w*z),1-2*(x*x+z*z),2*(y*z+w*x)],
             fov_degrees:fov,camera_readback_verified:true};
+        if(plan.schema!=='vroid-situation-framing-v1')return result;
+        const matrix=cam.method('get_projectionMatrix').invoke();
+        return verifySituationOptics({...result,projection:cam.method('get_orthographic').invoke()?'orthographic':'perspective',
+            projection_matrix:Array.from({length:16},(_,i)=>matrix.field('m'+Math.floor(i/4)+i%4).value),
+            near_clip:cam.method('get_nearClipPlane').invoke(),far_clip:cam.method('get_farClipPlane').invoke()},plan);
     }
     return {bounds,reference,modelPlan,situationPlan,readback};
 }

@@ -28,6 +28,15 @@ def custom(path='a/x.vroidcustomitem', revision='1', **changes):
 SOURCE = {'build': 'a'*64, 'session': 'model-1'}
 
 
+def test_malformed_new_scan_identity_cannot_be_overwritten_by_annotation(tmp_path):
+    s=store(tmp_path);sync(s,[row()]);value=s._load();value['scan_id']=123
+    # Deliberately corrupt the persisted schema as an independent actor.
+    s.path.write_text(json.dumps(value),encoding='utf-8',newline='\r\n');before=s.path.read_bytes()
+    with pytest.raises(ValueError,match='SCAN'):
+        s.annotate(row()['resource'],'Me',label='must not write')
+    assert s.path.read_bytes()==before
+
+
 def sync(s, rows, complete=None):
     return s.sync(rows, SOURCE, complete or {'builtin': True, 'custom': True})
 

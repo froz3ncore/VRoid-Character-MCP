@@ -99,7 +99,7 @@ globalThis.vroid = (() => {
             }
             const areas = ['face', 'body', 'hair', 'clothing'];
             return {
-                ...base, model_ready: true, model_token: m.token,
+                ...base, model_ready: true, model_token: m.token,...captureModelOwnership(m,text),
                 photo_active: photoActive, photo_updating: photoUpdating,
                 presets_loading: areas.some(area => selector(m, area).method('get_IsLoading').invoke()),
                 command_busy: !m.context.method('get_IsCommandExecutable').invoke(),
@@ -693,7 +693,7 @@ globalThis.vroid = (() => {
             if(!Number.isFinite(nativeAspect)||nativeAspect<=0)throw Error('INVALID_CAPTURE_NATIVE_ASPECT');
             // set_aspect is stripped in ed65. Its supported matrix setter gives
             // the same vertical-FOV framing at the final rectangular pixel aspect.
-            writeCaptureProjection(core,camera,projection.map((v,i)=>i<4?v*nativeAspect/aspect:v));
+            writeCaptureProjection(core,camera,args.situation_framing?situationProjection(plan):projection.map((v,i)=>i<4?v*nativeAspect/aspect:v));
 
             const faceBounds = m.face.method('GetFaceSMR').invoke().method('get_bounds').invoke();
             const center = faceBounds.method('get_center').invoke();
@@ -727,6 +727,7 @@ globalThis.vroid = (() => {
             const actualPosition=transform.method('get_position').invoke();
             const framing=plan||{schema:'vroid-fixed-framing-v1',view,target:[x,y,z],distance,
                 position:['x','y','z'].map(k=>actualPosition.field(k).value),aspect,fov_degrees:30};
+            if(args.situation_framing)captureFraming.readback(camera,framing);
             // Existing raw previews are verified immediately before the render;
             // do not silently render a rebuilt or animation-overwritten face.
             editorPreview.verifyIfTracked(args.expected_model);

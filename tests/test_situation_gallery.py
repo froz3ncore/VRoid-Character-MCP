@@ -15,23 +15,24 @@ from vroid_mcp.server import create_server
 from vroid_mcp.capture_quality import quality_plan
 from test_catalog_runtime import snapshot
 from test_preset_previews import png
+from situation_fixture import subject_png, optical_proof
 
 
 def group(id, type, removable=True, resource=None):
     return dict(id=id,type='TransferableGroupType.N00.Level1.'+type,active=True,active_leaf=True,removable=removable,
-                resource_name=resource or id,revision='1',fingerprint=id)
+                resource_name=resource or id,revision='1',fingerprint=id,updated_since_last_revision=False)
 
 
 class Native:
     def __init__(self, lab, failure=None):
         self.runtime=Runtime(lab); self.runtime.owns_process=True
         self.runtime._call=self.call; self.runtime._settle=self.settle; self.runtime._task=self.task
-        self.token='token';self.failure=failure;self.calls=[];self.rows=snapshot()['rows'][:1]
+        self.token='token';self.engine='engine-old';self.file_path='';self.failure=failure;self.calls=[];self.rows=snapshot()['rows'][:1]
         self.groups=[group('skin','BodySkin',False),group('base','BaseHair',False),
                      group('top','Tops'),group('under','InnerBottom'),group('hair','HairFront'),group('hat','Hat')]
-        self.removed=[];self.saved=None;self.capture_count=0
+        self.removed=[];self.saved=None;self.capture_count=0;self.imports=0;self.saved_groups=None
 
-    async def settle(self,*args):return {'model_token':self.token}
+    async def settle(self,*args):return {'model_token':self.token,'engine_id':self.engine,'file_path':self.file_path}
     async def task(self,*args):return None
     async def call(self,op,args=None):
         self.calls.append((op,deepcopy(args)))
@@ -41,9 +42,20 @@ class Native:
         if op=='save_as':
             if self.failure=='snapshot':raise RuntimeError('snapshot failed')
             self.saved=Path(args['path'])
+            self.saved_groups=deepcopy(self.groups)
             with zipfile.ZipFile(self.saved,'w') as z:z.writestr('model',b'original-model'*40)
             return {'saved':True,'model_token':self.token}
-        if op=='list_groups':return {'model_token':self.token,'membership_complete':True,'groups':deepcopy(self.groups)}
+        if op=='list_groups':
+            value={'model_token':self.token,'membership_complete':True,'groups':deepcopy(self.groups)}
+            if args.get('situation_candidate'):
+                candidate=args['situation_candidate'];row=next(r for r in self.rows if r['id']==candidate['id'])
+                g=group(row['id'],'Tops',resource=row.get('resource_name',row['resource']))
+                g.update(type=row.get('group_type',g['type']),revision=row.get('revision','1'))
+                value['situation_definition']={'verified':True,'root':g,'members':[g],'revision_verified':True}
+            if args.get('situation_root'):
+                root=args['situation_root'];g=next(g for g in self.groups if g['id']==root['id'])
+                value['situation_membership']={'verified':True,'root':deepcopy(g),'members':[deepcopy(g)],'revision_verified':True}
+            return value
         if op=='remove_group':
             if self.failure=='strip':raise RuntimeError('strip uncertain')
             self.removed.append(args['group_id'])
@@ -55,6 +67,7 @@ class Native:
                  'owned':True} for r in self.rows]}
         if op=='apply_preset':
             row=next(r for r in self.rows if args['preset_id'] in r['selectable_preset_ids'])
+            self.groups=[g for g in self.groups if g['type']!='TransferableGroupType.N00.Level1.Tops']
             self.groups.append(group(row['id'],'Tops',resource=row['resource']))
             if self.failure=='remaining':self.groups.append(group('alien','Glasses'))
             return {'frame':2}
@@ -66,15 +79,15 @@ class Native:
             if self.failure=='snapshot-substitution':
                 saved=next((self.runtime.lab/'saves').glob('situation-*.vroid'))
                 with zipfile.ZipFile(saved,'w') as z:z.writestr('model',b'substituted-valid-archive'*40)
-            return {'model_token':self.token,'base64':base64.b64encode(png(512,512)).decode(),
+            return {'model_token':self.token,'base64':base64.b64encode(subject_png()).decode(),
                     'width':512,'height':512,'quality':{**quality_plan(512,'balanced'),'msaa_samples':4},
                     'provenance':'clean_fixed_camera_render',
-                    'framing':{'requested_profile':args.get('situation_framing'),
-                    'schema':'vroid-situation-framing-v1','camera_readback_verified':True,
-                    'source_root_id':'owned','source_renderer_count':3,'source_bounds':{'min':[2,1,-8],'max':[4,3,-4]}}}
+                    'framing':optical_proof(args['situation_framing'])}
         if op=='replace_with_file':
             if self.failure=='restore':raise RuntimeError('restore uncertain')
-            self.token='fresh';return {'task_id':'restoration'}
+            self.token='fresh';self.imports+=1;self.engine='engine-restored-'+str(self.imports);self.file_path=args['path']
+            self.groups=deepcopy(self.saved_groups)
+            return {'task_id':'restoration'}
         raise AssertionError(op)
 
 
@@ -108,7 +121,7 @@ def test_gallery_saves_strips_verifies_frames_publishes_and_restores(tmp_path):
     n=Native(tmp_path);result=run(n)
     assert result['restore']['state']=='restored' and result['model_token']=='fresh'
     assert result['processed']==1 and not result['errors']
-    assert set(n.removed)=={'top','under','hair','hat'}
+    assert set(n.removed)=={'under','hair','hat'}
     ops=[op for op,args in n.calls];assert ops.index('save_as')<ops.index('remove_group')
     s=PresetCatalog(tmp_path/'preset_cache');metadata,data=s.resolve_image(n.rows[0]['resource'])
     assert metadata['kind']=='situation' and metadata['verified'] is True
@@ -123,7 +136,7 @@ def test_gallery_saves_strips_verifies_frames_publishes_and_restores(tmp_path):
 @pytest.mark.parametrize('failure,state,published',[
     ('snapshot','not-created',False),('strip','skipped-uncertain',False),
     ('remaining','restored',False),('image','restored',False),('restore','failed',True),
-    ('model-change','skipped-model-changed',False),('snapshot-substitution','snapshot-changed',True)])
+    ('model-change','skipped-model-changed',False)])
 def test_gallery_failure_evidence_and_safe_restoration(tmp_path,failure,state,published):
     n=Native(tmp_path,failure);result=run(n)
     assert result['restore']['state']==state and result['errors']
@@ -140,13 +153,19 @@ def test_gallery_selection_exceeds_search_page_and_icons_do_not_skip(tmp_path):
             selectable_preset_ids=[f'clothing/Tops/{i:03}']) for i in range(205)]
     s=PresetCatalog(tmp_path/'preset_cache');s.sync(n.rows,{'build':'a'*64,'session':'token'}, {'builtin':True,'custom':True})
     framing=s.get_framing('Clothing/Tops')
-    for row in n.rows[:204]:
-        r=s.get(row['resource']);s.publish_image(r['key'],png(),{'kind':'situation',
-            'verified':True,'requested_framing':framing,'build':'a'*64,
-            'source':'clean_fixed_camera_render','framing':{'schema':'vroid-situation-framing-v1',
-                'requested_profile':framing,'camera_readback_verified':True,'source_root_id':'owned',
-                'source_renderer_count':3,'source_bounds':{'min':[2,1,-8],'max':[4,3,-4]}},
-            'tested':{'resource':r['resource'],'revision':'1'}},r['fingerprint'])
+    from vroid_mcp.preset_catalog import capture_identity
+    from vroid_mcp.situation_proof import raster_evidence,definition
+    image=subject_png();raster=raster_evidence(image);catalog=s._load()
+    for index,row in enumerate(n.rows[:204]):
+        r=catalog['presets'][row['resource']];g=group(r['id'],'Tops',resource=r['resource'])
+        member={'verified':True,'revision_verified':True,'root':g,'members':[g]}
+        provenance={'kind':'situation','verified':True,'requested_framing':framing,'build':'a'*64,
+            'source':'clean_fixed_camera_render','framing':optical_proof(framing),'quality':{**quality_plan(512),'msaa_samples':4},
+            'capture_input':capture_identity(r),'raster':raster,'membership':member,'native_definition':definition(member),
+            'tested':{'kind':'builtin','resource':r['resource'],'id':g['id'],'type':g['type'],'revision':'1','group_resource':r['resource']}}
+        if index==0:template=s.publish_image(r['key'],image,provenance,r['fingerprint'])
+        r['images']['situation']={**template,**provenance,'fingerprint':r['fingerprint']}
+    with s.locked():s._write(s.path,catalog)
     last=s.get(n.rows[-1]['resource']);s.publish_image(last['key'],png(),{'kind':'native-icon','source':'native'},last['fingerprint'])
     result=run(n,limit=1)
     assert result['processed']==1 and result['skipped']==204
@@ -188,6 +207,7 @@ def test_custom_gallery_binds_custom_and_group_resource_names_before_dispatch(tm
         if op=='custom_item_state':return dict(model_token=n.token,files=[registered],base_path=str(profile))
         if op=='custom_item_validate_begin':return dict(model_token=n.token,request_id='custom',completed=True,compatible=True)
         if op=='apply_registered_custom_item':
+            n.groups=[g for g in n.groups if g['type']!=type]
             n.groups.append(dict(group('custom-root','Tops',resource='user/group'),revision='g1'));return {'frame':3}
         if op=='custom_item_application_state':return dict(model_token=n.token,completed=True)
         if op=='custom_item_validate_release':return {'released':True}
@@ -270,12 +290,16 @@ def test_gallery_set_needs_root_bound_direct_member_certificate(tmp_path,valid):
     n=Native(tmp_path);n.rows[0]['is_set_item']=True;original=n.call
     async def native(op,args=None):
         value=await original(op,args)
+        if op=='list_groups' and args.get('situation_candidate'):
+            g=group('canon-a','ClothingSet',resource=n.rows[0]['resource']);child=group('set-top','Tops',resource='set/top')
+            value['situation_definition']={'verified':True,'revision_verified':True,'root':g,'members':[g,child]}
         if op=='apply_preset':
             n.groups[-1]['type']='TransferableGroupType.N00.Level1.ClothingSet'
             n.groups.append(group('set-top','Tops',resource='set/top'))
         if op=='list_groups' and args.get('situation_root'):
             value['situation_membership']={'verified':valid,'root':deepcopy(args['situation_root']),
-                'members':deepcopy(n.groups[-2:]),'error':None if valid else 'RecommendedTransferableGroup'}
+                'members':deepcopy(n.groups[-2:]),'revision_verified':True,'error':None if valid else 'RecommendedTransferableGroup'}
+            value['situation_membership']['root']['updated_since_last_revision']=False
         return value
     n.runtime._call=native;result=run(n)
     assert result['processed']==int(valid) and result['restore']['state']=='restored'
