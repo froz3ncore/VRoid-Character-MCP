@@ -544,10 +544,23 @@ globalThis.vroid = (() => {
 
     // ------------------------------------------------------- model operations
     function history(args, method) {
-        if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
-        const m = modelContext(args.expected_model);
-        const available = m.context.tryMethod(method === 'UndoAsync' ? 'get_CanUndo' : 'get_CanRedo')?.invoke();
-        if (available !== true) return {dispatched:false, available:available ?? null};
+        const name = method === 'UndoAsync' ? 'undo' : 'redo';
+        const rejected = error => ({dispatched:false, reason:'HISTORY_PREWRITE_REJECTED', error:String(error)});
+        let m;
+        try {
+            if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
+            m = modelContext(args.expected_model);
+            requireOrdinaryEditing(name, args);
+            const available = m.context.tryMethod(method === 'UndoAsync' ? 'get_CanUndo' : 'get_CanRedo')?.invoke();
+            if (available !== true) return {dispatched:false, available:available ?? null};
+        } catch (error) {
+            return rejected(error);
+        }
+        try { attachedState.guard(name); }
+        catch (error) {
+            if (error.attached_guard_prewrite) return rejected(error);
+            throw error;
+        }
         return { ...rememberTask(invokeManaged(m.engine, method)),
                  frame: state.frame || 0 };
     }
@@ -909,6 +922,9 @@ globalThis.vroid = (() => {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
                 throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
+            // History carries its own pre-invocation proof, including mode,
+            // identity and the exact boundary of attached receipt bookkeeping.
+            if (name === 'undo' || name === 'redo') return operations[name](args);
             const hairMutation=['scale_brush_hair','clone_brush_hair','set_procedural_hair'].includes(name);
             const checkpoint=hairMutation?attachedState.hairPrewriteCheckpoint(name):null;
             let entered=false,result;

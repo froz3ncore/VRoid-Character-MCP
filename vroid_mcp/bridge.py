@@ -270,11 +270,15 @@ async def adopt(subject) -> dict:
         raise TimeoutError('VRoid main thread did not respond; detach and retry after focusing the window')
 
 
+class NativeCallNotSent(RuntimeError):
+    """A host guard refused this operation before scheduling its Frida RPC."""
+
+
 async def call(subject, operation: str, args: dict | None = None) -> Any:
     if subject.dead or subject.script is None:
         if getattr(subject, 'mode', 'copy') == 'attached':
-            raise RuntimeError('ATTACHED_VROID_DISCONNECTED: detach or attach again')
-        raise RuntimeError('COPY_DISCONNECTED: restart the MCP server')
+            raise NativeCallNotSent('ATTACHED_VROID_DISCONNECTED: detach or attach again')
+        raise NativeCallNotSent('COPY_DISCONNECTED: restart the MCP server')
     attached = getattr(subject, 'mode', 'copy') == 'attached'
     inspectable = operation.startswith(('get_', 'list_', 'inspect_', 'search_', 'export_texture_', 'export_renderer_texture')) or operation in {
         'status', 'native_png_status', 'task_status', 'vrm_export_status', 'custom_item_state',
@@ -282,17 +286,20 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
         'attached_review', 'attached_acknowledge', 'attached_edit_finish'}
     if subject.uncertain and operation not in {'status', 'vrm_export_status'} and not (attached and inspectable):
         if attached:
-            raise RuntimeError('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state and actual parameters, layers and files before acknowledge_attached_state; do not retry the interrupted tool')
-        raise RuntimeError('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
+            raise NativeCallNotSent('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state and actual parameters, layers and files before acknowledge_attached_state; do not retry the interrupted tool')
+        raise NativeCallNotSent('PREVIOUS_CALL_UNCERTAIN: restart; do not retry a mutation')
     timeout = SLOW_OPERATIONS.get(operation, DEFAULT_TIMEOUT_SECONDS)
     payload = args or {}
     if getattr(subject, 'mode', 'copy') == 'attached':
-        window = attached_ui.window_state(getattr(subject, 'pid', None))
+        try:
+            window = attached_ui.window_state(getattr(subject, 'pid', None))
+        except OSError as error:
+            raise NativeCallNotSent('ATTACHED_WINDOW_INSPECTION_FAILED: ' + str(error)) from error
         if window['blocked']:
             if operation == 'status':
                 return {'model_ready': False, 'pid': subject.pid, 'current_state_unavailable': True,
                         'reason': 'ATTACHED_OS_MODAL_BLOCKED', 'window_state': window}
-            raise RuntimeError('ATTACHED_OS_MODAL_BLOCKED: finish the open Windows dialog in VRoid first; nothing dispatched')
+            raise NativeCallNotSent('ATTACHED_OS_MODAL_BLOCKED: finish the open Windows dialog in VRoid first; nothing dispatched')
         if operation in {'open_texture_editor', 'begin_clothing_edit', 'begin_hair_edit', 'open_wear_project'} and not getattr(subject, 'native_png_decoder_ready', False):
             raise RuntimeError('ATTACHED_HISTORY_UNKNOWN: prior manual body and texture edits cannot be verified; use a fresh isolated copy for this transition')
         if operation in {'open_model', 'new_model', 'wear_clear_save_path'}:

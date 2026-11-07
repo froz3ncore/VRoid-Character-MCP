@@ -7,6 +7,8 @@ import zipfile
 from ctypes import wintypes
 
 from . import attached_ui
+from .bridge import NativeCallNotSent
+from .exception_notes import add_exception_note
 from .file_paths import file_input
 from .custom_item_file import pinned_application
 
@@ -91,21 +93,32 @@ class SessionTools:
             raise
         if watch:
             self.exit_watch = watch
+        refusal = None
         try:
             try:
                 dispatched = await self._call(operation, args)
+                if dispatched.get('rejected'):
+                    refusal = ValueError(dispatched['error'])
+            except NativeCallNotSent as error:
+                refusal = error
             except Exception:
                 if not watch:
                     raise
                 # Native exit may sever Frida before its RPC response. The handle
                 # remains authoritative for the entire remaining observation.
                 dispatched = {}
-            if dispatched.get('rejected'):
+            if refusal is not None:
                 if watch:
-                    watch.close()
                     self.exit_watch = None
+                    watch.close()
                 if receipt:
-                    await self._finish_session_receipt(receipt)
+                    try:
+                        await self._finish_session_receipt(receipt, success=False)
+                    except Exception as cleanup:
+                        # The mutation was refused. A separate unfinished receipt
+                        # remains inspectable through the standard review/ack path.
+                        add_exception_note(refusal, 'Inspect get_attached_state after the dialog closes; '
+                                           'session receipt cleanup failed: ' + str(cleanup))
             elif watch:
                 await self._await_exit(watch)
                 return {'stopped': True, 'pid': self.pid, 'mode': self.mode, 'graceful': True}
@@ -117,11 +130,11 @@ class SessionTools:
         except BaseException:
             self.uncertain = True
             raise
-        raise ValueError(dispatched['error'])
+        raise refusal
 
-    async def _finish_session_receipt(self, receipt):
+    async def _finish_session_receipt(self, receipt, success=True):
         try:
-            done = await self._call('attached_edit_finish', {'id':receipt['id'], 'success':True, 'uncertain':False})
+            done = await self._call('attached_edit_finish', {'id':receipt['id'], 'success':success, 'uncertain':False})
             if done['needs_review']:
                 raise RuntimeError('ATTACHED_EDIT_NEEDS_REVIEW')
         except BaseException:

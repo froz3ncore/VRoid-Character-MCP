@@ -94,12 +94,12 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         state.update(initialized=False, retained_pending=None)
 
     async def initialize_runtime(explicit=False) -> None:
+        if state['retained_pending'] is not None:
+            raise RuntimeError('SESSION_CLEANUP_PENDING: inspect get_status and explicitly close the retained session; automatic initialization is blocked')
         if getattr(runtime.current, 'exit_watch', None):
             raise RuntimeError('GRACEFUL_EXIT_PENDING')
         if (state['stopped'] or getattr(runtime.current, 'exit_stopped', False)) and not explicit:
             raise RuntimeError('SESSION_STOPPED: use restart_session to start another copy')
-        if state['retained_pending'] is not None:
-            raise RuntimeError('SESSION_CLEANUP_PENDING: inspect get_status and explicitly close the retained session; automatic initialization is blocked')
         if state['initialized']:
             return
         try:
@@ -188,9 +188,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                             and result.get('native_invocation_attempted') is False
                             and result.get('attached_prewrite_verified') is True
                             and result.get('uncertain') is False)
-                        exhausted_history = (function.__name__ in {'undo','redo'} and isinstance(result,dict)
-                                             and result.get('reason') in {'NO_HISTORY','HISTORY_UNAVAILABLE'})
-                        if isinstance(result, dict) and result.get('ok') is False and not (definite_hair_prewrite or exhausted_history):
+                        rejected_history = (function.__name__ in {'undo','redo'} and isinstance(result,dict)
+                                            and result.get('dispatched') is False)
+                        if isinstance(result, dict) and result.get('ok') is False and not (definite_hair_prewrite or rejected_history):
                             current.uncertain = True
                         try:
                             finished = await current._call('attached_edit_finish', {
@@ -255,6 +255,12 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 rebind_runtime()
                 raise
 
+    def after_detach(closed):
+        rebind_runtime()
+        next_action = ('Use restart_session(discard_unsaved=true) to start a new copy' if state['stopped']
+                       else 'Next normal tool call starts a new copy')
+        return {'detached': True, 'mode': 'copy', 'release': closed, 'next': next_action}
+
     @mcp.tool(annotations=EDIT)
     async def detach_open_vroid() -> dict:
         """Detach from the user-opened VRoid without closing its process or saving it."""
@@ -264,8 +270,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             closed = await asyncio.to_thread(runtime.current.close)
             if closed.get('close_blocked'):
                 return closed
-            rebind_runtime()
-            return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
+            return after_detach(closed)
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def restart_session(discard_unsaved: bool = False) -> dict:
@@ -282,8 +287,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 closed = await asyncio.to_thread(runtime.current.close)
                 if closed.get('close_blocked'):
                     return closed
-                rebind_runtime()
-                return {'detached': True, 'mode': 'copy', 'release': closed, 'next': 'Next normal tool call starts a new copy'}
+                return after_detach(closed)
             if discard_unsaved is not True:
                 raise ValueError('Explicit discard_unsaved=true required; this discards the MCP copy unsaved changes')
             closed = await asyncio.to_thread(runtime.current.close)
@@ -302,20 +306,22 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         cached an older tool list can tell whether it needs to reload instead of
         guessing.
         """
-        if getattr(runtime.current,'exit_watch',None):
+        if state['retained_pending'] is None and getattr(runtime.current,'exit_watch',None):
             closed = runtime.current.close()
             if closed.get('native_process_stopped'):
                 state['stopped'] = True
-        if state['stopped'] or getattr(runtime.current,'exit_stopped',False) or getattr(runtime.current,'exit_watch',None):
-            stopped = bool(state['stopped'] or getattr(runtime.current,'exit_stopped',False))
-            status = {'mode':runtime.current.mode, 'pid':runtime.current.pid, 'model_ready':False,
-                      'writes_blocked':True, 'stopped':stopped, 'connected':False if stopped else None,
-                      'reason':'SESSION_STOPPED' if stopped else 'GRACEFUL_EXIT_PENDING'}
-        elif state['retained_pending'] is not None:
+        if state['retained_pending'] is not None:
             status = {'mode': runtime.current.mode, 'pid': getattr(runtime.current, 'pid', None),
                 'model_ready': False, 'writes_blocked': True, 'pending_session': True,
                 'reason': 'SESSION_CLEANUP_PENDING', 'retained_session': state['retained_pending'],
                 'recovery': 'Explicit detach_open_vroid for attached sessions, or restart_session(discard_unsaved=true) for an owned copy; cleanup must succeed before another session starts'}
+        elif state['stopped'] or getattr(runtime.current,'exit_stopped',False) or getattr(runtime.current,'exit_watch',None):
+            # An outstanding exact-process watch belongs to this runtime. An
+            # older no-auto-start latch alone cannot prove the watched process exited.
+            stopped = not bool(getattr(runtime.current,'exit_watch',None))
+            status = {'mode':runtime.current.mode, 'pid':runtime.current.pid, 'model_ready':False,
+                      'writes_blocked':True, 'stopped':stopped, 'connected':False if stopped else None,
+                      'reason':'SESSION_STOPPED' if stopped else 'GRACEFUL_EXIT_PENDING'}
         else:
             status = await runtime.current.status()
         status = {**UNKNOWN_MODEL_FIELDS, **status}

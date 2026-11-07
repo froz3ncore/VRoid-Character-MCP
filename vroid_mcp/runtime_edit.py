@@ -20,6 +20,7 @@ import zipfile
 import shutil
 
 from .color_state import attach_color_readback
+from .bridge import NativeCallNotSent
 from .lab_paths import save_destination
 from .wear_paths import wear_input
 from .file_paths import file_input, file_destination
@@ -319,10 +320,14 @@ class EditTools:
             receipt = {'requested': steps, 'model_token': expected_model}
             for _ in range(steps):
                 try:
-                    result = await self._call(method, {'expected_model': expected_model})
+                    try:
+                        result = await self._call(method, {'expected_model': expected_model})
+                    except NativeCallNotSent as refusal:
+                        return {**receipt, 'completed':completed, 'ok':False, 'dispatched':False,
+                                'reason':'HISTORY_PREWRITE_REJECTED', 'error':str(refusal)}
                     if result.get('dispatched') is False:
-                        return {**receipt, 'completed': completed, 'ok':False,
-                                'reason':'NO_HISTORY' if result.get('available') is False else 'HISTORY_UNAVAILABLE'}
+                        reason = result.get('reason') or ('NO_HISTORY' if result.get('available') is False else 'HISTORY_UNAVAILABLE')
+                        return {**result, **receipt, 'completed':completed, 'ok':False, 'reason':reason}
                     await self._task(result)
                     completed += 1
                     await self._settle(result['frame'])
