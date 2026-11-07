@@ -4,6 +4,8 @@ For the mcjo79 migration, use the [native acceptance checklist](docs/superpowers
 
 本次迁移的实机验证请按[验收清单](docs/superpowers/native-migration-acceptance.md)执行。下文历史基准只覆盖 F00 的三个固定方形视图。当前编辑相机的画面比例、应用帧中的界面、预设缩略图中是否混入其他部件，都要用对应样本分别检查。离线测试和程序集静态核对不算实机或外观通过。
 
+When adapting to a new binary, the [editor, catalog and session binding notes](docs/native-evidence/2026-11-07-editor-catalog-session.md) identify which owners, completion callbacks and version fields were established on the standalone build.
+
 ## Native repeatability / 原生静态复采
 
 Use an exclusive prepared lab and a saved `.vroid` inside its `saves/` folder.
