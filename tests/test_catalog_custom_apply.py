@@ -69,8 +69,9 @@ def setup(tmp_path, monkeypatch, mode, change=None):
 
 
 @pytest.mark.parametrize('mode',['copy','attached'])
-def test_apply_custom_item_by_key(mode, tmp_path, monkeypatch):
-    manager, key, calls = setup(tmp_path, monkeypatch, mode)
+@pytest.mark.parametrize('source_session',[None,'session'])
+def test_apply_custom_item_by_key(mode, source_session, tmp_path, monkeypatch):
+    manager, key, calls = setup(tmp_path, monkeypatch, mode, source_session)
     assert key.startswith('custom:user/A#')
     result = asyncio.run(manager.call_tool('apply_custom_item_by_key', {'expected_model':'live','key':key}))
     assert result['applied'] and result['key'] == key and result['readback']['id'] == 'A'
@@ -78,7 +79,7 @@ def test_apply_custom_item_by_key(mode, tmp_path, monkeypatch):
     assert ('attached_edit_finish' in calls) == (mode == 'attached')
 
 
-@pytest.mark.parametrize('change', ['unregistered-path','unusable','session','build','ambiguous','removed','unknown',
+@pytest.mark.parametrize('change', ['unregistered-path','unusable','wrong-target','build','ambiguous','removed','unknown',
                                     'builtin','revision','hardlink','escaped','metadata','bytes','rescan'])
 def test_custom_key_rejects_stale_or_unauthorized_selection(change, tmp_path, monkeypatch):
     manager, key, calls = setup(tmp_path, monkeypatch, 'copy' if change == 'escaped' else 'attached', change)
@@ -91,7 +92,7 @@ def test_custom_key_rejects_stale_or_unauthorized_selection(change, tmp_path, mo
     tool = manager.get_tool('apply_custom_item_by_key')
     assert tool is not None
     with pytest.raises(ValueError):
-        asyncio.run(tool.fn(expected_model='live',key=key))
+        asyncio.run(tool.fn(expected_model='obsolete' if change == 'wrong-target' else 'live',key=key))
     assert 'apply_registered_custom_item' not in calls
     if change not in ('metadata','bytes','rescan'):
         assert not reads

@@ -126,7 +126,7 @@ class GroupTools:
 
     async def apply_custom_item_by_key(self, expected_model, key):
         async with self.lock:
-            row = PresetCatalog(self.lab/'preset_cache').current_custom(key, expected_model)
+            row = PresetCatalog(self.lab/'preset_cache').current_custom(key)
             result = await self._apply_custom_item_unlocked(expected_model, row['path'], catalog_row=row)
             return dict(result, key=key, scan_id=row['scan_id'])
 
@@ -182,7 +182,7 @@ class GroupTools:
                 if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
                     raise ValueError('CUSTOM_ITEM_CHANGED')
                 if catalog_row is not None:
-                    current = PresetCatalog(self.lab/'preset_cache').current_custom(catalog_row['key'], expected_model)
+                    current = PresetCatalog(self.lab/'preset_cache').current_custom(catalog_row['key'])
                     if any(current[k] != catalog_row[k] for k in ('scan_id','fingerprint','source','id')):
                         raise ValueError('CUSTOM_ITEM_CATALOG_SELECTION_CHANGED')
                 self.body_edited_tokens.add(expected_model)

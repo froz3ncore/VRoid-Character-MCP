@@ -67,7 +67,7 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def apply_custom_item_by_key(expected_model: str, key: str) -> dict:
-        """Apply a current custom key from search_preset_cache to its scanned model.
+        """Apply a current custom key from search_preset_cache to the expected active model.
 
         Both session modes require the same live registered file, revisions and bytes.
         """
