@@ -123,6 +123,28 @@ def test_registered_generation_cannot_be_replaced_by_identical_link_before_pin(t
     assert 'custom_item_validate_begin' not in calls
 
 
+@pytest.mark.parametrize('mode,escaped', [('copy', True), ('copy', False), ('attached', False)])
+def test_filename_project_copy_requires_an_authorized_registered_generation(tmp_path, monkeypatch, mode, escaped):
+    from vroid_mcp import custom_item_file
+    manager, _, calls = setup(tmp_path, monkeypatch, mode, 'escaped' if escaped else None)
+    registered = tmp_path/('external' if escaped or mode == 'attached' else 'profile')/'sample.vroidcustomitem'
+    saves = tmp_path/'saves'; saves.mkdir()
+    shutil.copyfile(registered, saves/'mycopy.vroidcustomitem')
+    attempts = []
+    inspect = custom_item_file.inspect_custom_item
+    def observed(path, **kwargs):
+        attempts.append(path)
+        return inspect(path, **kwargs)
+    monkeypatch.setattr(custom_item_file, 'inspect_custom_item', observed)
+    call = manager.call_tool('apply_custom_item', dict(expected_model='live', filename='mycopy.vroidcustomitem'))
+    if escaped:
+        with pytest.raises(Exception, match='OUTSIDE_REGISTRY'): asyncio.run(call)
+        assert not attempts and 'custom_item_validate_begin' not in calls
+    else:
+        assert asyncio.run(call)['applied']
+        assert attempts and calls.count('apply_registered_custom_item') == 1
+
+
 def test_key_selection_excludes_catalog_retirement_during_native_dispatch(tmp_path,monkeypatch):
     # A separate process attempts the actual store transaction while the
     # simulated native selector still has control. The event loop stays free.

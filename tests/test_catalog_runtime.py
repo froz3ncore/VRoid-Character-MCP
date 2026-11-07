@@ -203,14 +203,16 @@ def test_native_receipt_is_finished_before_archive_work(tmp_path,monkeypatch):
     from test_preset_catalog import custom
     r=Runtime(tmp_path);clock=[0];released=[]
     async def settled(*args):return {'model_token':'token'}
-    item=custom();item.update(group_type='Tops',registered=True)
+    root = tmp_path/'profile'; root.mkdir()
+    path = root/'item.vroidcustomitem'; path.touch()
+    item=custom(str(path));item.update(group_type='Tops',registered=True,custom_revision='1',resource_name='group/A')
     async def native(op,args):
         if op=='preset_catalog_begin':return {'request_id':'scan'}
-        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':[item]}
+        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':[item], 'base_path':str(root)}
         if op=='preset_catalog_release':
             assert clock[0]<10;released.append(op);return {'released':True}
         raise AssertionError(op)
-    def inspect(path):
+    def inspect(path, *, registered_generation):
         assert released;clock[0]=20
         return {'sha256':'a'*64,'metadata':{'rootTransferableGroupId':item['id'],'rootTransferableGroupTypeId':'Tops'}}
     monkeypatch.setattr(runtime_catalog,'inspect_custom_item',inspect)

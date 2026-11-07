@@ -98,7 +98,7 @@ function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,b
         const custom=customSnapshot(m,subscription);
         if(rows.length+custom.rows.length>20000)throw Error('CATALOG_ROW_LIMIT');
         return {model_token:m.token,build,areas,rows:rows.concat(custom.rows),builtin_complete:true,
-            custom_complete:observed&&custom.complete,errors:custom.errors,
+            custom_complete:observed&&custom.complete,base_path:custom.base_path,errors:custom.errors,
             scope:'registered collection after observed OnUpdate; not all files on disk'};
     };
 }
@@ -126,9 +126,11 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
         for(const failure of failures)errors.push('CUSTOM_OBSERVATION_FAILED: '+str(prop(failure,'CustomItemPath')));
         const paths=new Set();
         for(const f of files){
+            const path=str(prop(f,'FilePath'));
+            if(!path||paths.has(path.toLowerCase()))throw Error('CUSTOM_REGISTRY_DUPLICATE_PATH');
+            paths.add(path.toLowerCase());
             try{
-                const custom=prop(f,'CustomItemId'),path=str(prop(f,'FilePath'));
-                if(!path||paths.has(path.toLowerCase()))throw Error('CUSTOM_REGISTRY_DUPLICATE_PATH');paths.add(path.toLowerCase());
+                const custom=prop(f,'CustomItemId');
                 const type=str(prop(f,'TransferableGroupTypeId')),resource=str(prop(custom,'ResourceName')),
                     revision=str(prop(f,'TransferableGroupRevision')),customRevision=str(prop(custom,'Revision'));
                 if(!resource||!revision||!customRevision)throw Error('CUSTOM_REGISTRY_IDENTITY_UNAVAILABLE');
@@ -140,7 +142,7 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
                     owned:true,usable:true,selectable:true});
             }catch(error){errors.push(String(error));}
         }
-        return {rows,complete:errors.length===0,errors};
+        return {rows,base_path:str(r.field('_basePath').value),complete:errors.length===0,errors};
     }
     function customSnapshot(m,subscription){
         try{
@@ -151,7 +153,8 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
             const first=customRead(m),second=customRead(m);
             if(subscription&&subscription.generation()!==generation)throw Error('CUSTOM_REGISTRY_CHANGED_DURING_SCAN');
             const canonical=value=>JSON.stringify(value.rows.slice().sort((a,b)=>a.path.localeCompare(b.path)));
-            if(canonical(first)!==canonical(second))throw Error('CUSTOM_REGISTRY_CHANGED_DURING_SCAN');
+            if(!first.base_path || first.base_path!==second.base_path || canonical(first)!==canonical(second))
+                throw Error('CUSTOM_REGISTRY_CHANGED_DURING_SCAN');
             return {...second,complete:first.complete&&second.complete,errors:[...first.errors,...second.errors]};
         }catch(error){return {rows:[],complete:false,errors:[String(error)]};}
     }

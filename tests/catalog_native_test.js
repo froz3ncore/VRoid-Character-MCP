@@ -33,6 +33,7 @@ const file=new Native('FileCustomItemModel',{CustomItemId:custom,FilePath:'E:/re
 const failure=new Native('CustomItemObservationFailureItem',{CustomItemPath:'E:/registered/bad.vroidcustomitem'});
 let observed=true;
 const registry=new Native('CustomItemRegistry',{
+    _basePath:'E:/registered',
     _pathToFileCustomItemModels:dictionary([file]),_pathToObservationFailureItems:dictionary([])}, {
         OnUpdate:()=>{},NotifyUpdateFiles:()=>{},QueueUpdate:()=>{queues++;
             if(!observed)return;
@@ -49,6 +50,7 @@ let api=ctx.createNativePresetCatalog(H),ops=api.operations;
 let receipt=ops.preset_catalog_begin({expected_model:'token'});
 let result=ops.preset_catalog_poll({expected_model:'token',...receipt});
 assert.equal(result.completed,true);assert.equal(result.custom_complete,true);assert.equal(result.rows[0].resource,'user/resource');
+assert.equal(result.base_path,'E:/registered');
 assert.equal(hooks.size,0);assert.equal(frees,1);assert.equal(queues,1);
 ops.preset_catalog_release({expected_model:'token',...receipt});
 // Actual signed failure dictionary: one good row and one failed observation.

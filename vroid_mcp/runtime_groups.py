@@ -4,7 +4,7 @@ from contextlib import nullcontext
 from pathlib import Path
 import time
 
-from .custom_item_file import catalog_registration, inspect_custom_item, resolve_registered, pinned_application
+from .custom_item_file import catalog_registration, inspect_custom_item, resolve_registered, pinned_application, physical_generation
 from .preset_catalog import PresetCatalog
 from .file_paths import file_input
 from .exception_notes import add_exception_note
@@ -138,24 +138,18 @@ class GroupTools:
             return dict(result, key=key, scan_id=row['scan_id'])
 
     async def _apply_custom_item_unlocked(self, expected_model, filename, *, catalog_row=None):
-        inspection = {}
+        profile = None if self.mode == 'attached' else self.lab / 'profile'
         if catalog_row is None:
             path = file_input(self.lab, filename, ('.vroidcustomitem',), attached=self.mode == 'attached')
-            info = inspect_custom_item(path)
+            info = inspect_custom_item(path, registered_generation=physical_generation(path))
         snapshot = await self._group_read('custom_item_state', expected_model)
         if catalog_row is None:
-            row = resolve_registered(info, snapshot['files'])
-            registered_path = Path(row['path']).resolve(strict=True)
-            root = Path(snapshot['base_path']).resolve(strict=True)
-            if not registered_path.is_relative_to(root):
-                raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY')
-            if self.mode != 'attached' and not root.is_relative_to((self.lab / 'profile').resolve()):
-                raise ValueError('CUSTOM_ITEM_PROFILE_MISMATCH')
+            row, generation = resolve_registered(info, snapshot, profile)
+            registered_path = Path(row['path'])
         else:
-            profile = None if self.mode == 'attached' else self.lab / 'profile'
             row, generation = catalog_registration(catalog_row, snapshot, profile)
-            inspection['registered_generation'] = generation
             path = registered_path = Path(row['path'])
+        inspection = dict(registered_generation=generation)
         dispatched, receipt = False, None
         validation_dispatched, validation_terminal, primary_error = False, False, None
         with pinned_application(self, registered_path):

@@ -4,6 +4,7 @@ ZIP checks establish integrity only. Native deserialization and the migration
 predicate establish compatibility before a registered option may be applied.
 """
 from contextlib import contextmanager
+from collections import Counter
 import hashlib
 import json
 import os
@@ -29,24 +30,53 @@ def catalog_registration(catalog, snapshot, profile):
                          ('custom_revision','custom_revision')):
         if not isinstance(row.get(live),str) or not row[live] or row[live] != catalog.get(cached):
             raise ValueError('CUSTOM_ITEM_CATALOG_IDENTITY_CHANGED')
-    if row.get('registered') is not True:
-        raise ValueError('CUSTOM_ITEM_UNREGISTERED_OR_AMBIGUOUS')
-    path, root = Path(row['path']), Path(snapshot['base_path'])
-    if (not path.is_absolute() or not root.is_absolute() or '..' in path.parts or '..' in root.parts
-            or not path.is_relative_to(root) or profile is not None and not root.is_relative_to(profile)):
+    return row, registered_generation(row, registry_root(snapshot.get('base_path'), profile),
+                                      registration_counts(snapshot['files']))
+
+
+def registry_root(name, profile):
+    if not isinstance(name, str) or not name:
+        raise ValueError('CUSTOM_ITEM_REGISTRY_ROOT_UNAVAILABLE')
+    root = Path(name)
+    if (not root.is_absolute() or '..' in root.parts
+            or profile is not None and not root.is_relative_to(profile)):
         raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY_OR_PROFILE')
+    _physical(root)
+    if not root.is_dir():
+        raise ValueError('CUSTOM_ITEM_REGISTRY_ROOT_UNAVAILABLE')
+    return root
+
+
+def registration_counts(rows):
+    return Counter(Path(row['path']) for row in rows if isinstance(row.get('path'), str))
+
+
+def registered_generation(row, root, counts):
+    fields = ('id', 'group_type', 'revision', 'resource_name', 'custom_revision',
+              'resource' if row.get('kind') == 'custom' else 'custom_resource_name', 'path')
+    if row.get('registered') is not True or not all(isinstance(row.get(k), str) and row[k] for k in fields):
+        raise ValueError('CUSTOM_ITEM_REGISTRY_IDENTITY_UNAVAILABLE')
+    path = Path(row['path'])
+    if counts[path] != 1:
+        raise ValueError('CUSTOM_ITEM_UNREGISTERED_OR_AMBIGUOUS')
+    if not path.is_absolute() or '..' in path.parts or not path.is_relative_to(root):
+        raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY_OR_PROFILE')
+    return physical_generation(path)
+
+
+def physical_generation(path):
     _filename(path.name, ('.vroidcustomitem',))
     _physical(path)
     info = path.stat()
-    if path.resolve(strict=True) != path or info.st_nlink != 1 or not info.st_ino:
+    if not stat.S_ISREG(info.st_mode) or path.resolve(strict=True) != path or info.st_nlink != 1 or not info.st_ino:
         raise ValueError('CUSTOM_ITEM_PATH_ALIAS')
-    return row, info
+    return info
 
 
 def inspect_custom_item(path, *, include_icon=False, registered_generation=None):
     path = Path(path)
-    if registered_generation is None:
-        path = path.resolve(strict=True)
+    if registered_generation is not None and not os.path.samestat(physical_generation(path), registered_generation):
+        raise ValueError('CUSTOM_ITEM_REGISTERED_GENERATION_CHANGED')
     if not path.is_file() or path.suffix.lower() != '.vroidcustomitem':
         raise ValueError('CUSTOM_ITEM_FILE_REQUIRED')
     # One protected descriptor owns metadata, streamed digest and optional icon.
@@ -118,27 +148,27 @@ def _inspect_archive(stream, include_icon):
     return metadata, icon
 
 
-def resolve_registered(info, rows):
+def resolve_registered(info, snapshot, profile):
+    rows = snapshot['files']
+    root = registry_root(snapshot.get('base_path'), profile)
+    counts = registration_counts(rows)
     matches = []
     for row in rows:
         if (row.get('id') != info['metadata']['rootTransferableGroupId'] or
                 row.get('group_type') != info['metadata']['rootTransferableGroupTypeId']):
             continue
+        generation = registered_generation(row, root, counts)
         try:
-            registered = inspect_custom_item(row['path'])
+            registered = inspect_custom_item(row['path'], registered_generation=generation)
         except (ValueError, OSError):
             continue
         if registered['sha256'] == info['sha256'] and registered['metadata'] == info['metadata']:
-            matches.append(row)
-    exact = [row for row in matches if Path(row['path']).resolve() == Path(info['path'])]
+            matches.append((row, generation))
+    exact = [pair for pair in matches if Path(pair[0]['path']) == Path(info['path'])]
     matches = exact or matches
     if len(matches) != 1:
         raise ValueError('CUSTOM_ITEM_UNREGISTERED_OR_AMBIGUOUS')
-    row = matches[0]
-    if (row.get('registered') is not True or not all(isinstance(row.get(key), str) and row[key]
-            for key in ('resource_name', 'revision', 'custom_resource_name', 'custom_revision'))):
-        raise ValueError('CUSTOM_ITEM_REGISTRY_IDENTITY_UNAVAILABLE')
-    return row
+    return matches[0]
 
 
 @contextmanager

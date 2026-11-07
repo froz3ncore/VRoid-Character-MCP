@@ -104,9 +104,10 @@ def test_custom_zip_checks_and_registered_byte_identity(tmp_path):
     row = dict(id='g', group_type='type', path=str(source), resource_name='user/g', revision='r',
                custom_resource_name='user/custom', custom_revision='c', registered=True)
     info = inspect_custom_item(path)
-    assert resolve_registered(info, [row])['path'] == str(source)
+    snapshot = dict(files=[row], base_path=str(tmp_path))
+    assert resolve_registered(info, snapshot, None)[0]['path'] == str(source)
     source.write_bytes(b'changed')
-    with pytest.raises(ValueError, match='UNREGISTERED'): resolve_registered(info, [row])
+    with pytest.raises(ValueError, match='UNREGISTERED'): resolve_registered(info, snapshot, None)
 
 
 @pytest.mark.parametrize('entry', ['../bad', '/bad', 'C:/bad', 'v1customitem/../bad', 'a\\..\\bad'])
@@ -188,8 +189,8 @@ def test_custom_native_validation_cancellation_retains_task(tmp_path, monkeypatc
     info = dict(metadata={}, sha256='hash')
     row = dict(path=str(registered))
     monkeypatch.setattr(runtime_groups, 'file_input', lambda *a, **k:path)
-    monkeypatch.setattr(runtime_groups, 'inspect_custom_item', lambda *a:info)
-    monkeypatch.setattr(runtime_groups, 'resolve_registered', lambda *a:row)
+    monkeypatch.setattr(runtime_groups, 'inspect_custom_item', lambda *a, **k:info)
+    monkeypatch.setattr(runtime_groups, 'resolve_registered', lambda *a:(row,registered.stat()))
     monkeypatch.setattr(runtime_groups, 'pinned_application', lambda *a:nullcontext())
     calls = []
     async def call(op, args):
@@ -381,8 +382,8 @@ def test_custom_validation_preserves_primary_failure_and_pending_lifetimes(tmp_p
         finally: events.append('pin_released')
     monkeypatch.setattr(custom_item_file,'pinned_file',pin)
     monkeypatch.setattr(runtime_groups,'file_input',lambda *a,**k:registered)
-    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a:dict(metadata={},sha256='hash'))
-    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:dict(path=str(registered)))
+    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a,**k:dict(metadata={},sha256='hash'))
+    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:(dict(path=str(registered)),registered.stat()))
     async def no_sleep(*args): pass
     monkeypatch.setattr(runtime_groups.asyncio,'sleep',no_sleep)
     async def call(op,args):
@@ -471,8 +472,8 @@ def test_custom_application_waits_for_native_lifetime_receipt_before_release(tmp
         finally:events.append('pin_released')
     monkeypatch.setattr(custom_item_file,'pinned_file',pin)
     monkeypatch.setattr(runtime_groups,'file_input',lambda *a,**k:registered)
-    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a:dict(metadata={},sha256='hash'))
-    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:row)
+    monkeypatch.setattr(runtime_groups,'inspect_custom_item',lambda *a,**k:dict(metadata={},sha256='hash'))
+    monkeypatch.setattr(runtime_groups,'resolve_registered',lambda *a:(row,registered.stat()))
     async def no_sleep(*args):pass
     monkeypatch.setattr(runtime_groups.asyncio,'sleep',no_sleep)
     async def call(op,args):

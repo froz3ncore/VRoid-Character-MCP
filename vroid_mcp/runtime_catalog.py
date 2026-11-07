@@ -4,7 +4,7 @@ from copy import deepcopy
 import time
 import zipfile
 
-from .custom_item_file import inspect_custom_item
+from .custom_item_file import inspect_custom_item, registered_generation, registration_counts, registry_root
 from .preset_catalog import PresetCatalog, MAX_ROWS, _row
 
 
@@ -44,21 +44,32 @@ class CatalogTools:
             if released.get('released') is not True:
                 raise ValueError('CATALOG_NATIVE_RECEIPT_NOT_RELEASED')
             rows, errors, customs_complete, seen = [], list(result.get('errors',[])), result['custom_complete'], set()
+            generations = {}
+            counts = registration_counts(row for row in result['rows'] if row.get('kind') == 'custom')
+            try:
+                root = registry_root(result.get('base_path'), None if self.mode == 'attached' else self.lab/'profile')
+            except (OSError, ValueError) as error:
+                customs_complete = False
+                errors.append(str(error))
+                root = None
             for row in result['rows']:
                 # Validate every identity before archive IO or catalog mutation.
-                normalized = _row(row)
-                if normalized['key'] in seen: raise ValueError('CATALOG_DUPLICATE_RESOURCE')
-                seen.add(normalized['key'])
                 if row['kind']=='custom':
+                    if root is None: continue
                     try:
-                        info=inspect_custom_item(row['path'])
+                        generation = registered_generation(row, root, counts)
+                        info=inspect_custom_item(row['path'], registered_generation=generation)
                         if (info['metadata']['rootTransferableGroupId']!=row['id']
                                 or info['metadata']['rootTransferableGroupTypeId']!=row['group_type']
                                 or row.get('registered') is not True):
                             raise ValueError('CUSTOM_ITEM_REGISTRY_IDENTITY_STALE')
                         row=dict(row,sha256=info['sha256'])
+                        generations[row['path']] = generation
                     except (ValueError,OSError) as error:
                         customs_complete=False; errors.append(str(error)); continue
+                normalized = _row(row)
+                if normalized['key'] in seen: raise ValueError('CATALOG_DUPLICATE_RESOURCE')
+                seen.add(normalized['key'])
                 rows.append(row)
             summary=store.sync(rows,{'build':result['build'],'session':expected_model,'scope':result.get('scope')},
                                {'builtin':True,'custom':customs_complete})
@@ -74,7 +85,7 @@ class CatalogTools:
                 scanned=_row(row)
                 if row['kind']=='custom':
                     try:
-                        info=inspect_custom_item(row['path'],include_icon=True)
+                        info=inspect_custom_item(row['path'],include_icon=True, registered_generation=generations[row['path']])
                         if (info['sha256']!=row['sha256']
                                 or info['metadata']['rootTransferableGroupId']!=row['id']
                                 or info['metadata']['rootTransferableGroupTypeId']!=row['group_type']):
