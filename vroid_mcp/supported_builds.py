@@ -18,9 +18,15 @@ def supported_build(digest: str) -> str:
         raise ValueError('Untested VRoid binary: refusing native calls') from None
 
 
-def validate_assembly(path: Path) -> str:
+def assembly_identity(path: Path) -> dict:
+    """Validate the same digest supplied to build-specific native descriptors."""
     digest = hashlib.sha256()
     with path.open('rb') as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b''):
             digest.update(chunk)
-    return supported_build(digest.hexdigest())
+    value = digest.hexdigest()
+    return {'sha256': value, 'build': supported_build(value)}
+
+
+def validate_assembly(path: Path) -> str:
+    return assembly_identity(path)['build']

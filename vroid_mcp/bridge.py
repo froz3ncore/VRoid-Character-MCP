@@ -25,7 +25,7 @@ from typing import Any
 import frida
 
 from . import closet_guard, lab_lock, edit_sequence, attached_ui
-from .supported_builds import validate_assembly
+from .supported_builds import validate_assembly, assembly_identity
 
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -54,6 +54,8 @@ AGENT_MODULES = (
     'ordinary_extensions.js',
     'attached_state.js',
     'groups.js',
+    'hair_procedural.js',
+    'hair_groups.js',
     'operations.js',
 )
 GUARD_MODULE = 'profile_guard.js'
@@ -88,9 +90,11 @@ def disconnected_status(subject) -> dict:
     return result
 
 
-def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = False) -> str:
+def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = False,
+                assembly_sha256: str | None = None) -> str:
     """Concatenate the agent into one script with the probe config in front."""
     parts = ['const ATTACHED=' + json.dumps(attached) + ';',
+             'const VROID_ASSEMBLY_SHA256=' + json.dumps(assembly_sha256) + ';',
              'const ATTACHED_OWNER_PID=' + str(os.getpid()) + ';',
              (PROJECT / 'agent' / 'native_traps.js').read_text(encoding='utf-8')]
     if not attached:
@@ -111,7 +115,7 @@ def prepare_run_directory(subject) -> None:
     subject.run_dir.mkdir(parents=True)
 
 
-def _check_copy(subject) -> None:
+def _check_copy(subject) -> str:
     if os.name != 'nt':
         raise RuntimeError('This prototype is validated only on Windows')
     if not subject.exe.is_file() or not subject.bridge_js.is_file():
@@ -119,7 +123,7 @@ def _check_copy(subject) -> None:
     # A junction here would redirect every native call into the real install.
     if subject.exe.resolve() != subject.exe or (subject.lab / 'app').resolve() != subject.lab / 'app':
         raise ValueError('app/ must be a physical copy, not a link')
-    validate_assembly(subject.lab / 'app/GameAssembly.dll')
+    return assembly_identity(subject.lab / 'app/GameAssembly.dll')['sha256']
 
 
 def _environment(subject) -> dict:
@@ -147,7 +151,7 @@ def _detached(subject, reason, *unused) -> None:
 
 
 def start(subject) -> None:
-    _check_copy(subject)
+    assembly_sha256 = _check_copy(subject)
     # Refuse before taking the lock: a process that cannot run would die mid-way
     # and leave the save state unknown.
     subject.crash_guard = closet_guard.enforce(subject.lab)
@@ -163,7 +167,8 @@ def start(subject) -> None:
         subject.owns_process = True
         subject.session = subject.device.attach(subject.pid)
         subject.session.on('detached', lambda reason, *rest: _detached(subject, reason))
-        subject.script = subject.session.create_script(script_text(_probe_config(subject), subject.bridge_js))
+        subject.script = subject.session.create_script(script_text(_probe_config(subject), subject.bridge_js,
+                                                                  assembly_sha256=assembly_sha256))
         subject.script.on('message',
                           lambda message, data: record(subject, {'event': 'agent', 'message': message}))
         subject.script.load()
@@ -203,7 +208,7 @@ def attach(subject, pid: int) -> None:
     if not target['path']:
         raise PermissionError('VRoid process path is unavailable; check process privileges')
     exe = pathlib.Path(target['path'])
-    validate_assembly(exe.parent / 'GameAssembly.dll')
+    assembly_sha256 = assembly_identity(exe.parent / 'GameAssembly.dll')['sha256']
     subject.file_lock = lab_lock.acquire(subject.lab)
     subject.lab_owner = os.getpid()
     prepare_run_directory(subject)
@@ -213,7 +218,8 @@ def attach(subject, pid: int) -> None:
         subject.session = subject.device.attach(pid)
         subject.pid = pid
         subject.session.on('detached', lambda reason, *rest: _detached(subject, reason))
-        subject.script = subject.session.create_script(script_text(None, subject.bridge_js, attached=True))
+        subject.script = subject.session.create_script(script_text(None, subject.bridge_js, attached=True,
+                                                                  assembly_sha256=assembly_sha256))
         subject.script.on('message', lambda message, data: record(subject, {'event': 'agent', 'message': message}))
         subject.script.load()
         record(subject, {'event': 'attached', 'pid': pid, 'exe': str(exe)})

@@ -757,6 +757,10 @@ globalThis.vroid = (() => {
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
     const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
         details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status});
+    const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,
+        invokeManaged,retain,state,assemblySha256:VROID_ASSEMBLY_SHA256,
+        helpers:extended.hairGroupHelpers,groupHelpers:groups.helpers,
+        inventory:groups.helpers.groupInventory})});
 
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
@@ -779,6 +783,7 @@ globalThis.vroid = (() => {
     }
 
     const operations = {
+        ...hairGroups.operations,
         ...groups.operations,
         ...textureApi.operations,
         ...ordinary.operations,
@@ -844,7 +849,7 @@ globalThis.vroid = (() => {
     // ---------------------------------------------------------------- dispatch
     const EDIT_OPERATION = new RegExp('^(set_(face|body|clothing)_params|apply_.*preset|add_shoe_template|'
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
-        + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
+        + 'duplicate_hair_strand|scale_brush_hair|clone_brush_hair|set_procedural_hair|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
         + 'open_texture_editor|close_texture_editor|import_texture_layer|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|save_as|undo|redo|'
         + 'preview_expression|set_group_parameters|remove_group|apply_registered_custom_item|apply_preserving_preset|restore_preset_materials|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
@@ -861,7 +866,9 @@ globalThis.vroid = (() => {
         if (name === 'list_shoe_templates' && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: restart into ordinary editing');
         }
-        const edits = EDIT_OPERATION.test(name)
+        const hairGroupOperation = ['list_hair_groups','get_hair_group_state','get_procedural_hair_controls','scale_brush_hair',
+            'clone_brush_hair','set_procedural_hair'].includes(name);
+        const edits = EDIT_OPERATION.test(name) || hairGroupOperation
             || (name === 'set_parameters' && args.domain !== 'photo');
         if (edits && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: use wear tools or restart into ordinary editing');

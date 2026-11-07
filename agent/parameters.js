@@ -882,6 +882,14 @@ globalThis.createParameterApi = H => {
         return node.n.method(getter).invoke();
     }
 
+    function hairGroupProperty(m, category, scope) {
+        const {d,n} = findHairNode(m, category, scope);
+        hairPath(n, 'group');
+        // Recreate against the current native node; model tokens alone do not
+        // invalidate cached group properties after structural/preset changes.
+        return d.method('get_Mode').invoke().method('CreateProperty').invoke(n.n);
+    }
+
     const activeModelOf = m => m.context.method('get_ActiveModel').invoke();
 
     function runQuery(m, queryClass, constructorArgs) {
@@ -1033,6 +1041,7 @@ globalThis.createParameterApi = H => {
     }
 
     return {
+        hairGroupHelpers: {hairDesignEditor, hairNodeList, hairGroupProperty, seq, boxArgument, readPoint},
         operations: {
             list_parameters: listDomain,
             set_parameters: writeDomain,

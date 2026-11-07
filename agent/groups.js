@@ -537,7 +537,7 @@ function createGroupApi(H) {
         outcomes.push({status:'unverified',reason:'texture/raster/material channel identities are outside established color-query coverage'});
         return {outcomes,discovery_errors:after.errors,frame:state.frame};
     }
-    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage},operations:{
+    return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,groupInventory},operations:{
         list_groups(args) { return groupInventory(requireModel(args)); },
         list_group_parameters(args) {
             const result = collect(requireModel(args),args.group_id);
