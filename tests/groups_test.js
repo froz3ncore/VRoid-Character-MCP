@@ -22,7 +22,7 @@ const rgba = a => new Native('Color',Object.fromEntries(['r','g','b','a'].map((c
 const float = value => ({value, writeFloat(v){this.value=v;}, writeU8(v){this.value=v;},
     add(offset){ return {writeFloat:v=>{this.channels??=[];this.channels[offset/4]=v;}}; }});
 const context = vm.createContext({console,Il2Cpp:{string:s,corlib:{class:()=>{}},gc:{choose:()=>[]}},
-    Memory:{alloc:()=>float(0)},NULL:null,retain:()=>({free(){freed++;}}),bridge:{retained:new Map()}});
+    Memory:{alloc:()=>float(0)},NULL:null,retain:object=>{object.wasRetained=true;return {free(){freed++;}};},bridge:{retained:new Map()}});
 vm.runInContext(fs.readFileSync('agent/build_profiles.js','utf8') + '\nglobalThis.profile=nativeBuildProfile;',context);
 vm.runInContext(fs.readFileSync('agent/groups.js','utf8'),context);
 
@@ -137,6 +137,8 @@ function garment(build,scenario='template') {
         f.classFor(ns+name).alloc=()=>{
             const result=new Native(name);
             result.calls['.ctor']=(first,second)=>{
+                assert.ok(result.wasRetained,'reconstructed path components must survive managed allocations');
+                if(second)assert.ok(first.wasRetained && second.wasRetained);
                 result.fields=second?{templatePath:first,editableElementPath:second}:{Key:first};
             };return result;
         };

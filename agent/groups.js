@@ -481,17 +481,18 @@ function createGroupApi(H) {
         }
         return prepared;
     }
-    function makePath(descriptor) {
+    function makePath(descriptor, pin) {
+        const key = value=>pin(Il2Cpp.string(value)).handle;
         const create = (name, args) => {
-            const object = cls('VRoidCore',pathNamespace + name).alloc();
+            const object = pin(cls('VRoidCore',pathNamespace + name).alloc());
             invokeManaged(object,'.ctor',args); return object;
         };
         if (descriptor.template_key !== null) {
-            const template = create('TemplatePath',[Il2Cpp.string(descriptor.template_key).handle]);
-            const plain = create(descriptor.path_type.replace('Template',''), [Il2Cpp.string(descriptor.element_key).handle]);
+            const template = create('TemplatePath',[key(descriptor.template_key)]);
+            const plain = create(descriptor.path_type.replace('Template',''), [key(descriptor.element_key)]);
             return create(descriptor.path_type,[template.handle,plain.handle]);
         }
-        return create(descriptor.path_type,[Il2Cpp.string(descriptor.element_key).handle]);
+        return create(descriptor.path_type,[key(descriptor.element_key)]);
     }
     function prepareHistory(m, group, kind, descriptor, value) {
         const suffix = {blendshape:'BlendShapeTransform',color:'Color'}[kind];
@@ -508,7 +509,7 @@ function createGroupApi(H) {
         const release = () => handles.splice(0).forEach(handle=>handle.free());
         try {
             const dictionaryClass = Il2Cpp.corlib.class('System.Collections.Generic.Dictionary`2').inflate(pathClass,valueClass);
-            const dictionary = pin(dictionaryClass.alloc()), path = pin(makePath(descriptor));
+            const dictionary = pin(dictionaryClass.alloc()), path = makePath(descriptor,pin);
             const add = dictionary.method('Add',2);
             if (add.parameters[0].type.name !== pathClass.type.name || add.parameters[1].type.name !== valueClass.type.name)
                 throw Error('RAW_DICTIONARY_ABI_UNSUPPORTED');
