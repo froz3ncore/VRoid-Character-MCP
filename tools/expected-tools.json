@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
  "tool_count": 143,
- "toolset_hash": "sha256:8708548d8f5d15b34abf8e78a14ec24fc5c07aad736089972f59b41a7aa64d70",
+ "toolset_hash": "sha256:dad59fdac3f4b664238bcc833ee22abd70985454793a15baf60959313411bcf3",
  "tools": {
   "acknowledge_attached_state": {
    "parameters": [
