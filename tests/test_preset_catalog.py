@@ -48,6 +48,38 @@ def test_construction_and_empty_reads_are_lazy(tmp_path):
     assert not (tmp_path / 'absent').exists()
 
 
+@pytest.mark.parametrize('name', ['preset_cache', 'temp'])
+@pytest.mark.parametrize('late', [False, True])
+def test_registered_framing_rejects_redirected_managed_directory(tmp_path, name, late):
+    import asyncio
+    from vroid_mcp.server import create_server
+    lab, external = tmp_path / 'lab', tmp_path / 'external'
+    lab.mkdir(); external.mkdir()
+    def redirect():
+        if os.name == 'nt':
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(lab/name), str(external)], check=True,
+                           capture_output=True)
+        else:
+            (lab/name).symlink_to(external, target_is_directory=True)
+    if late: mcp = create_server(lab, 'F00')
+    redirect()
+    with pytest.raises(Exception, match='links|junction|reparse'):
+        if not late: mcp = create_server(lab, 'F00')
+        asyncio.run(mcp.call_tool('set_preset_framing', dict(category='Custom/Test', yaw=17)))
+    assert not list(external.iterdir())
+
+
+def test_existing_lock_hardlink_never_modifies_external_bytes(tmp_path):
+    catalog = store(tmp_path/'lab')
+    catalog.scratch.mkdir(parents=True)
+    external = tmp_path/'untouched'
+    external.touch()
+    os.link(external, catalog.lock_path)
+    with pytest.raises(ValueError):
+        catalog.set_framing('Custom/Test', yaw=17)
+    assert external.read_bytes() == b''
+
+
 def test_identity_annotations_and_revision_lifecycle(tmp_path):
     s = store(tmp_path)
     sync(s, [row(), custom()])

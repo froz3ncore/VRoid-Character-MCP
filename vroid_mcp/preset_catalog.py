@@ -22,6 +22,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import struct
+import stat
 import tempfile
 import threading
 import time
@@ -29,6 +30,7 @@ import zlib
 import uuid
 
 from . import catalog_framing as framing
+from .wear_paths import _physical
 
 STATUSES = {'new','changed','unchanged','removed','returned','unknown'}
 MAX_ROWS = 20000
@@ -125,17 +127,39 @@ def _annotation_fields(fields):
         else:_text(value,name,8192,True)
 
 
+def _artifact(path):
+    _physical(path)
+    try:
+        info = path.stat()
+    except FileNotFoundError:
+        return path
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise ValueError('CATALOG_FILE_ALIAS: expected a physical unshared file')
+    return path
+
+
+def _read_artifact(path, maximum):
+    with _artifact(path).open('rb') as stream:
+        info = os.fstat(stream.fileno())
+        if info.st_nlink != 1 or not os.path.samestat(info, _artifact(path).stat()):
+            raise ValueError('CATALOG_FILE_CHANGED')
+        if info.st_size > maximum:
+            raise ValueError('CATALOG_SIZE_LIMIT')
+        data = stream.read(maximum + 1)
+        if len(data) > maximum:
+            raise ValueError('CATALOG_SIZE_LIMIT')
+        return data
+
+
 def _json(path, absent):
     try:
-        if path.stat().st_size > 32 * 1024 * 1024:
-            raise ValueError('CATALOG_SIZE_LIMIT')
         def pairs(items):
             result = {}
             for key, value in items:
                 if key in result: raise ValueError('CATALOG_DUPLICATE_JSON_KEY')
                 result[key] = value
             return result
-        return json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=pairs,
+        return json.loads(_read_artifact(path, 32 * 1024 * 1024).decode('utf-8'), object_pairs_hook=pairs,
                           parse_constant=lambda _: (_ for _ in ()).throw(ValueError('CATALOG_NONFINITE')))
     except FileNotFoundError:
         return deepcopy(absent)
@@ -206,7 +230,8 @@ def validate_png(data, maximum_side=2048):
 
 class PresetCatalog:
     def __init__(self, root, *, lock_timeout=5):
-        self.root = Path(root).resolve()
+        self.root = Path(os.path.abspath(root))
+        _physical(self.root)
         self.path = self.root / 'catalog.json'
         self.scratch = self.root.parent / 'temp'
         self.lock_path = self.scratch / ('catalog-' + _hash(os.path.normcase(str(self.root)))[:24] + '.lock')
@@ -216,10 +241,16 @@ class PresetCatalog:
 
     @contextmanager
     def locked(self, *, wait=True):
+        _physical(self.root)
+        _physical(self.scratch)
         self.scratch.mkdir(parents=True, exist_ok=True)
         # Persistent lock inode; never delete/replace a lock another process holds.
-        with self.lock_path.open('a+b') as lock:
-            if lock.seek(0,2) == 0: lock.write(b'0'); lock.flush()
+        with _artifact(self.lock_path).open('a+b') as lock:
+            info = os.fstat(lock.fileno())
+            if info.st_nlink != 1 or not os.path.samestat(info, _artifact(self.lock_path).stat()):
+                raise ValueError('CATALOG_LOCK_CHANGED')
+            # Windows byte-range locks may extend beyond EOF. No sentinel write
+            # is needed on a pathname that could have acquired another alias.
             deadline = time.monotonic()+self.lock_timeout
             while True:
                 try:
@@ -246,14 +277,16 @@ class PresetCatalog:
             self._validate(value)
         data = (json.dumps(value,ensure_ascii=False,indent=2,allow_nan=False)+'\n').replace('\n','\r\n').encode('utf-8')
         if len(data)>32*1024*1024: raise ValueError('CATALOG_SIZE_LIMIT')
+        _artifact(path)
         self.root.mkdir(parents=True, exist_ok=True)
+        _physical(self.scratch)
         fd, name = tempfile.mkstemp(prefix='catalog-', suffix='.tmp', dir=self.scratch)
         try:
             with os.fdopen(fd,'wb') as stream:
                 stream.write(data); stream.flush(); os.fsync(stream.fileno())
-            os.replace(name,path)
+            os.replace(_artifact(Path(name)), _artifact(path))
         finally:
-            Path(name).unlink(missing_ok=True)
+            _artifact(Path(name)).unlink(missing_ok=True)
 
     def _load(self):
         data = _json(self.path, {'schema':1,'presets':{},'source':None,'updated':None})
@@ -524,20 +557,22 @@ class PresetCatalog:
                     raise ValueError('CATALOG_IMAGE_CAPTURE_INPUT_STALE')
             relative = 'images/' + info['sha256'] + '.png'
             folder = self.root/'images'
+            _physical(folder)
             folder.mkdir(parents=True,exist_ok=True)
-            if not folder.resolve().is_relative_to(self.root): raise ValueError('CATALOG_IMAGE_PATH_ESCAPE')
-            destination = self.root/relative
+            destination = _artifact(self.root/relative)
             if destination.exists():
-                if destination.is_symlink() or destination.read_bytes()!=data: raise ValueError('CATALOG_IMAGE_CONFLICT')
+                if _read_artifact(destination, 16*1024*1024)!=data: raise ValueError('CATALOG_IMAGE_CONFLICT')
             else:
                 # Stage complete bytes on the same volume, then publish without
                 # replacing existing evidence. A hard link is atomic/no-overwrite.
+                _physical(self.scratch)
                 fd,name=tempfile.mkstemp(prefix='catalog-image-',suffix='.tmp',dir=self.scratch)
                 try:
                     with os.fdopen(fd,'wb') as stream:
                         stream.write(data); stream.flush(); os.fsync(stream.fileno())
-                    os.link(name,destination)
+                    os.link(_artifact(Path(name)), _artifact(destination))
                 finally:
+                    _physical(Path(name))
                     Path(name).unlink(missing_ok=True)
             metadata = {**deepcopy(provenance),**info,'path':relative,'time':_now(),'fingerprint':expected_fingerprint}
             row['images'][kind] = metadata
@@ -546,6 +581,8 @@ class PresetCatalog:
 
     def resolve_image(self, key):
         _text(key,'key',8192)
+        if not _artifact(self.path).exists():
+            raise ValueError('UNKNOWN_CATALOG_KEY')
         # Catalog, row and effective framing form one current observation.
         # A missing scan retains old row identities and bytes for inspection;
         # those identities alone cannot promote a historical situation preview.
@@ -577,10 +614,8 @@ class PresetCatalog:
                     or PurePosixPath(relative).is_absolute() or '..' in PurePosixPath(relative).parts
                     or not relative.startswith('images/')): raise ValueError('CATALOG_IMAGE_PATH_ESCAPE')
             path = self.root/relative
-            if not path.resolve().is_relative_to(self.root): raise ValueError('CATALOG_IMAGE_PATH_ESCAPE')
             try:
-                if path.stat().st_size>16*1024*1024: raise ValueError('CATALOG_IMAGE_SIZE_LIMIT')
-                data = path.read_bytes()
+                data = _read_artifact(path, 16*1024*1024)
             except FileNotFoundError: continue
             actual = validate_png(data,512 if kind=='native-icon' else 2048)
             if any(image.get(k)!=v for k,v in actual.items()): raise ValueError('CATALOG_IMAGE_BYTES_CHANGED')
