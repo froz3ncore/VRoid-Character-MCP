@@ -115,7 +115,7 @@ globalThis.createHairGroupNative = H => {
     function configured(s,path){const ps=query(s,'GetProceduralHairGroupParameterSetQuery',[path.handle]);
         const form=pin(s,prop(ps,'ProceduralFormParameterSet'));return {length:prop(form,'Length'),hair_count:prop(form,'HairCount')};}
     function procedural(s,category,id){
-        if(H.assemblySha256!=='ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296')
+        if(!nativeBuildProfile(H.assemblySha256)?.hair)
             throw Error('PROCEDURAL_DESCRIPTOR_UNVERIFIED_BUILD: no property was created or written');
         const g=group(s,category,id);
         if(g.type!=='procedural')throw Error('NOT_A_PROCEDURAL_HAIR_GROUP');

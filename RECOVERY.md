@@ -44,7 +44,7 @@ visual quality, saving or the full E2E workflow.
 | `dependency.frida`, `dependency.mcp`, `dependency.imports` | 用同一个解释器重新安装 `requirements.txt`，确认客户端没有指向另一个 Python。Install requirements with the client's interpreter. |
 | `dependency.bridge` | 在仓库根目录运行 `npm ci`。Run `npm ci` in the repository. |
 | `environment.asyncio` | 在允许本机回环连接的普通终端重跑。受限环境可能卡在 Python 事件循环创建阶段，超时本身不证明项目有错。Retry in a normal terminal with local loopback permitted. |
-| `paths.physical`, `application.build` | 使用完整、受支持的 VRoid 2.14.0 安装，新建独立 lab；不要绕过哈希白名单。Use a complete supported installation and create a new lab. |
+| `paths.physical`, `application.build` | 使用完整的 2.16.0 或 2.14.0 安装，按构建清单核对程序集和元数据，再新建独立 lab。Create a new physical lab from an exact supported package. [构建清单 / Package identities](docs/native-evidence/2026-11-07-vroid-216.md) |
 | `lab.ownership` | 使用另一个 lab，或从拥有它的客户端正常关闭服务；不要删除锁文件、按进程名终止全部 VRoid。Use another lab or close the owning client normally. |
 | `registry.closet` | 先按下文备份，再明确执行恢复；读取权限错误也会阻止启动。Back up first; unreadable registry state also blocks startup. |
 

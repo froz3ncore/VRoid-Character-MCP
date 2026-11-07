@@ -39,6 +39,20 @@ function nativeClass(assembly, name) {
     return Il2Cpp.domain.assembly(assembly).image.class(name);
 }
 
+function verifyProductVersion() {
+    if (bridge.productVersion) return;
+    if (!VROID_PRODUCT_VERSION) throw Error('UNVERIFIED_VROID_PACKAGE');
+    const getter = nativeClass('UnityEngine.CoreModule', 'UnityEngine.Application').tryMethod('get_version', 0);
+    // Only the historical upstream package lacks a separately audited getter.
+    if (!getter && VROID_ASSEMBLY_SHA256 !== '793eb5fcff3093f344ee930fbfa0c0796ed7780ac91c45bdb7ce6bd34d62fd3c')
+        throw Error('VROID_VERSION_GETTER_MISSING');
+    const version = getter ? getter.invoke().content : VROID_PRODUCT_VERSION;
+    if (version !== VROID_PRODUCT_VERSION)
+        throw Error('VROID_VERSION_MISMATCH: expected ' + VROID_PRODUCT_VERSION + ', observed ' + version);
+    bridge.productVersion = version;
+    bridge.productVersionSource = getter ? 'UnityEngine.Application.version' : 'recognized package';
+}
+
 // Compatibility surface for the modules that have not been rewritten yet
 // (operations, parameters, wear, textures, ...). They address `cls`, `retain`
 // and `state` directly because the previous bridge published them as globals.
@@ -130,6 +144,9 @@ function drainJob() {
         if (Il2Cpp.currentThread === null || Il2Cpp.currentThread.id !== bridge.mainThread) {
             throw new Error('UNREGISTERED_THREAD');
         }
+        // A late attachment initializes on a free thread. Check the actual
+        // package on Unity's thread before adoption acquires a lease or writes.
+        if (job.work !== releaseAttached) verifyProductVersion();
         const result = job.work();
         if (result instanceof Promise) throw new Error('ASYNC_MANAGED_CALL_FORBIDDEN');
         job.resolve(result);
@@ -323,6 +340,7 @@ Il2Cpp.perform(function () {
         throw new Error('UNTESTED_UNITY_VERSION: ' + Il2Cpp.unityVersion);
     }
     bridge.mainThread = ATTACHED ? unityWindowThread() : Process.getCurrentThreadId();
+    if (!ATTACHED) verifyProductVersion();
     keep = createHandleKeeper();
     if (!ATTACHED) bridge.pngDecoder = installNativePngDecoder({cls: nativeClass, retain,
         frame: () => bridge.frame, mainThread: () => bridge.mainThread});

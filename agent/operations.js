@@ -73,6 +73,7 @@ globalThis.vroid = (() => {
         const base = {
             pid: Process.id,
             unity: Il2Cpp.unityVersion,
+            vroid_version: bridge.productVersion, vroid_version_source: bridge.productVersionSource,
             main_thread: state.mainThread,
             callback_thread: Process.getCurrentThreadId(),
             frame: state.frame || 0,

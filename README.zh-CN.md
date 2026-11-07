@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
+Windows · VRoid Studio 2.16.0 / 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
@@ -71,7 +71,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
 ## 环境要求
 
 - Windows x64。
-- VRoid Studio **2.14.0 / Unity 6000.0.62f1**。启动时校验 `GameAssembly.dll` 哈希，其他构建会被拒绝。
+- VRoid Studio **2.16.0**（Steam 或 pixiv 独立版）及已识别的 **2.14.0** 构建，Unity 6000.0.62f1。2.16.0 启动前同时校验程序集和元数据。实机编辑、保存重开、导出及外观仍待验收。[构建清单与验证记录](docs/native-evidence/2026-11-07-vroid-216.md)
 - Python **3.10 或更高版本**、Git、Node.js 与 npm。
 - 一个支持本地 **stdio MCP** 的客户端，以及足够复制一份 VRoid 安装的磁盘空间。
 

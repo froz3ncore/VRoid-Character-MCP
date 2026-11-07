@@ -1,5 +1,6 @@
 // Execute the native adapter through query/command doubles; no live app is used.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../agent/build_profiles.js'),'utf8'));
 vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../agent/hair_groups.js'),'utf8'));
 assert.equal(typeof globalThis.createHairGroupNative,'function','native hair group adapter missing');
 let pins=0,commands=[],type='BrushHairGroupPath',complete=true,active=true,screen='VRoid.Studio.EditRootScreen.ViewModel';

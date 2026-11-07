@@ -97,7 +97,6 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
     const {prop}=helpers;
     const str=o=>typeof o==='string'?o:text(o);
     const registry=m=>m.root.field('_customItemRegistry').value;
-    const ed65='ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296';
     // Counts plus bounded enumeration refuse null, silent empties and truncated registries.
     function values(dictionary){
         if(!dictionary||dictionary.handle.isNull())throw Error('CUSTOM_REGISTRY_DICTIONARY_UNAVAILABLE');
@@ -142,12 +141,19 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
         }catch(error){return {rows:[],complete:false,errors:[String(error)]};}
     }
     function subscribe(m,completed){
-        if(build!==ed65)throw Error('CUSTOM_OBSERVATION_BUILD_UNSUPPORTED');
-        const r=registry(m),update=r.method('OnUpdate',2),notify=r.method('NotifyUpdateFiles',0),queue=r.method('QueueUpdate',0);
-        const types=update.parameters.map(p=>p.type.name);
-        if(update.isStatic||notify.isStatic||queue.isStatic||types.length!==2
-                ||!types[0].includes('ObservedCustomItem')||!types[1].includes('CustomItemObservationFailureItem')
-                ||update.virtualAddress.isNull()||notify.virtualAddress.isNull())throw Error('CUSTOM_OBSERVATION_SIGNATURE_UNSUPPORTED');
+        if(!nativeBuildProfile(build)?.registryObservation)throw Error('CUSTOM_OBSERVATION_BUILD_UNSUPPORTED');
+        const element='VRoid.Studio.ModelPresetsSelector.',generic='System.Collections.Generic.';
+        const r=registry(m);
+        if(r.class.type.name!==element+'CustomItemRegistry')throw Error('CUSTOM_OBSERVATION_REGISTRY_TYPE');
+        const update=r.method('OnUpdate',2),notify=r.method('NotifyUpdateFiles',1),queue=r.method('QueueUpdate',0);
+        const observed=element+'ObservedCustomItem',failure=element+'CustomItemObservationFailureItem';
+        function matches(method,arguments_){
+            return !method.isStatic&&method.returnType.name==='System.Void'&&!method.virtualAddress.isNull()&&
+                method.parameters.length===arguments_.length&&arguments_.every((type,i)=>
+                    method.parameters[i].type.name.replace('`1<','<')===generic+type);
+        }
+        if(!matches(update,['IReadOnlyCollection<'+observed+'>','IReadOnlyCollection<'+failure+'>'])||
+            !matches(notify,['List<'+failure+'>'])||!matches(queue,[]))throw Error('CUSTOM_OBSERVATION_SIGNATURE_UNSUPPORTED');
         const pin=retain(r),threads=new Map();let updateHook=null,notifyHook=null,done=false;
         function dispose(){if(done)return;done=true;if(updateHook)updateHook.detach();if(notifyHook)notifyHook.detach();threads.clear();pin.free();}
         try{

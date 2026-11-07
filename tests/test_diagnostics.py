@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -6,7 +7,7 @@ import subprocess
 
 import pytest
 
-from vroid_mcp import diagnostics as doctor, lab_lock
+from vroid_mcp import diagnostics as doctor, lab_lock, supported_builds
 
 
 def snapshot(root):
@@ -27,8 +28,8 @@ def installation(tmp_path, monkeypatch):
     for name in ('VRoidStudio.exe', 'GameAssembly.dll', 'UnityPlayer.dll',
                  'VRoidStudio_Data/il2cpp_data/Metadata/global-metadata.dat'):
         (source / name).write_bytes(b'fixture')
-    digest = doctor.hashlib.sha256(b'fixture').hexdigest()
-    monkeypatch.setattr(doctor, 'SUPPORTED_ASSEMBLIES', {digest: 'test build'})
+    digest = hashlib.sha256(b'fixture').hexdigest()
+    monkeypatch.setitem(supported_builds.BUILDS, digest, supported_builds.Build('test', 'fixture', digest))
     monkeypatch.setattr(doctor.importlib.metadata, 'version', doctor.REQUIRED_PACKAGES.__getitem__)
     monkeypatch.setattr(doctor, 'probe_asyncio', lambda: {'state': 'ok'})
     monkeypatch.setattr(doctor, 'probe_imports', lambda: {'state': 'ok'})
@@ -53,11 +54,38 @@ def test_complete_source_is_read_only_even_with_auto_clear_enabled(installation,
 
 def test_unknown_build_is_reported_with_hash_and_does_not_bypass_allowlist(installation, monkeypatch):
     source, repo = installation
-    monkeypatch.setattr(doctor, 'SUPPORTED_ASSEMBLIES', {})
+    monkeypatch.setattr(supported_builds, 'BUILDS', {})
     report = doctor.build_report(source=source, repo=repo)
     assert not report['ok'] and report['exit_code'] == 1
     assert row(report, 'application.build')['detail']['sha256']
     assert 'application.build' in report['blocked_checks']
+
+
+def test_doctor_and_preparation_refuse_same_mixed_pair(installation):
+    import prepare_lab
+    source, repo = installation
+    (source / supported_builds.METADATA_PATH).write_bytes(b'other release')
+    check = row(doctor.build_report(source=source, repo=repo), 'application.build')
+    assert check['status'] == 'blocked'
+    assert check['detail']['metadata_sha256'] == hashlib.sha256(b'other release').hexdigest()
+    with pytest.raises(ValueError, match='metadata mismatch'):
+        prepare_lab.check_install(source)
+
+
+def test_prepare_cannot_publish_a_mixed_pair_if_source_updates_during_inventory(installation, monkeypatch):
+    import prepare_lab
+    source, _ = installation
+    lab = source.parent / 'lab'
+    original = prepare_lab.inventory
+
+    def updated_inventory(path):
+        (source / supported_builds.METADATA_PATH).write_bytes(b'changed after admission')
+        return original(path)
+
+    monkeypatch.setattr(prepare_lab, 'inventory', updated_inventory)
+    with pytest.raises(ValueError, match='metadata mismatch'):
+        prepare_lab.main(['--source', str(source), '--lab', str(lab)])
+    assert not (lab / prepare_lab.MANIFEST).exists()
 
 
 def test_failures_are_aggregated_instead_of_hiding_later_checks(installation, monkeypatch):

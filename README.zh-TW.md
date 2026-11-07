@@ -57,7 +57,7 @@ managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯�
 ## 需求
 
 - Windows。
-- VRoid Studio **2.14.0**（Unity 6000.0.62f1）；其他版本會被拒絕，原生綁定與版本相關。
+- VRoid Studio **2.16.0**（Steam 或 pixiv 獨立版）及已識別的 **2.14.0** 組建，Unity 6000.0.62f1。2.16.0 啟動前同時核對組件與中繼資料。實機編輯、存檔重開、匯出及外觀仍待驗證。[組建清單與驗證紀錄](docs/native-evidence/2026-11-07-vroid-216.md)
 - Python 3.10+、Git、Node.js 與 npm（用於 Frida bridge 依賴與 JavaScript 檢查）。
 
 ## 安裝

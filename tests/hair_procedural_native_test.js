@@ -1,6 +1,8 @@
 // Match actual managed VM/delegate/accessor shape; labels, item order and values are decoys.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const file=path.join(__dirname,'../agent/hair_procedural.js');
+const builds=path.join(__dirname,'../agent/build_profiles.js');
+if(fs.existsSync(builds))vm.runInThisContext(fs.readFileSync(builds,'utf8'));
 if(fs.existsSync(file))vm.runInThisContext(fs.readFileSync(file,'utf8'));
 assert.equal(typeof createProceduralHairBindings,'function','verified native procedural binding adapter missing');
 const hash='ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296';
@@ -16,24 +18,26 @@ function object(type,methods={},fields={}){
     return o;
 }
 function fixture(options={}){
+    const roles=options.v216?[42,43,52,53]:[41,42,51,52];
+    const method=i=>'<CreateGroups>b__'+roles[i];
     let valid=true;
     const engine=object('Engine'),p=object('Path',{get_TransferableId:()=> 't',get_HairGroupId:()=> 'g'});
     const other=object('Path',{get_TransferableId:()=> 't',get_HairGroupId:()=> 'wrong'});
     const accessor=object(prefix+'/Accessor',{}, {_engine:engine,_proceduralHairGroupPath:options.wrongPath?other:p});
     const closure=object(prefix+'/<>c__DisplayClass7_0',{
-        '<CreateGroups>b__7'(){},'<CreateGroups>b__41'(){},'<CreateGroups>b__42'(){},'<CreateGroups>b__51'(){},'<CreateGroups>b__52'(){}
+        '<CreateGroups>b__7'(){},...Object.fromEntries([41,42,43,51,52,53].map(i=>['<CreateGroups>b__'+i,()=>{}]))
     },{a:accessor});
     const otherClosure=object(prefix+'/<>c__DisplayClass7_0',{}, {a:accessor});
     otherClosure.class=closure.class;
     const delegate=(name)=>object('Delegate',{get_Target:()=>options.nullDecoy&&name==='<CreateGroups>b__7'?null
-        :options.differentTargets&&name==='<CreateGroups>b__42'?otherClosure:closure},
+        :options.differentTargets&&name===method(1)?otherClosure:closure},
         {method_ptr:options.badPointer?pointer('wrong'):closure.class.method(name).virtualAddress});
     let commands=[];
     const item=(integral,decoy=false)=>object('VRoid.Studio.HairEditor.DesignEditor.Parameter.ViewModel.'+(integral?'Int':'Float')+'ParameterViewModel',
         {get_MinValue:()=>integral?2:.01,get_MaxValue:()=>integral?77:3,get_Value:()=>integral?8:.2,
             set_Value:v=>commands.push(v)},
-        {_getter:delegate(decoy?'<CreateGroups>b__7':integral?'<CreateGroups>b__51':'<CreateGroups>b__41'),
-            _setter:delegate(integral?'<CreateGroups>b__52':'<CreateGroups>b__42'),
+        {_getter:delegate(decoy?'<CreateGroups>b__7':method(integral?2:0)),
+            _setter:delegate(method(integral?3:1)),
             validator:object('Delegate',{Invoke:()=>valid})});
     const items=[item(false,true),item(true),item(false)];
     if(options.duplicate)items.push(item(false));
@@ -55,5 +59,13 @@ controls.find(c=>c.key==='length').write(.4);assert.deepEqual(f.commands,[.4]);
 for(const options of [{hash:'793eb5fcff3093f344ee930fbfa0c0796ed7780ac91c45bdb7ce6bd34d62fd3c'},
     {hash:null},{badPointer:true},{wrongPath:true},{duplicate:true},{differentTargets:true}]){
     const f=fixture(options);assert.throws(f.bind,/PROCEDURAL/);assert.equal(f.commands.length,0);
+}
+for(const hash of ['3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af816bd8',
+    'c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2']){
+    const fresh=fixture({hash,v216:true});
+    for(const c of fresh.bind())c.write(c.key==='length'?.4:12);
+    assert.deepEqual(fresh.commands,[12,.4]);
+    assert.throws(fixture({hash}).bind,/EXACT_BINDINGS/);
+    assert.throws(fixture({hash,v216:true,wrongPath:true}).bind,/OWNERSHIP/);
 }
 console.log('Exact hash/native delegate pointer/accessor ownership, ranges, ordering and native VM setter passed');

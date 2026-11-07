@@ -100,8 +100,9 @@ See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 ## Requirements
 
 - Windows.
-- VRoid Studio **2.14.0** (Unity 6000.0.62f1). Other builds are rejected: the
-  native bindings are version-specific.
+- VRoid Studio **2.16.0** (Steam or pixiv standalone) or a recognized **2.14.0**
+  package, using Unity 6000.0.62f1. See the [exact package identities and
+  outstanding live checks](docs/native-evidence/2026-11-07-vroid-216.md).
 - Python 3.10+, Git, Node.js and npm (for the Frida bridge dependency and JavaScript checks).
 
 ## Install

@@ -38,8 +38,8 @@ def register(ready_tool, runtime, lab, read, edit):
                                   hair_count: PositiveInt | None = None) -> dict:
         """Set exact native procedural Length/HairCount controls within live UI ranges.
 
-        At least one value is required. Only the statically verified pixiv-signed
-        2.14.0 descriptor is enabled; other supported builds reject this operation.
+        At least one value is required. Available on verified 2.16.0 Steam and
+        standalone packages and the pixiv-signed standalone 2.14.0 build.
         Existing exact native VM controls supply live ranges and setters. Other
         paths use verified native managed modifiers and static native UI bounds,
         without creating a property or JS-owned history delegate. Each scalar is

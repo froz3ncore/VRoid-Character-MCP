@@ -25,7 +25,7 @@ from typing import Any
 import frida
 
 from . import closet_guard, lab_lock, edit_sequence, attached_ui
-from .supported_builds import validate_assembly, assembly_identity
+from .supported_builds import BUILDS, validate_assembly, assembly_identity
 
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -33,6 +33,7 @@ PROJECT = pathlib.Path(__file__).resolve().parents[1]
 # defines Il2Cpp, the main-thread host installs the queue, and the operation
 # modules register into `globalThis.vroid` last.
 AGENT_MODULES = (
+    'build_profiles.js',
     'attachment_lease.js',
     'native_png_decoder.js',
     'attached_png_decoder.js',
@@ -100,8 +101,10 @@ def disconnected_status(subject) -> dict:
 def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = False,
                 assembly_sha256: str | None = None) -> str:
     """Concatenate the agent into one script with the probe config in front."""
+    build = BUILDS.get(assembly_sha256)
     parts = ['const ATTACHED=' + json.dumps(attached) + ';',
              'const VROID_ASSEMBLY_SHA256=' + json.dumps(assembly_sha256) + ';',
+             'const VROID_PRODUCT_VERSION=' + json.dumps(build.version if build else None) + ';',
              'const ATTACHED_OWNER_PID=' + str(os.getpid()) + ';',
              (PROJECT / 'agent' / 'native_traps.js').read_text(encoding='utf-8')]
     if not attached:

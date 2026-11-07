@@ -1,8 +1,5 @@
-// Static native evidence: allowlisted pixiv-signed VRoid 2.14.0 ed65ebbc... only.
-// See docs/native-evidence/2026-11-07-procedural-hair.md. Compiler ordinals are
-// descriptors for that exact assembly, never cross-build semantic identifiers.
+// Compiler-generated names are selected by the host-verified package digest.
 globalThis.createProceduralHairBindings = H => {
-    const verified='ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296';
     const owner='VRoid.Studio.HairEditor.DesignEditor.HairGroup.ViewModel.ProceduralHairGroupPropertyViewModel';
     const itemPrefix='VRoid.Studio.HairEditor.DesignEditor.Parameter.ViewModel.';
     const {prop,seq,text,pin,invokeManaged,boxArgument}=H;
@@ -28,15 +25,16 @@ globalThis.createProceduralHairBindings = H => {
         return target;
     }
     return ({property,path,engine})=>{
-        if(H.assemblySha256!==verified)throw Error('PROCEDURAL_DESCRIPTOR_UNVERIFIED_BUILD: no procedural write attempted');
+        const roles=nativeBuildProfile(H.assemblySha256)?.hair;
+        if(!roles)throw Error('PROCEDURAL_DESCRIPTOR_UNVERIFIED_BUILD: no procedural write attempted');
         if(property.class.type.name!==owner)throw Error('PROCEDURAL_PROPERTY_TYPE_MISMATCH');
         pin(property);owned(property,path,engine);
         const controls=[];
         for(const g of seq(prop(property,'Groups')))for(const item of seq(prop(g,'ParameterItems'))){
             pin(item);
             for(const descriptor of [
-                {key:'length',type:'float',native:'Float',getter:'<CreateGroups>b__41',setter:'<CreateGroups>b__42'},
-                {key:'hair_count',type:'int',native:'Int',getter:'<CreateGroups>b__51',setter:'<CreateGroups>b__52'}]){
+                {key:'length',type:'float',native:'Float',...roles.length},
+                {key:'hair_count',type:'int',native:'Int',...roles.hair_count}]){
                 if(item.class.type.name!==itemPrefix+descriptor.native+'ParameterViewModel')continue;
                 const getter=delegate(item,'_getter',descriptor.getter,path,engine,property.class);
                 const setter=delegate(item,'_setter',descriptor.setter,path,engine,property.class);

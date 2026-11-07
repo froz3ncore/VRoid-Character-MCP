@@ -1,11 +1,19 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm');
 class Native{
-    constructor(name,fields={},methods={}){this.class={name};this.fields=fields;this.calls=methods;this.handle=this;}
+    constructor(name,fields={},methods={}){this.class={name,type:{name:'VRoid.Studio.ModelPresetsSelector.'+name}};
+        this.fields=fields;this.calls=methods;this.handle=this;}
     isNull(){return false;}equals(other){return this===other;}
     field(name){if(!(name in this.fields))throw Error('missing field '+name);return {value:this.fields[name]};}
-    method(name,count){const fn=this.calls[name];if(!fn)throw Error('missing method '+name);return {
+    method(name,count){const fn=this.calls[name];if(!fn)throw Error('missing method '+name);
+        const scope='VRoid.Studio.ModelPresetsSelector.',collection='System.Collections.Generic.IReadOnlyCollection<';
+        const types=name==='OnUpdate'?[collection+scope+'ObservedCustomItem>',collection+scope+'CustomItemObservationFailureItem>']:
+            name==='NotifyUpdateFiles'?['System.Collections.Generic.List<'+scope+'CustomItemObservationFailureItem>']:[];
+        if(['OnUpdate','NotifyUpdateFiles','QueueUpdate'].includes(name)&&count!==types.length)
+            throw Error('wrong parameter count for '+name);
+        if(this.badNotify&&name==='NotifyUpdateFiles')types[0]='System.Collections.Generic.List<Other.CustomItemObservationFailureItem>';
+        return {
         invoke:(...args)=>fn(...args),isStatic:false,
-        parameters:name==='OnUpdate'?[{type:{name:'IReadOnlyCollection<ObservedCustomItem>'}},{type:{name:'IReadOnlyCollection<CustomItemObservationFailureItem>'}}]:[],
+        parameters:types.map(name=>({type:{name}})),returnType:{name:'System.Void'},
         virtualAddress:{name,isNull:()=>false}};}
 }
 function dictionary(items,count=items.length){return new Native('Dictionary',{}, {
@@ -16,6 +24,7 @@ let hooks=new Map(),frees=0,queues=0;
 const ctx=vm.createContext({console,Date,Map,Set,JSON,Number,Error,setTimeout,clearTimeout,
     Process:{getCurrentThreadId:()=>1},Interceptor:{attach:(address,callbacks)=>{
         hooks.set(address.name,callbacks);return {detach:()=>hooks.delete(address.name)};}}});
+if(fs.existsSync('agent/build_profiles.js'))vm.runInContext(fs.readFileSync('agent/build_profiles.js','utf8'),ctx);
 vm.runInContext(fs.readFileSync('agent/catalog.js','utf8'),ctx);
 const custom=new Native('CustomItemId',{ResourceName:'user/resource',Revision:'c1'});
 const file=new Native('FileCustomItemModel',{CustomItemId:custom,FilePath:'E:/registered/a.vroidcustomitem',
@@ -76,9 +85,30 @@ root.fields._customItemRegistry=new Native('CustomItemRegistry',registry.fields,
 assert.throws(()=>ops.preset_catalog_release({expected_model:'token',...receipt}),/OWNER_CHANGED/);
 assert.equal(hooks.size,0);root.fields._customItemRegistry=registry;api.dispose();
 // Unproven builds still enumerate builtins, but cannot authorize custom removals.
+const wrongRegistry=new Native('OtherRegistry',registry.fields,registry.calls),beforeWrong=queues;
+root.fields._customItemRegistry=wrongRegistry;
+api=ctx.createNativePresetCatalog(H);ops=api.operations;
+receipt=ops.preset_catalog_begin({expected_model:'token'});
+result=ops.preset_catalog_poll({expected_model:'token',...receipt});
+assert.equal(result.custom_complete,false);assert.equal(queues,beforeWrong);
+ops.preset_catalog_release({expected_model:'token',...receipt});api.dispose();
+root.fields._customItemRegistry=registry;
 api=ctx.createNativePresetCatalog({...H,build:'other'});ops=api.operations;
 receipt=ops.preset_catalog_begin({expected_model:'token'});
 result=ops.preset_catalog_poll({expected_model:'token',...receipt});
 assert.equal(result.custom_complete,false);assert.match(result.errors.join(' '),/BUILD_UNSUPPORTED/);
 ops.preset_catalog_release({expected_model:'token',...receipt});api.dispose();
+for(const build of ['3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af816bd8',
+    'c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2']){
+    for(const bad of [false,true]){
+        registry.badNotify=bad;
+        const count=queues;
+        api=ctx.createNativePresetCatalog({...H,build});ops=api.operations;
+        receipt=ops.preset_catalog_begin({expected_model:'token'});
+        result=ops.preset_catalog_poll({expected_model:'token',...receipt});
+        assert.equal(result.custom_complete,!bad);
+        assert.equal(queues,count+(bad?0:1));
+        ops.preset_catalog_release({expected_model:'token',...receipt});api.dispose();
+    }
+}
 console.log('source-proven registry descriptors, positive receipt, failure table and cleanup passed');

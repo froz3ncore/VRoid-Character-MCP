@@ -1,6 +1,8 @@
 # Procedural hair binding identity: static evidence
 
-Only the pixiv-signed standalone VRoid Studio 2.14.0 assembly with SHA-256
+This record describes the original 2.14.0 mapping. The subsequent
+[2.16.0 audit](2026-11-07-vroid-216.md) records separate mappings for that release.
+Of the two 2.14.0 packages, only the pixiv-signed standalone assembly with SHA-256
 `ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296`
 has a verified procedural descriptor. The existing global supported-build
 allowlist is unchanged. The other allowlisted assembly, `793eb5fc...`, is
@@ -53,7 +55,10 @@ The fallback allocates the existing native capture class, initializes its exact
 typed `v` field, and calls the real native Action constructor with that capture
 and the verified native modifier MethodInfo handle. It validates the closed
 Action Invoke signature, target and native code pointer before constructing
-`ModifyProceduralHairGroupParameterSetCommand("mcp", path, action, true)`.
+`ModifyProceduralHairGroupParameterSetCommand(key, path, action, reuseStrands)`.
+The subsequent paired audit traced the UI keys and flags on this build and
+2.16.0. Length supplies `"ProceduralLength", true`; HairCount supplies
+`"HairCount", false`.
 This follows the pinned bridge's native delegate constructor ABI without creating
 or substituting any JS callback. Native history owns the managed Action/capture.
 The exact active-owner binding and native GetIsPathValidQuery are checked before

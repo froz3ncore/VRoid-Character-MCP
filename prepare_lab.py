@@ -10,20 +10,15 @@ prove it is still the same build.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import pathlib
 import shutil
 import sys
 
-from vroid_mcp.supported_builds import validate_assembly
+from vroid_mcp.supported_builds import file_sha256, validate_assembly
 
 APP = 'app'
 MANIFEST = 'source-manifest.json'
-
-
-def digest(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def check_directories(source: pathlib.Path, lab: pathlib.Path) -> None:
@@ -46,17 +41,19 @@ def inventory(source: pathlib.Path) -> list[dict]:
     for path in source.rglob('*'):
         if path.resolve() != path:
             raise ValueError(f'The source contains a link or junction, inspect it first: {path}')
-    return [{'path': str(path.relative_to(source)), 'size': path.stat().st_size, 'sha256': digest(path)}
+    return [{'path': str(path.relative_to(source)), 'size': path.stat().st_size, 'sha256': file_sha256(path)}
             for path in files]
 
 
-def copy_and_verify(source: pathlib.Path, lab: pathlib.Path, manifest: list[dict]) -> None:
+def copy_and_verify(source: pathlib.Path, lab: pathlib.Path, manifest: list[dict], build: str) -> None:
     lab.mkdir(parents=True, exist_ok=False)
     shutil.copytree(source, lab / APP, copy_function=shutil.copy2)
     for entry in manifest:
         copied = lab / APP / entry['path']
-        if digest(copied) != entry['sha256']:
+        if file_sha256(copied) != entry['sha256']:
             raise RuntimeError(f'Copy hash mismatch: {entry["path"]}')
+    if check_install(lab / APP) != build:
+        raise ValueError('VRoid build changed during preparation; use a new lab')
     (lab / MANIFEST).write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
@@ -73,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     check_directories(source, lab)
     build = check_install(source)
     manifest = inventory(source)
-    copy_and_verify(source, lab, manifest)
+    copy_and_verify(source, lab, manifest, build)
     print(f'Copied and verified {len(manifest)} files into {lab} ({build})')
     return 0
 

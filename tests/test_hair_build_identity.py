@@ -8,8 +8,13 @@ from vroid_mcp import bridge, supported_builds
 def test_validated_assembly_identity_reads_once_and_preserves_public_build_label(tmp_path, monkeypatch):
     path = tmp_path / 'GameAssembly.dll'
     path.write_bytes(b'fixture binary')
+    metadata = tmp_path / supported_builds.METADATA_PATH
+    metadata.parent.mkdir(parents=True)
+    metadata.write_bytes(b'fixture metadata')
+    metadata_digest = hashlib.sha256(metadata.read_bytes()).hexdigest()
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    monkeypatch.setitem(supported_builds.SUPPORTED_ASSEMBLIES, digest, 'test build')
+    build = supported_builds.Build('fixture', 'test build', None)
+    monkeypatch.setitem(supported_builds.BUILDS, digest, build)
     opened = []
     original_open = type(path).open
     def count_open(target, *args, **kwargs):
@@ -17,9 +22,10 @@ def test_validated_assembly_identity_reads_once_and_preserves_public_build_label
             opened.append(target)
         return original_open(target, *args, **kwargs)
     monkeypatch.setattr(type(path), 'open', count_open)
-    assert supported_builds.assembly_identity(path) == {'sha256': digest, 'build': 'test build'}
+    assert supported_builds.assembly_identity(path) == {
+        'sha256': digest, 'build': build.label, 'metadata_sha256': metadata_digest}
     assert len(opened) == 1
-    assert supported_builds.validate_assembly(path) == 'test build'
+    assert supported_builds.validate_assembly(path) == build.label
     assert len(opened) == 2
 
 

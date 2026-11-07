@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import errno
-import hashlib
 import importlib.metadata
 import json
 import os
@@ -18,7 +17,7 @@ import subprocess
 import sys
 
 from . import __version__, closet_guard, lab_lock
-from .supported_builds import SUPPORTED_ASSEMBLIES
+from .supported_builds import SUPPORTED_ASSEMBLIES, inspect_assembly
 
 REQUIRED_PACKAGES = {'frida': '17.16.0', 'mcp': '1.30.0'}
 ROOT = Path(__file__).resolve().parents[1]
@@ -165,16 +164,12 @@ def build_report(*, lab: Path | None = None, source: Path | None = None,
             path = app / name
             if path.resolve() != path or not path.is_file():
                 raise ValueError('Missing or linked installation file: ' + name)
-        digest = hashlib.sha256()
-        with (app / 'GameAssembly.dll').open('rb') as stream:
-            for block in iter(lambda: stream.read(1024 * 1024), b''):
-                digest.update(block)
-        value = digest.hexdigest()
-        label = SUPPORTED_ASSEMBLIES.get(value)
+        identity = inspect_assembly(app / 'GameAssembly.dll')
+        label = identity.get('build')
         add('application.build', 'pass' if label else 'blocked',
-            label or 'Unknown application build; native calls remain blocked',
-            'Use a supported VRoid 2.14.0 installation and prepare a new lab; '
-            'do not bypass the hash allowlist.', sha256=value,
+            label or identity['error'],
+            'Prepare a new lab from a recognized VRoid installation with matching metadata.',
+            **identity,
             supported=[{'sha256': h, 'label': text} for h, text in SUPPORTED_ASSEMBLIES.items()])
     check('application.build', installation,
           'Point --source to a complete installation, or create a new lab with prepare_lab.py. '
