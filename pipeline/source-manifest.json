@@ -1,8 +1,8 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Native binaries, model assets and generated renders stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 485,
- "total_bytes": 3450204,
+ "file_count": 486,
+ "total_bytes": 3454911,
  "tool_count": 143,
  "toolset_hash": "sha256:dad59fdac3f4b664238bcc833ee22abd70985454793a15baf60959313411bcf3",
  "files": [
@@ -1422,6 +1422,11 @@
    "sha256": "7b5a7c15c0aa9e314177f255fde355a281a388ded9a77dc78e255725cfc15c2a"
   },
   {
+   "path": "tests/test_cancelled_teardown.py",
+   "bytes": 4507,
+   "sha256": "38b6ceb1d2de54292f8c88e4aa55e026668deea9fa34eaaf9e70987417376521"
+  },
+  {
    "path": "tests/test_capture_quality.py",
    "bytes": 2860,
    "sha256": "1ed6ee5c60781df0ab3f0e840086daa0fad0624d1cfadf6e34aba6ded81740e5"
@@ -1868,8 +1873,8 @@
   },
   {
    "path": "vroid_mcp/bridge.py",
-   "bytes": 26569,
-   "sha256": "40d9a38e49380f54f849c41b976cb62d98e20becbbd944b22cf95a81047fc7d4"
+   "bytes": 26869,
+   "sha256": "86d8ea4ec6978c1ded721f6d5f07ea147577fd4ec7cea88be5b7655327fcaaa2"
   },
   {
    "path": "vroid_mcp/capture_quality.py",
@@ -2278,8 +2283,8 @@
   },
   {
    "path": "vroid_mcp/server.py",
-   "bytes": 25374,
-   "sha256": "d9494c8bc3bde7f26ebcc13ceba61a570b927aba0848a62cdc74bf8b654f3078"
+   "bytes": 25274,
+   "sha256": "6cb80eb6d30aba9bcca6a6152b701db9844407b2e1b5334d55a16f85fd6718da"
   },
   {
    "path": "vroid_mcp/silhouette.py",
