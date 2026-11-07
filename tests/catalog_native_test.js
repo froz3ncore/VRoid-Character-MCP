@@ -111,4 +111,33 @@ for(const build of ['3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af8
         ops.preset_catalog_release({expected_model:'token',...receipt});api.dispose();
     }
 }
-console.log('source-proven registry descriptors, positive receipt, failure table and cleanup passed');
+// A second observer generation may have cleared the same dictionary in place.
+// Equal reads of those interim empty tables must never certify removals.
+registry.badNotify=false;
+function updateFrame(){
+    const update=hooks.get('OnUpdate'),notify=hooks.get('NotifyUpdateFiles'),frame={};
+    update?.onEnter.call(frame,[registry]);
+    return {notify:()=>notify?.onEnter([registry]),leave:()=>update?.onLeave.call(frame)};
+}
+for(const race of ['paused','left_without_notify','during_enumeration','settled_again']){
+    const before=frees;api=ctx.createNativePresetCatalog(H);ops=api.operations;
+    const items=dictionary([]);registry.fields._pathToFileCustomItemModels=items;
+    receipt=ops.preset_catalog_begin({expected_model:'token'});
+    if(race==='during_enumeration'){
+        const count=items.calls.get_Count;let reads=0;
+        items.calls.get_Count=()=>{
+            if(++reads===3){const next=updateFrame();next.notify();next.leave();}
+            return count();
+        };
+    }else{
+        const next=updateFrame();
+        if(race==='settled_again')next.notify();
+        if(race!=='paused')next.leave();
+    }
+    result=ops.preset_catalog_poll({expected_model:'token',...receipt});
+    assert.equal(result.completed,true,race);
+    assert.equal(result.custom_complete,race==='settled_again',race);
+    assert.equal(hooks.size,0,race);assert.equal(frees,before+1,race);
+    ops.preset_catalog_release({expected_model:'token',...receipt});api.dispose();
+}
+console.log('exact registry descriptors, stable generation, failure table and cleanup passed');

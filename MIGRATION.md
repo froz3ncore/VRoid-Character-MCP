@@ -219,8 +219,11 @@ independent selectable/catalog pagination streams. The selectable ID index is
 linear and the PlayFab dictionary is visited once, including catalog-only tail.
 The signed ed65 build and both audited 2.16.0 packages receive the traced custom
 observation hook: exact registry OnUpdate entry, matching NotifyUpdateFiles and
-normal return after one QueueUpdate request. Transient hooks detach on completion,
-error, cancellation, timeout and teardown. Coherent count-checked registry reads
+normal return after one QueueUpdate request. The hooks stay installed through both
+registry reads. Any new update invalidates the previous generation. A snapshot
+can certify removals only if the same normally notified generation is stable
+through both reads. Hooks detach after the read, error, cancellation, timeout
+or teardown. Coherent count-checked registry reads
 plus an available empty failure table are still required. This establishes only
 the observed registered collection; failed/unproven/custom archive scans cannot
 infer removals. Other supported builds keep missing custom rows unknown.

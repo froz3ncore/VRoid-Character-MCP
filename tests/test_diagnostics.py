@@ -88,6 +88,41 @@ def test_prepare_cannot_publish_a_mixed_pair_if_source_updates_during_inventory(
     assert not (lab / prepare_lab.MANIFEST).exists()
 
 
+def test_prepare_refuses_an_extra_file_added_after_inventory(installation, monkeypatch):
+    import prepare_lab
+    source, _ = installation
+    lab = source.parent / 'lab'
+    original = prepare_lab.inventory
+
+    def add_plugin(path):
+        manifest = original(path)
+        if path == source:
+            (source / 'extra.dll').write_bytes(b'late plugin')
+        return manifest
+
+    monkeypatch.setattr(prepare_lab, 'inventory', add_plugin)
+    with pytest.raises((ValueError, RuntimeError), match='inventory'):
+        prepare_lab.main(['--source', str(source), '--lab', str(lab)])
+    assert not (lab / prepare_lab.MANIFEST).exists()
+
+
+def test_prepare_verifies_the_entire_destination_inventory(installation, monkeypatch):
+    import prepare_lab
+    source, _ = installation
+    lab = source.parent / 'lab'
+    original = prepare_lab.shutil.copy2
+
+    def add_output(path, copied, **kwargs):
+        result = original(path, copied, **kwargs)
+        (lab / prepare_lab.APP / 'extra.dll').write_bytes(b'unverified output')
+        return result
+
+    monkeypatch.setattr(prepare_lab.shutil, 'copy2', add_output)
+    with pytest.raises(RuntimeError, match='inventory'):
+        prepare_lab.main(['--source', str(source), '--lab', str(lab)])
+    assert not (lab / prepare_lab.MANIFEST).exists()
+
+
 def test_failures_are_aggregated_instead_of_hiding_later_checks(installation, monkeypatch):
     source, repo = installation
     (source / 'UnityPlayer.dll').unlink()

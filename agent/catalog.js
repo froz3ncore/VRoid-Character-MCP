@@ -2,7 +2,8 @@
 // See licenses/mcjo79-0dc7d5e.txt. Existing Python/Frida ownership remains in use.
 function createPresetCatalogJobs({model,subscribe,queueUpdate,snapshot,sameOwner=(a,b)=>a===b,now=()=>Date.now(),ttl=10000}) {
     const jobs=new Map();let next=0;
-    function cleanup(job){if(job.cancel){job.cancel();job.cancel=null;}if(job.timer){clearTimeout(job.timer);job.timer=null;}}
+    function detach(job){job.subscription?.dispose();job.subscription=null;}
+    function cleanup(job){detach(job);if(job.timer){clearTimeout(job.timer);job.timer=null;}}
     function dispose(){for(const job of jobs.values())cleanup(job);jobs.clear();}
     function expire(job){
         if(!job.completed&&now()>=job.deadline){cleanup(job);job.completed=true;job.observed=false;
@@ -16,8 +17,10 @@ function createPresetCatalogJobs({model,subscribe,queueUpdate,snapshot,sameOwner
         const owner=model(args.expected_model),job={id:'catalog-'+(++next),owner,token:owner.token,deadline:now()+ttl,completed:false,observed:false};
         jobs.set(job.id,job);
         try{
-            job.cancel=subscribe(owner,()=>{job.observed=true;job.completed=true;job.retireAt=now()+ttl;cleanup(job);
-                job.timer=setTimeout(()=>expire(job),ttl+1);});
+            job.subscription=subscribe(owner,()=>{
+                if(job.completed||now()>=job.deadline)return;
+                job.observed=true;job.completed=true;job.retireAt=now()+ttl;
+            });
             queueUpdate(owner); // One explicit registry refresh, never a guessed observer layout.
         }catch(error){cleanup(job);job.completed=true;job.retireAt=now()+ttl;job.error=String(error);}
         if(!job.timer)job.timer=setTimeout(()=>{expire(job);if(jobs.has(job.id))job.timer=setTimeout(()=>expire(job),ttl+1);},ttl+1);
@@ -31,9 +34,16 @@ function createPresetCatalogJobs({model,subscribe,queueUpdate,snapshot,sameOwner
     }
     function poll(args){
         const job=find(args);expire(job);
+        if(!jobs.has(job.id))throw Error('UNKNOWN_CATALOG_SCAN');
         if(!job.completed)return {completed:false};
-        if(!job.result){job.result=snapshot(job.owner,job.observed);
-            if(job.error){job.result.custom_complete=false;job.result.errors??=[];job.result.errors.push(job.error);}}
+        if(job.snapshotError)throw job.snapshotError;
+        if(!job.result){
+            try{
+                job.result=snapshot(job.owner,job.observed,job.subscription);
+                if(job.error){job.result.custom_complete=false;job.result.errors??=[];job.result.errors.push(job.error);}
+            }catch(error){job.snapshotError=error;throw error;}
+            finally{detach(job);}
+        }
         return {...job.result,completed:true};
     }
     function release(args){const job=find(args);cleanup(job);jobs.delete(job.id);return {released:true};}
@@ -41,7 +51,7 @@ function createPresetCatalogJobs({model,subscribe,queueUpdate,snapshot,sameOwner
 }
 
 function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,build}){
-    return (m,observed)=>{
+    return (m,observed,subscription)=>{
         const areas=['face','body','hair','clothing'],options=[],byResource=new Map(),byId=new Map(),byNative=new Map();
         for(const area of areas){
             const entries=presetEntries(m,area);
@@ -85,7 +95,7 @@ function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,b
                 name:option.label,owned:option.owned,usable:option.owned,selectable:options.some(o=>o.owned),
                 selectable_preset_ids:options.filter(o=>o.owned).map(o=>o.id),area:option.area,catalog_only:false});
         }
-        const custom=customSnapshot(m);
+        const custom=customSnapshot(m,subscription);
         if(rows.length+custom.rows.length>20000)throw Error('CATALOG_ROW_LIMIT');
         return {model_token:m.token,build,areas,rows:rows.concat(custom.rows),builtin_complete:true,
             custom_complete:observed&&custom.complete,errors:custom.errors,
@@ -132,9 +142,14 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
         }
         return {rows,complete:errors.length===0,errors};
     }
-    function customSnapshot(m){
+    function customSnapshot(m,subscription){
         try{
+            // A worker can clear and refill the same dictionary while Unity is
+            // reading it. Two equal reads only count within one certified update.
+            const generation=subscription?.generation();
+            if(subscription&&generation===null)throw Error('CUSTOM_REGISTRY_UPDATE_UNCONFIRMED');
             const first=customRead(m),second=customRead(m);
+            if(subscription&&subscription.generation()!==generation)throw Error('CUSTOM_REGISTRY_CHANGED_DURING_SCAN');
             const canonical=value=>JSON.stringify(value.rows.slice().sort((a,b)=>a.path.localeCompare(b.path)));
             if(canonical(first)!==canonical(second))throw Error('CUSTOM_REGISTRY_CHANGED_DURING_SCAN');
             return {...second,complete:first.complete&&second.complete,errors:[...first.errors,...second.errors]};
@@ -155,17 +170,31 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
         if(!matches(update,['IReadOnlyCollection<'+observed+'>','IReadOnlyCollection<'+failure+'>'])||
             !matches(notify,['List<'+failure+'>'])||!matches(queue,[]))throw Error('CUSTOM_OBSERVATION_SIGNATURE_UNSUPPORTED');
         const pin=retain(r),threads=new Map();let updateHook=null,notifyHook=null,done=false;
+        let generation=0,certified=null,inFlight=0;
         function dispose(){if(done)return;done=true;if(updateHook)updateHook.detach();if(notifyHook)notifyHook.detach();threads.clear();pin.free();}
         try{
             updateHook=Interceptor.attach(update.virtualAddress,{
-                onEnter(args){this.match=args[0].equals(r.handle);if(this.match)threads.set(Process.getCurrentThreadId(),{notified:false});},
-                onLeave(){if(!this.match)return;const item=threads.get(Process.getCurrentThreadId());threads.delete(Process.getCurrentThreadId());
-                    if(item?.notified&&!done)completed();}
+                onEnter(args){
+                    if(done||!args[0].equals(r.handle))return;
+                    const thread=Process.getCurrentThreadId();
+                    this.entry={generation:++generation,exclusive:inFlight===0,notified:false,previous:threads.get(thread)};
+                    threads.set(thread,this.entry);inFlight++;certified=null;
+                },
+                onLeave(){
+                    const entry=this.entry;
+                    if(done||!entry)return;
+                    const thread=Process.getCurrentThreadId();
+                    if(entry.previous)threads.set(thread,entry.previous);else threads.delete(thread);
+                    inFlight--;
+                    if(entry.exclusive&&entry.notified&&inFlight===0&&entry.generation===generation){
+                        certified=generation;completed();
+                    }
+                }
             });
             notifyHook=Interceptor.attach(notify.virtualAddress,{onEnter(args){
                 const item=threads.get(Process.getCurrentThreadId());if(item&&args[0].equals(r.handle))item.notified=true;
             }});
-            return dispose;
+            return {dispose,generation:()=>certified};
         }catch(error){dispose();throw error;}
     }
     const scanModel=expected=>{const m=model(expected);return {...m,catalog_registry:registry(m).handle};};

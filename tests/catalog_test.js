@@ -3,7 +3,7 @@ const context=vm.createContext({console,Map,Set,Date,JSON,Number,Error,setTimeou
 vm.runInContext(fs.readFileSync('agent/catalog.js','utf8'),context);
 let now=0,owner={token:'live'},notify=null,queues=0,detaches=0,reads=0;
 const H={model:token=>{if(token!=='live')throw Error('STALE_MODEL');return owner;},now:()=>now,ttl:10,
-    subscribe:(m,fn)=>{notify=fn;return ()=>{detaches++;notify=null;};},queueUpdate:()=>{queues++;},
+    subscribe:(m,fn)=>{notify=fn;return {dispose(){detaches++;notify=null;}};},queueUpdate:()=>{queues++;},
     snapshot:m=>{reads++;return {model_token:m.token,builtin_complete:true,custom_complete:true,rows:[]};}};
 const api=context.createPresetCatalogJobs(H);
 let started=api.begin({expected_model:'live'});
@@ -19,6 +19,20 @@ started=api.begin({expected_model:'live'});owner={token:'live'};
 assert.throws(()=>api.poll({expected_model:'live',request_id:started.request_id}),/OWNER_CHANGED/);
 assert.equal(detaches,3);
 api.dispose();
+
+// A failed Unity-thread read must release native hooks immediately and still
+// allow the host's finally block to release the receipt without masking it.
+let failures=0;
+const broken=context.createPresetCatalogJobs({...H,snapshot(){failures++;throw Error('SNAPSHOT_FAILED');}});
+started=broken.begin({expected_model:'live'});notify();
+assert.throws(()=>broken.poll({expected_model:'live',...started}),/SNAPSHOT_FAILED/);
+assert.equal(notify,null);
+assert.throws(()=>broken.poll({expected_model:'live',...started}),/SNAPSHOT_FAILED/);
+assert.equal(failures,1);assert.equal(broken.release({expected_model:'live',...started}).released,true);
+started=api.begin({expected_model:'live'});notify();
+assert.equal(api.release({expected_model:'live',...started}).released,true);assert.equal(notify,null);
+started=api.begin({expected_model:'live'});notify();now+=11;
+assert.throws(()=>api.poll({expected_model:'live',...started}),/UNKNOWN_CATALOG_SCAN/);assert.equal(notify,null);
 
 // Plain-data snapshot consumes each selectable area once and global metadata once.
 let optionReads=0,catalogReads=0,areas=[];
