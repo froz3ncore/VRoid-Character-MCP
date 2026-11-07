@@ -35,6 +35,9 @@ globalThis.vroid = (() => {
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
     const captureFraming = createCaptureFraming({ core, text });
     const attachedState = createAttachedState({main: mainViewModel, text, state});
+    const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text})});
+    const appFrame = createNativeAppFrame({core,cls,preview:editorPreview,mainThread:()=>state.mainThread,frame:()=>state.frame});
+    const editorCapture = createEditorCapture({core,preview:editorPreview,quality:captureQuality});
 
     // ---------------------------------------------------------------- session
     function mainViewModel() {
@@ -628,7 +631,7 @@ globalThis.vroid = (() => {
         return value;
     }
 
-    function photoScreenshot(m, size, quality) {
+    function photoScreenshot(m, size, quality, options={}) {
         const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
         if (!photo.method('get_IsActive').invoke()) throw Error('PHOTO_MODE_REQUIRED');
         const camera = photo.method('get_PhotoBoothCamera').invoke();
@@ -636,6 +639,8 @@ globalThis.vroid = (() => {
         const previousTarget = camera.method('get_targetTexture').invoke();
         const previousActive = renderTexture.method('get_active').invoke();
         const wasEnabled = camera.method('get_enabled').invoke();
+        const requestedPlan=captureQualityPlan(size,quality,options);
+        const photoProjection=options.width!=null?expandCaptureProjection(captureProjectionValues(camera),camera.method('get_aspect').invoke(),requestedPlan):null;
         let capture = null;
         let backupObject = null;
         let backupCamera = null;
@@ -647,22 +652,26 @@ globalThis.vroid = (() => {
             backupCamera = backupObject.method('AddComponent', 1).invoke(core('Camera').type.object);
             backupCamera.method('CopyFrom').invoke(camera);
             backupCamera.method('set_enabled').invoke(false);
-            capture = captureQuality.begin(size, quality);
+            capture = captureQuality.begin(size, quality, options);
             camera.method('set_allowMSAA').invoke(true);
             invokeManaged(camera, 'set_targetTexture', [capture.target.handle]);
+            if(photoProjection)writeCaptureProjection(core,camera,photoProjection.matrix);
             invokeManaged(camera, 'Render');
             const base64 = capture.encode();
-            return { model_token: m.token, view: 'photo', width: size, height: size,
-                     mime_type: 'image/png', quality: capture.metadata, base64 };
+            return { model_token: m.token, view: 'photo', width: capture.metadata.output_width, height: capture.metadata.output_height,
+                     mime_type: 'image/png', quality: capture.metadata, provenance:'clean_photo_camera_render',
+                     projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
+                     framing:{...(photoProjection?captureProjectionMetadata(photoProjection):{}),projection_matrix:captureProjectionValues(camera),
+                         output_aspect:requestedPlan.output_width/requestedPlan.output_height,source:'native_photo_camera'},base64 };
         } finally {
-            if (backupCamera) {
-                camera.method('CopyFrom').invoke(backupCamera);
-                camera.method('set_enabled').invoke(wasEnabled);
-            }
-            invokeManaged(camera, 'set_targetTexture', [previousTarget.handle]);
-            renderTexture.method('set_active').invoke(previousActive);
-            if (backupObject) core('Object').method('DestroyImmediate', 1).invoke(backupObject);
-            if (capture) capture.dispose();
+            captureCleanup([
+                ()=>{if(backupCamera)camera.method('CopyFrom').invoke(backupCamera);},
+                ()=>camera.method('set_enabled').invoke(wasEnabled),
+                ()=>invokeManaged(camera,'set_targetTexture',[previousTarget.handle]),
+                ()=>renderTexture.method('set_active').invoke(previousActive),
+                ()=>{if(backupObject)core('Object').method('DestroyImmediate',1).invoke(backupObject);},
+                ()=>{if(capture)capture.dispose();},
+            ]);
         }
     }
 
@@ -673,14 +682,16 @@ globalThis.vroid = (() => {
         if (!Number.isInteger(size) || size < 256 || size > 2048) {
             throw Error('CAPTURE_SIZE_RANGE: 256..2048');
         }
-        captureQualityPlan(size, args.quality);
-        if (view === 'photo') return photoScreenshot(m, size, args.quality);
+        if(args.clean===false)throw Error('APP_FRAME_REQUIRES_START_AND_POLL');
+        const qualityPlan=captureQualityPlan(size, args.quality,args),aspect=qualityPlan.output_width/qualityPlan.output_height;
+        if (view === 'photo') return photoScreenshot(m, size, args.quality,args);
+        if(view==='current_editor')return editorCapture(args);
         const parsed = parseCaptureView(view);
         if (parsed.regional
             && m.root.field('obsoleteLegacyPhotoBoothViewModel').value.method('get_IsActive').invoke()) {
             throw Error('RETURN_TO_EDIT_MODE_FIRST');
         }
-        const plan = parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference) : null;
+        const plan = parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference,aspect) : null;
         const renderTexture = core('RenderTexture');
         const unityObject = core('Object');
         const previousActive = renderTexture.method('get_active').invoke();
@@ -695,11 +706,16 @@ globalThis.vroid = (() => {
             const camera = holder.method('AddComponent', 1).invoke(core('Camera').type.object);
             camera.method('CopyFrom').invoke(source);
             camera.method('set_enabled').invoke(false);
-            capture = captureQuality.begin(size, args.quality);
+            capture = captureQuality.begin(size, args.quality,args);
             camera.method('set_allowMSAA').invoke(true);
             camera.method('set_targetTexture').invoke(capture.target);
-            camera.method('set_orthographic').invoke(false);
-            camera.method('set_fieldOfView').invoke(30);
+            camera.method('set_orthographic').invoke(false);camera.method('set_fieldOfView').invoke(30);
+            camera.method('ResetProjectionMatrix').invoke();
+            const projection=captureProjectionValues(camera),nativeAspect=camera.method('get_aspect').invoke();
+            if(!Number.isFinite(nativeAspect)||nativeAspect<=0)throw Error('INVALID_CAPTURE_NATIVE_ASPECT');
+            // set_aspect is stripped in ed65. Its supported matrix setter gives
+            // the same vertical-FOV framing at the final rectangular pixel aspect.
+            writeCaptureProjection(core,camera,projection.map((v,i)=>i<4?v*nativeAspect/aspect:v));
 
             const faceBounds = m.face.method('GetFaceSMR').invoke().method('get_bounds').invoke();
             const center = faceBounds.method('get_center').invoke();
@@ -715,7 +731,7 @@ globalThis.vroid = (() => {
                 y = top / 2;
                 radius = top * .68;
             }
-            const distance = radius / Math.tan(Math.PI / 12);
+            const distance = radius / Math.min(1,aspect) / Math.tan(Math.PI / 12);
             const transform = camera.method('get_transform').invoke();
             const diagonal = distance / Math.sqrt(2);
             if (plan) {
@@ -730,15 +746,24 @@ globalThis.vroid = (() => {
             }
             transform.method('LookAt').overload('UnityEngine.Vector3', 'UnityEngine.Vector3')
                 .invoke(vector(x, y, z), vector(0, 1, 0));
+            const actualPosition=transform.method('get_position').invoke();
+            const framing=plan||{schema:'vroid-fixed-framing-v1',view,target:[x,y,z],distance,
+                position:['x','y','z'].map(k=>actualPosition.field(k).value),aspect,fov_degrees:30};
+            // Existing raw previews are verified immediately before the render;
+            // do not silently render a rebuilt or animation-overwritten face.
+            editorPreview.verifyIfTracked(args.expected_model);
             camera.method('Render').invoke();
+            editorPreview.verifyIfTracked(args.expected_model);
             const base64 = capture.encode();
-            return { model_token: m.token, view, width: size, height: size, mime_type: 'image/png',
-                     quality: capture.metadata,
-                     ...(plan ? { framing: captureFraming.readback(camera, plan) } : {}), base64 };
+            return { model_token: m.token, view, width: qualityPlan.output_width, height: qualityPlan.output_height, mime_type: 'image/png',
+                     quality: capture.metadata, provenance:'clean_fixed_camera_render',
+                     projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
+                     framing:{...captureFraming.readback(camera,framing),projection_matrix:captureProjectionValues(camera),
+                         render_viewport:[0,0,qualityPlan.render_width,qualityPlan.render_height],projection_policy:'fixed_vertical_fov_at_output_aspect'},base64 };
         } finally {
-            renderTexture.method('set_active').invoke(previousActive);
-            if (holder) unityObject.method('DestroyImmediate', 1).invoke(holder);
-            if (capture) capture.dispose();
+            captureCleanup([()=>renderTexture.method('set_active').invoke(previousActive),
+                ()=>{if(holder)unityObject.method('DestroyImmediate',1).invoke(holder);},
+                ()=>{if(capture)capture.dispose();}]);
         }
     }
 
@@ -783,6 +808,9 @@ globalThis.vroid = (() => {
     }
 
     const operations = {
+        ...editorPreview.operations,
+        start_app_frame(args){return appFrame.start(args.expected_model);},
+        poll_app_frame(args){return appFrame.poll(args);},
         ...hairGroups.operations,
         ...groups.operations,
         ...textureApi.operations,
@@ -868,13 +896,14 @@ globalThis.vroid = (() => {
         }
         const hairGroupOperation = ['list_hair_groups','get_hair_group_state','get_procedural_hair_controls','scale_brush_hair',
             'clone_brush_hair','set_procedural_hair'].includes(name);
-        const edits = EDIT_OPERATION.test(name) || hairGroupOperation
+        const previewOperation=['editor_camera','face_preview','start_app_frame','poll_app_frame'].includes(name);
+        const edits = EDIT_OPERATION.test(name) || hairGroupOperation || previewOperation
             || (name === 'set_parameters' && args.domain !== 'photo');
         if (edits && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: use wear tools or restart into ordinary editing');
         }
         const captureInAssembly = ['capture_body_reference', 'capture_framing_reference'].includes(name)
-            || (name === 'screenshot' && parseCaptureView(args.view || 'front').regional);
+            || (name === 'screenshot' && (args.view==='current_editor'||parseCaptureView(args.view || 'front').regional));
         if (captureInAssembly && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: use wear capture/reference tools for assemblies');
         }
@@ -885,7 +914,7 @@ globalThis.vroid = (() => {
     }
 
     return {
-        prepareTeardown: groups.prepareTeardown,
+        prepareTeardown(){appFrame.dispose();return groups.prepareTeardown();},
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))

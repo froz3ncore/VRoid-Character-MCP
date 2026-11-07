@@ -21,7 +21,7 @@ function validateFramingBounds(bounds){
         ||bounds.max[1]-bounds.min[1]<.1)throw Error('INVALID_CAPTURE_FRAMING_BOUNDS');
     return bounds;
 }
-function regionalCameraPlan(bounds,parsed){
+function regionalCameraPlan(bounds,parsed,aspect=1){
     validateFramingBounds(bounds);
     if(!parsed.regional)throw Error('REGIONAL_VIEW_REQUIRED');
     const [fraction,zoom]=captureRegions[parsed.region],lo=bounds.min,hi=bounds.max;
@@ -30,11 +30,12 @@ function regionalCameraPlan(bounds,parsed){
     const width=Math.abs(dz)*ex[0]+Math.abs(dx)*ex[2],depth=Math.abs(dx)*ex[0]+Math.abs(dz)*ex[2];
     // Fit the actual scoped body box, including perspective depth, before
     // applying the relative regional zoom. Mirror angles have equal distance.
-    const distance=(depth+Math.max(width,ex[1])*1.16/Math.tan(Math.PI/12))*zoom;
+    if(!Number.isFinite(aspect)||aspect<=0)throw Error('INVALID_CAPTURE_ASPECT');
+    const distance=(depth+Math.max(width/aspect,ex[1])*1.16/Math.tan(Math.PI/12))*zoom;
     const target=[c[0],lo[1]+fraction*(hi[1]-lo[1]),c[2]];
     return {schema:'vroid-regional-framing-v1',view:parsed.view,region:parsed.region,angle:parsed.angle,
         angle_reference:'observer_from_front',yaw_degrees:parsed.yaw_degrees,source_bounds:bounds,
-        center_fraction:fraction,relative_distance:zoom,fov_degrees:30,distance,
+        center_fraction:fraction,relative_distance:zoom,fov_degrees:30,aspect,distance,
         target,position:[target[0]+dx*distance,target[1],target[2]+dz*distance]};
 }
 function createCaptureFraming({core,text}){
@@ -67,10 +68,10 @@ function createCaptureFraming({core,text}){
         walk(root,0);
         return {model_token:m.token,root_id:root.handle.toString(),reference_frame:state.frame,...bounds(renderers)};
     }
-    function modelPlan(m,parsed,fixed){
+    function modelPlan(m,parsed,fixed,aspect=1){
         const ref=fixed||reference(m);
         if(ref.model_token!==m.token||ref.root_id!==modelRoot(m).handle.toString())throw Error('STALE_CAPTURE_FRAMING_REFERENCE');
-        return {...regionalCameraPlan(ref.bounds,parsed),reference_frame:ref.reference_frame,source_root_id:ref.root_id,source_renderer_count:ref.renderer_count};
+        return {...regionalCameraPlan(ref.bounds,parsed,aspect),reference_frame:ref.reference_frame,source_root_id:ref.root_id,source_renderer_count:ref.renderer_count};
     }
     function readback(cam,plan){
         const t=cam.method('get_transform').invoke(),p=xyz(t.method('get_position').invoke()),q=t.method('get_rotation').invoke();

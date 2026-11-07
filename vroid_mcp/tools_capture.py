@@ -12,7 +12,7 @@ from typing import Literal
 
 from mcp.server.fastmcp.utilities.types import Image
 from mcp.types import ImageContent, TextContent, ToolAnnotations
-from pydantic import Field
+from pydantic import Field, StrictBool, StrictFloat, StrictInt
 
 
 def register(ready_tool, runtime, lab, read, edit):
@@ -32,8 +32,10 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=read)
     async def screenshot(expected_model: str, view: str = 'front',
-                         size: int = Field(default=512, ge=256, le=2048),
-                         quality: Literal['legacy', 'balanced', 'high'] = 'balanced') -> Image:
+                         size: StrictInt = Field(default=512, ge=256, le=2048),
+                         quality: Literal['legacy', 'balanced', 'high'] = 'balanced',
+                         width: StrictInt | None = None, height: StrictInt | None = None,
+                         msaa: StrictInt | None = None, ssaa: StrictInt | None = None, clean: StrictBool = True) -> Image:
         """Return one native PNG; use the photo view for a posed preview.
 
         Legacy views are front/side/back/three_quarter plus the full_ variants.
@@ -45,9 +47,62 @@ def register(ready_tool, runtime, lab, read, edit):
         adds 4x MSAA, high adds 4x MSAA with a 2x render scale. Internal rendering is
         capped at 8M pixels while the output stays within 256..2048, and the GPU may
         reduce MSAA. Use capture_review when the effective quality metadata matters.
-        Photo camera settings are restored after the capture.
+        Optional paired width/height are 256..2048; MSAA accepts 1/2/4 and SSAA
+        accepts 1/2/3. current_editor preserves the active edit camera pose and fits
+        its projected view without crop or changed subject proportions. clean=False
+        accepts the default view or current_editor and default render
+        arguments; it reads Unity's actual application framebuffer at end of frame,
+        including UI, with native dimensions/quality. It never focuses the desktop
+        and never falls back between capture modes. Photo settings are restored.
         """
-        return Image(data=await runtime.screenshot(view, expected_model, size, quality), format='png')
+        return Image(data=await runtime.screenshot(view, expected_model, size, quality,
+            width=width, height=height, msaa=msaa, ssaa=ssaa, clean=clean), format='png')
+
+    @ready_tool(annotations=read)
+    async def screenshot_metadata(expected_model: str, view: str = 'front', size: StrictInt = 512,
+                         quality: Literal['legacy', 'balanced', 'high'] = 'balanced',
+                         width: StrictInt | None = None, height: StrictInt | None = None,
+                         msaa: StrictInt | None = None, ssaa: StrictInt | None = None, clean: StrictBool = True
+                         ) -> list[TextContent | ImageContent]:
+        """Return a screenshot plus effective dimensions, quality, framing and provenance.
+
+        Uses the same bounded capture contract as screenshot; base64 is carried only
+        by the image block. Native/visual acceptance is separate from metadata.
+        """
+        data, metadata = await runtime.screenshot_with_metadata(view, expected_model, size, quality,
+            width=width, height=height, msaa=msaa, ssaa=ssaa, clean=clean)
+        return [TextContent(type='text', text=json.dumps(metadata, ensure_ascii=False)),
+                Image(data=data, format='png').to_image_content()]
+
+    @ready_tool(annotations=edit)
+    async def editor_camera(expected_model: str, action: Literal['get', 'angles', 'rotate', 'zoom', 'pan',
+                            'reset', 'mode', 'projection', 'custom'] = 'get',
+                            angles: list[StrictFloat] | None = None, delta: StrictFloat | None = None,
+                            pan: list[StrictFloat] | None = None, mode: str | None = None,
+                            position: list[StrictFloat] | None = None, center: list[StrictFloat] | None = None) -> dict:
+        """Read/change the current model's edit camera; photo camera is separate.
+
+        angles and rotate use [x,y] degrees (bounded +/-36000). Zoom delta and pan
+        [x,y] are native input deltas (+/-1000), with no physical-unit conversion.
+        custom requires position/center vectors (+/-10000 native coordinates).
+        mode accepts Front/Right/Top/Reverse/RotateUp/RotateLeft/RotateRight/RotateDown.
+        projection toggles the actual projection. Animated modes poll to completion.
+        Saved model/history is unchanged. Multi-camera ambiguity is refused.
+        """
+        return await runtime.editor_camera(expected_model, action, angles=angles, delta=delta, pan=pan,
+            mode=mode, position=position, center=center)
+
+    @ready_tool(annotations=edit)
+    async def face_preview(expected_model: str, name: str | None = None, weight: StrictFloat = 100,
+                           filter: str | None = None, reset: StrictBool = False, restore: StrictBool = False) -> dict:
+        """List/filter or temporarily set raw current-face blendshape weights (0..100).
+
+        Exact case-insensitive name wins; suffix matches must be unique. reset zeros
+        the scoped face only; restore reapplies the original snapshot with readback.
+        Renderer/mesh identity and weights are checked at capture. Rebuilds/animation
+        can replace preview state. Does not modify saved expression definitions.
+        """
+        return await runtime.face_preview(expected_model, name, weight, filter, reset=reset, restore=restore)
 
     @ready_tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
     async def capture_review(expected_model: str, label: str = Field(default='', max_length=80),

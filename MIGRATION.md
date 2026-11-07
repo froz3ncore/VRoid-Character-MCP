@@ -92,7 +92,7 @@ rows still require Task 10 field/contract audit; no alias is promised.
 | 34 | `vroid_clone_brush_hair` | Hair groups (Task 5) | One CloneBrushHairGroupCommand is scoped to the exact source transferable/captured owner. The original must remain present and exactly one new brush group under that same transferable/owner must appear; unrelated same-category additions are never translated. Full child/group/grouplet identities and source-copy material/guide/geometry are checked. Every offset point, including zero-offset clone coordinates, has exact Single readback; receipts return new IDs and distinguish completed native calls from verified changed points and unknown undo entries. Offsets use native control-point coordinates, without world conversion. Ambiguous/partial work is never retried blindly. | Offline algorithm/native-double/runtime tests verified; supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
 | 35 | `vroid_undo` | Session baseline (Task 10 audit) | Existing `undo(expected_model, steps)` is stronger bounded multi-step native history. Relist IDs/state after structural changes. | Comparable baseline only; field audit pending; native unverified. |
 | 36 | `vroid_redo` | Session baseline (Task 10 audit) | Existing `redo(expected_model, steps)`; same caveat. | Comparable baseline only; field audit pending; native unverified. |
-| 37 | `vroid_screenshot` | Camera/preview/capture (Task 6) | Planned: Extend screenshot width/height/msaa/ssaa/clean; retain current defaults. Partial. Target has clean native fixed/regional/photo PNG and balanced=4x MSAA, high=4x MSAA/2x render scale, with effective quality metadata in reviews. Source separately controls rectangular width/height, MSAA, SSAA and `clean=false` full window capture. Add bounded rectangular output and explicit quality plan if required; avoid conflating native avatar capture with full application screenshot. | Planned adaptation; offline/native parity unverified. |
+| 37 | `vroid_screenshot` | Camera/preview/capture (Task 6) | Implemented paired rectangular output, explicit MSAA 1/2/4 and SSAA 1/2/3, aspect-aware fixed/regional framing and preserved square/photo/review defaults. `current_editor` copies the owned live camera pose and verifies an aspect-adapted projection that contains the source view without crop or distorted proportions. `clean=False` uses an identity-checked one-shot Unity end-of-frame backbuffer read at actual screen dimensions/quality, rejects clean-render overrides and never falls back. `screenshot_metadata` returns image plus effective plan/framing/provenance without duplicated base64. | Task 6 offline math/runtime/native doubles verified; live native callback, UI/color/orientation, image and cleanup acceptance unverified. |
 | 38 | `vroid_list_presets` | Groups/parts/presets (Task 3) | `list_presets` adds case-insensitive ID/resource search and owned_only=False locked metadata while preserving owned-only defaults. Separate all-category PlayFab catalog pages expose price/set/usable/locked, exact selectable IDs, nonselectable catalog-only IDs and explicit completeness/next_offset. | Offline search/catalog pagination/ownership doubles verified (Task 3); catalog discovery never authorizes locked application. |
 | 39 | `vroid_apply_preset` | Groups/parts/presets (Task 3) | Optional preserve_material invokes the proven native flag for owned simple built-ins; clear/custom/set/unknown-set options are refused. Snapshots/restores/readbacks only exact compatible color-owner/resource/revision/path identities; each binding reports preserved/restored/incompatible/unverified. all_materials_preserved remains false. | Offline preserve flag, actual color restoration and incompatibility doubles verified (Task 3); texture/raster/material coverage and native appearance unverified. |
 | 40 | `vroid_clothing_colors` | Textures/materials (Task 4) | Reuses Task 3 worn-color query bindings and exact owner/ColorPath/TemplateColorPath history writes in composed colorize, with binding deduplication and post-settle color readback. Query-derived color sharing is kept separate from unestablished renderer material identity. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
@@ -104,10 +104,10 @@ rows still require Task 10 field/contract audit; no alias is promised.
 | 46 | `vroid_preset_thumbnail` | Catalog/framing (Task 7) | Planned: `preset_thumbnail`. Partial. Target `preview_presets` supplies native thumbnails for 1-6 fresh owned preset IDs, without applying anything. Source resolves stable catalog keys offline, prefers situation thumbnail then native icon, including custom item icon extraction. Add catalog image resolution with bounded validated paths and kind/provenance; keep native vs on-mannequin distinction. | Planned adaptation; offline/native parity unverified. |
 | 47 | `vroid_preset_cache_sync` | Catalog/framing (Task 7) | Planned: `sync_preset_cache`. Gap. Enumerate all preset pages/categories and registered custom closet revisions; keep first/last seen, fingerprints, new/changed/removed/returned, source build/session and persistent native icons. Unknown custom enumeration must not mark every custom removed. No avatar mutation is needed for native icon sync. | Planned adaptation; offline/native parity unverified. |
 | 48 | `vroid_preset_cache_build` | Situation thumbnails (Task 8) | Planned: `build_preset_thumbnails`. Gap. Native thumbnail read is not situation capture. Source strips clothing/underwear/hair, applies tested item, frames and captures, then tries restoration and warns it is not guaranteed identical. Implement in a disposable isolated mannequin/session, never silently strip a user's live model. Record tested slot, retained/removed parts, orientation, framing, dimensions, source and hash; return incomplete rows on failure. | Planned adaptation; offline/native parity unverified. |
-| 49 | `vroid_camera` | Camera/preview/capture (Task 6) | Planned: `editor_camera`. Partial. Target custom photo camera + photo typed FOV/orthographic parameters and fixed capture views exist. Source editor camera supports get/angles/relative rotate/zoom/pan/reset/native mode/projection/custom. Add editor camera state/action adapter with finite bounded arguments and settle/readback; existing photo SetCustomView is not full parity. | Planned adaptation; offline/native parity unverified. |
+| 49 | `vroid_camera` | Camera/preview/capture (Task 6) | `editor_camera` implements get/angles/relative rotate/zoom/pan/reset/named native mode/projection toggle/custom, with bounded typed inputs and terminal motion polling. Exact active edit-root/engine/bus/face/controller ownership; distinct single-camera and instantiated multi-group alternatives, rejecting ambiguous active primaries. Reads actual owned camera projection/FOV/orthographic size; unavailable pan/zoom scalars stay unavailable. Pan/zoom are native deltas. Existing photo controls remain separate. | Task 6 offline action/ownership/enum/settled-readback tests verified; native movement/visible framing unverified. |
 | 50 | `vroid_apply_custom` | Groups/parts/presets (Task 3) | `apply_custom_item(filename)` validates bounded safe ZIP metadata and matches an already registered path/resource/custom-resource/revision using byte and metadata identity. Native load/deserialization/root/type/revision/no-migration preflight precedes exact registered option selection. Windows source pin survives uncertainty. No arbitrary registration, profile copying or migration; later catalog wrappers must resolve keys to this validated file/identity. | Offline ZIP/byte/registry/native-compatibility doubles verified (Task 3); full native-format acceptance remains gated by supported lab. |
 | 51 | `vroid_remove_item` | Groups/parts/presets (Task 3) | `remove_items` resolves exact group ID/full native type and prevalidates all requested groups against exact native clear capability. Uses RemoveTransferableGroupAndChildren, polls requested-group absence and returns remaining inventory/per-group partial outcomes. Missing capability is nonremovable; no invented descendant registry or short-suffix remove-all. | Offline mandatory/stale/partial failure and native command doubles verified (Task 3); descendant identities not independently established; native acceptance unverified. |
-| 52 | `vroid_face_preview` | Camera/preview/capture (Task 6) | Planned: `face_preview`. Partial. Target `preview_expression` previews named native expression IDs; source lists raw facial blendshape suffixes and sets arbitrary 0-100 preview weights, filter and reset-all. Add temporary raw shape preview with per-render/current preview state, range checking and verified reset; do not edit saved expression definitions. | Planned adaptation; offline/native parity unverified. |
+| 52 | `vroid_face_preview` | Camera/preview/capture (Task 6) | `face_preview` lists/filter raw current-model face shapes and applies 0..100 weights, explicit reset-to-zero or snapshot restore with readback. Exact name wins; ambiguous suffixes fail before any setter. Current active edit-root/engine/bus/ModelOrigin/renderer/mesh identities are checked; no scene scan or saved-expression command. Tracked identity/weights are checked at clean current/fixed capture and app-frame pickup; animation/rebuild can invalidate them. Named `preview_expression` remains separate. | Task 6 offline native/ambiguity/reset/restore/stale-state tests verified; actual deformation, rebuild and visual acceptance unverified. |
 | 53 | `vroid_begin_hair_edit` | Textures/materials (Task 4) | `begin_hair_edit` validates an actually worn shared material, executes source BeginHairMaterialAdvancedEditCommand(path,"Layer",true), settles PNG work and returns fresh query-derived material/image/layer mappings. Explicit screen_entered=false; shared ownership is not inferred from an unrelated hair group. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
 
 ## Source files, destination ownership and MIT attribution
@@ -128,7 +128,7 @@ runtime destinations are planned until their implementation commit is recorded.
 | `VRoidMcpBridge/VRoidApi.cs`, `Catalog.cs`, `Presets.cs`, `CustomItems.cs`, `ClothingSliders.cs`, `AdvancedEdit.cs`; silhouette dispatch in `mcp_server/vroid_mcp.py` | `agent/groups.js`, preset/registry extensions and focused Python group/silhouette/custom-file modules (Task 3) | Implemented source adapters with offline contracts; unknown ranges/history/layouts remain explicit. No guessed aliases or weight-as-mass claims; native acceptance unverified. |
 | `VRoidMcpBridge/Textures.cs`, `AdvancedEdit.cs`, `Hair.cs`; colorize composition in `mcp_server/vroid_mcp.py` | Texture/material runtime, pixel helpers and JS (Task 4) | Adapted conversion, exact material discovery/commands, existing-raster replacement history and source recolor algorithms; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. Native acceptance unverified. |
 | `VRoidMcpBridge/HairShape.cs` | `agent/hair_groups.js`, `runtime_hair.py`, `tools_hair.py` and narrow parameter/group/operation composition (Task 5) | Adapted concrete group queries, native control-point polyline statistics, root-relative group scale, native whole-group clone/offset and exact procedural scalar/query behavior from fixed source revision `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. No BepInEx runtime or JS-owned managed modifier transferred. Independently derived checksum-scoped VM/native-managed-modifier descriptors in `agent/hair_procedural.js` and `agent/hair_procedural_fallback.js`, including verified immutable native UI bounds and Action constructor ABI, are recorded in the versioned native-evidence note; native binaries and method bodies are not included. |
-| `VRoidMcpBridge/CameraView.cs`, `FacePreview.cs`, `PreviewCapture.cs` | Editor preview/camera and bounded capture modules (Task 6) | Planned native operations; no desktop input/focus route. |
+| `VRoidMcpBridge/CameraView.cs`, `FacePreview.cs`, `PreviewCapture.cs`; screenshot portion of `VRoidApi.cs` | `agent/editor_preview.js`, `editor_capture.js`, `app_frame.js`, capture-quality/framing/operation composition; Python `runtime_preview.py`, capture runtime/quality/tools (Task 6) | Adapted native actions/raw-face/rectangular render behavior from fixed mcjo79 revision. MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`; existing brainrom capture notices retained. Supported-build ownership and one-shot Awaitable end-frame backbuffer route were independently derived from ed65 metadata/static control flow; no ScreenCapture wrapper exists there. No BepInEx, managed callback history, desktop input or second control kernel. |
 | `mcp_server/preset_cache.py`; catalog/preset/custom metadata native references | `preset_catalog.py`, `catalog_framing.py`, `tools_catalog.py` and gallery orchestration (Tasks 7-8) | Planned storage/search/annotation/framing and disposable situation images; no native images vendored. |
 | `mcp_server/help_i18n.py`, `tool_i18n.py`, `prompts.py`, `docs/AGENT_REFERENCE_EN.md`, batch/help dispatch; `FileLifecycle.cs`, `ContextState.cs`, `LifecycleHooks.cs` | Help/resources, batch/session gate and guarded menu/exit (Task 9) | Planned selective prose/behavior adaptation; target schemas stay authoritative. |
 | `Plugin.cs`, `HttpBridge.cs`, `Interop.cs`, BepInEx/Harmony build/runtime and source MCP JSON-RPC transport | None | Do not incorporate the second control kernel; native API references may inform Frida adaptations with provenance. |
@@ -192,3 +192,60 @@ Offline Python/native-double checks do not establish supported-binary compatibil
 Undo/Redo, save/reopen, actual garment/accessory coverage, native file-format acceptance,
 export or visual quality. The installed unsupported app was not launched or attached.
 Task 10 owns final tool and source manifest regeneration.
+
+## Task 6 implementation boundary
+
+Task 6 adds `editor_camera`, `face_preview` and `screenshot_metadata`, and extends
+the existing image-returning `screenshot` without changing its square/view/quality
+defaults. Camera inputs are finite and bounded; unrelated action arguments are
+rejected. Native enum values are resolved by name. Motion completion is polled,
+and loss/cancellation after a preview mutation retains the uncertainty barrier.
+Raw preview weights are renderer state only, with explicit zero-reset versus
+original-weight restore. Ambiguous suffixes reject instead of the source's
+multiple-match broadcast. Snapshot restore refuses changed renderer/mesh identity.
+
+Clean sides stay within 256..2048 and internal work within 8,000,000 pixels;
+budget clamping preserves aspect with reported per-axis rounding. MSAA accepts
+1/2/4 and reports the created GPU texture's actual downgrade. Rectangular new
+paths do not clear UI selection or hide controllers. The old default fixed/photo
+preparation remains compatible. Photo camera configuration/target/enabled state,
+temporary cameras, render targets and CPU textures have explicit finally cleanup.
+`current_editor` uses a cloned camera with exact copied/read-back world pose.
+Projection rows 0/1 are scaled by min(1,A/B) and min(1,B/A), where A is the live
+source pixel aspect and B is the final output aspect. This expands the frustum
+to contain the source view while keeping projected subject proportions; the live
+matrix is unchanged. Source/effective matrices, clip scale, actual full render
+viewport and per-axis final resampling are reported separately. Projected square
+and circle tests cover portrait/landscape source/output, perspective/orthographic
+and rounded SSAA cap dimensions. Fixed views instead retain their vertical FOV
+while adapting the matrix to output aspect. The supported ed65 binary strips
+`set_aspect`, so only actual supported projection-matrix APIs are used.
+[Unity 6 documents that Camera.targetTexture renders to the whole texture and
+ignores rect/pixelRect](https://docs.unity3d.com/ja/current/ScriptReference/Camera-targetTexture.html);
+no viewport-based letterbox assumption is used.
+
+Multi-rig camera selection uses the exact bus-owned rig's instantiated-group
+dictionary keys and requires one active enabled primary. Multiple candidates fail
+closed; the template is never treated as authoritative current projection. A
+single attached camera is a separate valid route, with no required multi-rig.
+Editor/photo controllers must be distinct. The active screen and current-face
+renderer must match the exact model scope on every use.
+
+The allowlisted ed65 binary has no managed ScreenCapture class. Application frame
+capture instead wires Unity's idempotent Awaitable gate and installs a bounded,
+main-thread-only one-shot on `OnEndOfFrame.onLeave`, then reads the actual screen
+backbuffer with `ReadPixels`. No ordinary frame-pump sampling, clean-render
+fallback, UI change, desktop focus or input is used. Native screen area over 8M
+is refused. App MSAA is explicitly the live QualitySettings value, not a claim of
+GPU RenderTexture verification; SSAA remains application-owned. Hooks, textures,
+active render target and retained results have success/error/timeout/teardown
+cleanup. No model-history callbacks are retained.
+
+Offline evidence: 834 Python tests passed, including 113 focused host/capture/
+attached regressions; five new JavaScript behavior/native-double suites and five
+affected existing suites passed. This proves the contracts under doubles, not
+IL2CPP marshaling, live active-view selection, end-frame pixel freshness, complete
+screen UI, native color/orientation, rendered facial deformation, preservation
+after native rebuilds, or visual quality. No VRoid process was launched/attached,
+registry changed, build allowed, or installed service modified. Task 10 owns final
+manifest regeneration; a supported disposable native lab remains required.
