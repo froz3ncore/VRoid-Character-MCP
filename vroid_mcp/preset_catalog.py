@@ -30,7 +30,7 @@ import zlib
 import uuid
 
 from . import catalog_framing as framing
-from .wear_paths import _physical
+from .wear_paths import _physical, physical_directory
 
 STATUSES = {'new','changed','unchanged','removed','returned','unknown'}
 MAX_ROWS = 20000
@@ -139,7 +139,7 @@ def _artifact(path):
 
 
 def _read_artifact(path, maximum):
-    with _artifact(path).open('rb') as stream:
+    with physical_directory(path.parent), _artifact(path).open('rb') as stream:
         info = os.fstat(stream.fileno())
         if info.st_nlink != 1 or not os.path.samestat(info, _artifact(path).stat()):
             raise ValueError('CATALOG_FILE_CHANGED')
@@ -243,9 +243,33 @@ class PresetCatalog:
     def locked(self, *, wait=True):
         _physical(self.root)
         _physical(self.scratch)
-        self.scratch.mkdir(parents=True, exist_ok=True)
+        with ExitStack() as directories:
+            # Pin the nearest existing ancestor before creating each missing
+            # component. The lab and scratch stay pinned for the transaction.
+            missing, parent = [], self.root.parent
+            while not parent.exists():
+                missing.append(parent)
+                parent = parent.parent
+            directories.enter_context(physical_directory(parent))
+            for directory in reversed(missing):
+                directory.mkdir(exist_ok=True)
+                directories.enter_context(physical_directory(directory))
+            _physical(self.scratch)
+            self.scratch.mkdir(exist_ok=True)
+            directories.enter_context(physical_directory(self.scratch))
+            if self.root.exists():
+                directories.enter_context(physical_directory(self.root))
+            with self._file_lock(wait):
+                yield
+
+    @contextmanager
+    def _file_lock(self, wait):
         # Persistent lock inode; never delete/replace a lock another process holds.
-        with _artifact(self.lock_path).open('a+b') as lock:
+        try:
+            lock_file = _artifact(self.lock_path).open('x+b')
+        except FileExistsError:
+            lock_file = _artifact(self.lock_path).open('r+b')
+        with lock_file as lock:
             info = os.fstat(lock.fileno())
             if info.st_nlink != 1 or not os.path.samestat(info, _artifact(self.lock_path).stat()):
                 raise ValueError('CATALOG_LOCK_CHANGED')
@@ -284,7 +308,8 @@ class PresetCatalog:
         try:
             with os.fdopen(fd,'wb') as stream:
                 stream.write(data); stream.flush(); os.fsync(stream.fileno())
-            os.replace(_artifact(Path(name)), _artifact(path))
+            with physical_directory(path.parent):
+                os.replace(_artifact(Path(name)), _artifact(path))
         finally:
             _artifact(Path(name)).unlink(missing_ok=True)
 
@@ -570,7 +595,8 @@ class PresetCatalog:
                 try:
                     with os.fdopen(fd,'wb') as stream:
                         stream.write(data); stream.flush(); os.fsync(stream.fileno())
-                    os.link(_artifact(Path(name)), _artifact(destination))
+                    with physical_directory(destination.parent):
+                        os.link(_artifact(Path(name)), _artifact(destination))
                 finally:
                     _physical(Path(name))
                     Path(name).unlink(missing_ok=True)

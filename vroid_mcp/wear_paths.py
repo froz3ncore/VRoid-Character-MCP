@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 import stat
 import unicodedata
 from pathlib import Path
@@ -26,6 +27,37 @@ def _physical(path: Path) -> None:
         except FileNotFoundError:continue
         if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&stat.FILE_ATTRIBUTE_REPARSE_POINT:
             raise ValueError('Wearable paths must not contain links, junctions or reparse points')
+
+
+@contextmanager
+def physical_directory(path: Path):
+    """Keep a verified Windows directory in place through child IO."""
+    _physical(path)
+    if os.name != 'nt':
+        yield
+        return
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    open_dir = kernel.CreateFileW
+    open_dir.argtypes = [wintypes.LPCWSTR,wintypes.DWORD,wintypes.DWORD,wintypes.LPVOID,
+                         wintypes.DWORD,wintypes.DWORD,wintypes.HANDLE]
+    open_dir.restype = wintypes.HANDLE
+    close = kernel.CloseHandle
+    close.argtypes, close.restype = [wintypes.HANDLE], wintypes.BOOL
+    # FILE_LIST_DIRECTORY participates in sharing checks (an attributes-only
+    # handle does not). Allow child IO while denying directory deletion/rename.
+    # Open the reparse point itself with backup semantics. Recheck after admission.
+    handle = open_dir(str(path), 1, 3, None, 3, 0x02200000, None)
+    if handle == wintypes.HANDLE(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        _physical(path)
+        if not path.is_dir():
+            raise ValueError('Expected a physical directory')
+        yield
+    finally:
+        close(handle)
 
 
 def _target(lab: Path, filename: str, suffixes: tuple[str,...], create: bool) -> Path:

@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 import stat
 import zipfile
 
-from .wear_paths import _filename, _physical
+from .wear_paths import _filename, _physical, physical_directory
 
 
 def catalog_registration(catalog, snapshot, profile):
@@ -82,7 +82,7 @@ def inspect_custom_item(path, *, include_icon=False, registered_generation=None)
     # One protected descriptor owns metadata, streamed digest and optional icon.
     # Windows denies write/rename; other hosts additionally verify descriptor and
     # path identity before accepting a generation that could have changed.
-    with pinned_file(path), path.open('rb') as stream:
+    with physical_directory(path.parent), pinned_file(path), path.open('rb') as stream:
         before = os.fstat(stream.fileno())
         if registered_generation is not None:
             _physical(path)

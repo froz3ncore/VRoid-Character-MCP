@@ -80,6 +80,27 @@ def test_existing_lock_hardlink_never_modifies_external_bytes(tmp_path):
     assert external.read_bytes() == b''
 
 
+@pytest.mark.skipif(os.name != 'nt', reason='Windows directory sharing and junction semantics')
+def test_cache_cannot_be_retargeted_at_atomic_publication(tmp_path, monkeypatch):
+    catalog = store(tmp_path/'lab')
+    catalog.set_framing('Custom/Test', yaw=4)
+    external = tmp_path/'external'; external.mkdir()
+    replace = os.replace
+    prevented = []
+    def race(source, destination):
+        try:
+            catalog.root.rename(catalog.root.with_name('moved'))
+        except PermissionError:
+            prevented.append(True)
+        else:
+            subprocess.run(['cmd','/c','mklink','/J',str(catalog.root),str(external)],
+                           capture_output=True,check=True)
+        replace(source, destination)
+    monkeypatch.setattr(os, 'replace', race)
+    catalog.set_framing('Custom/Test', yaw=5)
+    assert prevented and not list(external.iterdir())
+
+
 def test_identity_annotations_and_revision_lifecycle(tmp_path):
     s = store(tmp_path)
     sync(s, [row(), custom()])
