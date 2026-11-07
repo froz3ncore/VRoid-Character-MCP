@@ -174,46 +174,50 @@ class EditTools:
 
     async def apply_preset(self, area: str, expected_model: str, preset_id: str,
                            preserve_material: bool = False) -> dict:
+        async with self.lock:
+            return await self._apply_preset_unlocked(area, expected_model, preset_id, preserve_material)
+
+    async def _apply_preset_unlocked(self, area: str, expected_model: str, preset_id: str,
+                           preserve_material: bool = False) -> dict:
         self._require_preset_area(area)
         if type(preserve_material) is not bool:
             raise ValueError('preserve_material must be bool')
-        async with self.lock:
-            if preserve_material:
-                return await self._preserve_material_preset(area, expected_model, preset_id)
-            result = await self._call('apply_preset', {'area': area, 'expected_model': expected_model,
-                                                       'preset_id': preset_id})
-            await self._settle(result['frame'])
-            before = result.pop('before_groups', None)
-            query = {'area': area, 'expected_model': expected_model, 'preset_id': preset_id}
-            if result.get('clear'):
-                state = await self._call('preset_state', query)
-                groups = state.get('active_groups', [])
-                previous_ids = {group['id'] for group in before or []}
-                current_ids = {group['id'] for group in groups}
-                result.update(settled=True, selected=None, changed=groups != before,
-                              active_groups=groups,
-                              removed_groups=[group for group in before or [] if group['id'] not in current_ids],
-                              confirmation='groups_removed' if previous_ids - current_ids else 'no_group_removed')
-                return result
-            deadline = time.monotonic() + SELECTION_WAIT_SECONDS
-            state: dict = {}
-            while time.monotonic() < deadline:
-                state = await self._call('preset_state', query)
-                if state['selected']:
-                    result.update(settled=True, selected=True)
-                    return result
-                await asyncio.sleep(.15)
-            # Some native hair sets expand into parts and drop the whole-set
-            # checkbox. The operation has settled; report the evidence instead of
-            # inventing a selection.
+        if preserve_material:
+            return await self._preserve_material_preset(area, expected_model, preset_id)
+        result = await self._call('apply_preset', {'area': area, 'expected_model': expected_model,
+                                                   'preset_id': preset_id})
+        await self._settle(result['frame'])
+        before = result.pop('before_groups', None)
+        query = {'area': area, 'expected_model': expected_model, 'preset_id': preset_id}
+        if result.get('clear'):
+            state = await self._call('preset_state', query)
             groups = state.get('active_groups', [])
-            changed = before is not None and groups != before
-            result.update(settled=True, selected=False, changed=changed, active_groups=groups,
-                          confirmation=('model_changed_without_preset_checkmark' if changed
-                                        else 'selection_unconfirmed'),
-                          message='Inspect the model and a screenshot; an unchecked set does not '
-                                  'establish failure or exact preset equivalence.')
+            previous_ids = {group['id'] for group in before or []}
+            current_ids = {group['id'] for group in groups}
+            result.update(settled=True, selected=None, changed=groups != before,
+                          active_groups=groups,
+                          removed_groups=[group for group in before or [] if group['id'] not in current_ids],
+                          confirmation='groups_removed' if previous_ids - current_ids else 'no_group_removed')
             return result
+        deadline = time.monotonic() + SELECTION_WAIT_SECONDS
+        state: dict = {}
+        while time.monotonic() < deadline:
+            state = await self._call('preset_state', query)
+            if state['selected']:
+                result.update(settled=True, selected=True)
+                return result
+            await asyncio.sleep(.15)
+        # Some native hair sets expand into parts and drop the whole-set
+        # checkbox. The operation has settled; report the evidence instead of
+        # inventing a selection.
+        groups = state.get('active_groups', [])
+        changed = before is not None and groups != before
+        result.update(settled=True, selected=False, changed=changed, active_groups=groups,
+                      confirmation=('model_changed_without_preset_checkmark' if changed
+                                    else 'selection_unconfirmed'),
+                      message='Inspect the model and a screenshot; an unchecked set does not '
+                              'establish failure or exact preset equivalence.')
+        return result
 
     # ------------------------------------------------------------ shoe templates
     async def list_shoe_templates(self, expected_model: str) -> dict:
@@ -319,24 +323,27 @@ class EditTools:
 
     async def save_as(self, filename: str, expected_model: str) -> dict:
         async with self.lock:
-            destination = (file_destination(self.lab, filename, '.vroid', True)
-                           if getattr(self, 'mode', 'copy') == 'attached' else save_destination(self.lab, filename))
-            staging = destination.parent / ('stage-' + uuid.uuid4().hex + '.vroid')
-            await self._settle()
-            await self._call('save_as', {'path': str(staging), 'expected_model': expected_model})
-            if not staging.is_file() or staging.stat().st_size < 100:
-                raise RuntimeError('VRoid did not produce a file of a plausible size')
-            if not zipfile.is_zipfile(staging):
-                raise RuntimeError('Native save did not create a VRoid archive')
-            with zipfile.ZipFile(staging) as archive:
-                if archive.testzip() is not None:
-                    raise RuntimeError('VRoid archive CRC failure')
-            # os.rename refuses an existing destination on Windows; never os.replace.
-            os.rename(staging, destination)
-            return {'path': str(destination), 'bytes': destination.stat().st_size,
-                    'model_token': expected_model,
-                    'attached_copy': getattr(self, 'mode', 'copy') == 'attached',
-                    'sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
+            return await self._save_as_unlocked(filename, expected_model)
+
+    async def _save_as_unlocked(self, filename: str, expected_model: str) -> dict:
+        destination = (file_destination(self.lab, filename, '.vroid', True)
+                       if getattr(self, 'mode', 'copy') == 'attached' else save_destination(self.lab, filename))
+        staging = destination.parent / ('stage-' + uuid.uuid4().hex + '.vroid')
+        await self._settle()
+        await self._call('save_as', {'path': str(staging), 'expected_model': expected_model})
+        if not staging.is_file() or staging.stat().st_size < 100:
+            raise RuntimeError('VRoid did not produce a file of a plausible size')
+        if not zipfile.is_zipfile(staging):
+            raise RuntimeError('Native save did not create a VRoid archive')
+        with zipfile.ZipFile(staging) as archive:
+            if archive.testzip() is not None:
+                raise RuntimeError('VRoid archive CRC failure')
+        # os.rename refuses an existing destination on Windows; never os.replace.
+        os.rename(staging, destination)
+        return {'path': str(destination), 'bytes': destination.stat().st_size,
+                'model_token': expected_model,
+                'attached_copy': getattr(self, 'mode', 'copy') == 'attached',
+                'sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
 
     async def reopen_for_test(self, path: pathlib.Path) -> dict:
         resolved = path.resolve()

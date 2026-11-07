@@ -2,6 +2,29 @@
 // VRoidApi.cs, ClothingSliders.cs, AdvancedEdit.cs, Presets.cs, CustomItems.cs,
 // Catalog.cs and mcp_server/vroid_mcp.py (MIT). See licenses/mcjo79-0dc7d5e.txt.
 // All calls run on the existing Unity main-thread queue. Never wait here.
+function certifySituationMembers(root,inventory,read){
+    const members=[],visiting=new Set(),visited=new Set();
+    function visit(id,depth){
+        if(depth>32||visited.size>=512||visiting.has(id)||visited.has(id))throw Error('SITUATION_MEMBER_GRAPH_LIMIT_OR_CYCLE');
+        visiting.add(id);
+        const matches=inventory.filter(g=>g.id===id);
+        if(matches.length!==1)throw Error('SITUATION_MEMBER_NOT_UNIQUELY_ACTIVE');
+        const info=matches[0],node=read(id);
+        if(!node||['id','type','resource_name'].some(k=>node[k]!==info[k])||!info.revision)
+            throw Error('SITUATION_MEMBER_IDENTITY_MISMATCH');
+        if(id===root.id&&['id','type','resource_name','revision'].some(k=>info[k]!==root[k]))throw Error('SITUATION_ROOT_IDENTITY_MISMATCH');
+        if(!Array.isArray(node.entries)||node.entries.length>4096)throw Error('SITUATION_MEMBER_ENTRY_LIMIT');
+        members.push({...info});
+        for(const entry of node.entries){
+            if(entry.type==='Transferable')continue;
+            if(entry.type!=='TransferableGroup'||typeof entry.id!=='string'||!entry.id)throw Error('SITUATION_MEMBER_EDGE_UNPROVEN');
+            visit(entry.id,depth+1);
+        }
+        visiting.delete(id);visited.add(id);
+    }
+    visit(root.id,0);
+    return {verified:true,root:{...root},members,policy:'exact active root; direct TransferableGroup entries only; Transferable entries are leaf content'};
+}
 function createGroupApi(H) {
     const {model, cls, text, invokeManaged, entries, details, state, ordinary, presetEntries} = H;
     const pathNamespace = 'VRoidCore.Common.TransferableTypes.Path.';
@@ -142,6 +165,27 @@ function createGroupApi(H) {
         if (rows.length !== 1) throw Error('UNKNOWN_OR_STALE_GROUP: relist groups');
         if (!rows[0].revision || !rows[0].type) throw Error('GROUP_IDENTITY_UNAVAILABLE');
         return {inventory, group: rows[0]};
+    }
+    function situationMembership(m,root,inventory){
+        if(!root||!['id','type','resource_name','revision'].every(k=>typeof root[k]==='string'&&root[k]))
+            throw Error('INVALID_SITUATION_ROOT');
+        const dictionary=prop(active(m),'TransferableGroups'),table=new Map();
+        for(const item of sequence(dictionary,20000)){
+            const key=str(prop(item,'Key'));if(table.has(key))throw Error('SITUATION_DUPLICATE_GROUP_ID');
+            table.set(key,prop(item,'Value'));
+        }
+        const enumType=cls('VRoidCore','VRoidCore.Common.TransferableTypes.TransferableGroupEntryType');
+        const types=new Map(['TransferableGroup','Transferable','Clear','ClearByResourceName','RecommendedTransferableGroup']
+            .map(name=>[enumType.field(name).value,name]));
+        return certifySituationMembers(root,inventory.groups.filter(g=>g.active),id=>{
+            const group=table.get(id);if(!group)throw Error('SITUATION_MEMBER_DEFINITION_UNAVAILABLE');
+            const header=prop(group,'Header');
+            return {id:str(prop(header,'Id')),resource_name:str(prop(header,'ResourceName')),type:str(prop(group,'TypeId')),
+                entries:sequence(prop(group,'Entries'),4096).map(entry=>{
+                    const type=types.get(prop(entry,'Type'));
+                    return {type,id:type==='TransferableGroup'?str(prop(entry,'TransferableGroupId')):null};
+                })};
+        });
     }
     function rowId(m, group, topology, binding) {
         return 'group/' + encodeURIComponent(JSON.stringify([m.token, group.fingerprint, topology, binding]));
@@ -568,7 +612,12 @@ function createGroupApi(H) {
     }
     return {prepareTeardown,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,catalogRows,groupInventory,
         membershipInventory:m=>groupInventory(m,false)},operations:{
-        list_groups(args) { return groupInventory(requireModel(args)); },
+        list_groups(args) {
+            const m=requireModel(args),result=groupInventory(m);
+            if(args.situation_root)try{result.situation_membership=situationMembership(m,args.situation_root,result);}
+            catch(error){result.situation_membership={verified:false,error:String(error),root:args.situation_root};}
+            return result;
+        },
         list_group_parameters(args) {
             const result = collect(requireModel(args),args.group_id);
             if (args.kind != null && !['bone','blendshape','color','Bool','Float','Image','Template','unknown'].includes(args.kind)) throw Error('UNKNOWN_PARAMETER_KIND');

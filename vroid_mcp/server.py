@@ -132,10 +132,21 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
 
     def ready_tool(**options):
         """Register the tool now, launch the app on first use."""
+        owned_disposable = options.pop('owned_disposable', False)
         def register(function):
             @wraps(function)
             async def ready(*args, **kwargs):
                 async with session_gate:
+                    if owned_disposable:
+                        # Refuse before initialization, dirty-state bookkeeping
+                        # or an attached edit receipt can touch a real session.
+                        from inspect import signature
+                        bound = signature(function).bind(*args, **kwargs)
+                        if runtime.current.mode != 'copy':
+                            raise ValueError('OWNED_COPY_REQUIRED')
+                        from .runtime_situation import validate_situation_request
+                        bound.apply_defaults()
+                        validate_situation_request(**bound.arguments)
                     # A failed, uninitialized session can still own native work.
                     # Status is a synthetic recovery receipt in that state; every
                     # ordinary tool is blocked before startup or native dispatch.

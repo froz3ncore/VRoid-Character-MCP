@@ -254,6 +254,13 @@ class PresetCatalog:
         if key not in data['presets']: raise ValueError('UNKNOWN_CATALOG_KEY')
         return deepcopy(data['presets'][key])
 
+    def _situation_candidates(self, category):
+        """Private complete bounded snapshot; public search remains capped at 200."""
+        framing.category(category)
+        return deepcopy(sorted((r for r in self._load()['presets'].values()
+            if r['category']==category and not r['removed'] and r['owned'] and r['usable'] and r['selectable']),
+            key=lambda r:r['key']))
+
     def sync(self, rows, source, complete):
         if (not isinstance(rows,list) or len(rows)>MAX_ROWS or not isinstance(source,dict)
                 or not _completeness(complete)):

@@ -33,7 +33,7 @@ globalThis.vroid = (() => {
     const text = value => (value && !value.handle.isNull() ? value.content : null);
     const parameterMetadata = createParameterSemantics({ text });
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
-    const captureFraming = createCaptureFraming({ core, text });
+    const captureFraming = createCaptureFraming({ core, text, cls });
     const attachedState = createAttachedState({main: mainViewModel, text, state});
     const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text,retain}),
         beforeMutation:name=>attachedState.guard(name)});
@@ -657,11 +657,12 @@ globalThis.vroid = (() => {
         if(view==='current_editor')return editorCapture(args);
         const guideScope=cleanCaptureScope.inspect(m,{clonedCamera:true});
         const parsed = parseCaptureView(view);
-        if (parsed.regional
+        if ((parsed.regional || args.situation_framing)
             && m.root.field('obsoleteLegacyPhotoBoothViewModel').value.method('get_IsActive').invoke()) {
             throw Error('RETURN_TO_EDIT_MODE_FIRST');
         }
-        const plan = parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference,aspect) : null;
+        const plan = args.situation_framing ? captureFraming.situationPlan(m,args.situation_framing,aspect)
+            : parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference,aspect) : null;
         const renderTexture = core('RenderTexture');
         const unityObject = core('Object');
         const previousActive = renderTexture.method('get_active').invoke();
@@ -681,6 +682,12 @@ globalThis.vroid = (() => {
             camera.method('set_targetTexture').invoke(capture.target);
             cleanCaptureScope.apply(camera,guideScope);
             camera.method('set_orthographic').invoke(false);camera.method('set_fieldOfView').invoke(30);
+            if(args.situation_framing){
+                camera.method('set_nearClipPlane').invoke(plan.near_clip);camera.method('set_farClipPlane').invoke(plan.far_clip);
+                if(Math.abs(camera.method('get_nearClipPlane').invoke()-plan.near_clip)>1e-5
+                    ||Math.abs(camera.method('get_farClipPlane').invoke()-plan.far_clip)>1e-3*Math.max(1,plan.far_clip))
+                    throw Error('SITUATION_CLIP_READBACK_MISMATCH');
+            }
             camera.method('ResetProjectionMatrix').invoke();
             const projection=captureProjectionValues(camera),nativeAspect=camera.method('get_aspect').invoke();
             if(!Number.isFinite(nativeAspect)||nativeAspect<=0)throw Error('INVALID_CAPTURE_NATIVE_ASPECT');

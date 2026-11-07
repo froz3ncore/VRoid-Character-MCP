@@ -14,6 +14,28 @@ Number = Annotated[float, Field(strict=True)]
 def register(mcp, ready_tool, runtime, lab, read, edit):
     store=PresetCatalog(lab/'preset_cache')
 
+    @ready_tool(annotations=read)
+    async def vroid_measure(expected_model: str) -> dict:
+        """Read current owned model bounds/enabled renderer count and optional scoped humanoid landmarks.
+
+        Reports native height separately from renderer vertical extent and the
+        source's ground-dependent maxY*100 convention. Does not capture an image.
+        """
+        return await runtime.measure_model(expected_model)
+
+    @ready_tool(annotations=edit, owned_disposable=True)
+    async def build_preset_thumbnails(expected_model: str, category: str,
+                                      disposable_model: StrictBool=False, refresh: StrictBool=False,
+                                      limit: Annotated[int,Field(strict=True,ge=1,le=20000)] | None=None) -> dict:
+        """Strip native removable slots and capture tested resources in an explicitly disposable owned copy.
+
+        Saves a unique restoration snapshot first. Restores only when native
+        work and ownership remain known; returns a fresh token and restoration
+        evidence. Undo history, original dirty/file association and neutral
+        anatomy are not preserved guarantees. Failed rows are never published.
+        """
+        return await runtime.build_preset_thumbnails(expected_model,category,disposable_model,refresh,limit)
+
     @mcp.tool(annotations=read)
     async def search_preset_cache(query: str='', category: str | None=None, kind: Literal['builtin','custom'] | None=None,
                                   annotated_only: StrictBool=False, include_locked: StrictBool=False, status: str | None=None,
