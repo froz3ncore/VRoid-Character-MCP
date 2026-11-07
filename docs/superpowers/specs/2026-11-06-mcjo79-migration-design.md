@@ -14,7 +14,7 @@ The user explicitly requested planning followed by execution. Routine implementa
 - Target already has 103 tools, Python FastMCP, runtime domain mixins, a Frida IL2CPP main-thread bridge, model tokens, copy/attached ownership, native history and uncertainty barriers.
 - Target already exports ordinary VRM 0/1, edits typed parameters, supplies native preset icons and extensive cosmetics, captures, hair primitives and XWear operations. Similar primitives do not prove source feature equivalence.
 - Source has 53 tools. Every one must appear in MIGRATION.md with target mapping, implementation disposition, tests and native-verification status. Source-prefixed aliases and byte-identical response contracts are not required. Missing useful behavior must be implemented, not hidden by aliases or a broad claim of equivalence.
-- Installed Steam build 26267394 has GameAssembly SHA-256 3334B166E298682EEDA1CA1C5CA568B12F7085B76CC629668FE8B192AF816BD8. It is not one of the two existing supported 2.14.0 assemblies. Preserve the allowlist; do not add this hash without a distinct compatibility investigation. No installed app files or active user models are changed by this migration.
+- At baseline, installed Steam build 26267394 (`3334b166...`) was not one of the two supported 2.14.0 assemblies. The requested **2.16.0** addition now has a [separate build compatibility task](../plans/2026-11-07-vroid-216-compatibility.md). Preserve existing 2.14.0 behavior and require positive build/channel/ABI evidence before admitting a new binary. No installed app files or active user models are changed by this migration.
 
 ## Approach
 

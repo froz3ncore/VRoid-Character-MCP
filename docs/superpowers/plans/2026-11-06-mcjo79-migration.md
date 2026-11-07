@@ -19,7 +19,7 @@
 - Authored/modified text is UTF-8 without BOM and CRLF. Preserve byte-pinned inherited data; do not mass-rewrite untouched sources. Check encoding and question-mark loss before delivery.
 - Keep existing contracts backward compatible. New tool names need not copy the `vroid_` prefix. Similar primitives and mock tests do not establish native feature equivalence.
 - Native readiness must come from actual state/completion polling with bounded deadlines; fixed sleeps alone do not establish completion. Validate arguments before side effects.
-- Do not start or attach to the installed unsupported Steam build. Its assembly is `3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af816bd8`. Native acceptance remains explicitly unverified until a supported disposable lab exists.
+- Do not launch or attach to the user's installed Steam application. At baseline its assembly `3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af816bd8` was unsupported. Complete the [2.16.0 compatibility work](2026-11-07-vroid-216-compatibility.md) before final integration. Native validation requires an eligible disposable lab and a clear crash guard in that test profile; preserve the user's registry and unknown-build rejection.
 
 ## Review Focus
 
@@ -154,11 +154,11 @@ Focused test command convention: `<python> <workspace>/temp/run_logged.py task-N
 
 **Files:** Update `README.md`, `README.zh-CN.md`, `CHANGELOG.md`, `REGRESSION.md`, `MIGRATION.md`, `tools/TOOLS.md`, `tools/expected-tools.json`, `pipeline/source-manifest.json`, documentation generators only where needed for CRLF; add native migration acceptance checklist under docs/superpowers. Update workspace root Agents.md; keep CLAUDE.md exact.
 
-**Interfaces:** All 53 source tools have a final, evidence-backed disposition; new schemas/docs/manifest agree. Native acceptance is a separate explicit gate, with read-only preflight identifying the actual unsupported installed assembly.
+**Interfaces:** All 53 source tools have a final, evidence-backed disposition; new schemas/docs/manifest agree. Include 2.16.0 compatibility in the final code, tests and review. Identify the actual installed build and publish separate results for static ABI checks, native execution and acceptance.
 
 - [ ] Audit every matrix row against implementation and focused evidence; fill real omissions rather than changing the spec to match partial work. Document intentional stronger safety semantics, unavailable native verification and any supported source behavior deliberately replaced by an equivalent target flow.
 - [ ] Generate tool schema/reference and source manifests with UTF-8/CRLF for authored text. Preserve pinned inherited label bytes and source provenance. Run schema and source checks against final contents, not an earlier commit.
 - [ ] Run the full Python suite, every JS behavior regression plus syntax checks, and a real stdio initialize/tools/list/ping/help/offline-cache round trip. Verify no VRoid launch for offline tools. Record logs/JSON under project temp.
-- [ ] Write native acceptance checklist with exact setup requirements, per-domain fixtures/actions, failure and timeout cases, output readbacks, Undo/Redo/save/reopen and visual checks. Record current installed hash and unsupported preflight; do not execute native actions on it or report mocked native acceptance.
+- [ ] Reconcile the native acceptance checklist with actual setup, per-domain fixtures, failure/timeout, readback, Undo/Redo/save/reopen and visual checks. Record 2.14.0 and 2.16.0 per-channel identities and limitations. Never execute tests in the user's installed app or advertise mock tests as native acceptance.
 - [ ] Validate changed text encoding/CRLF, mojibake/replacement characters and suspicious ASCII question loss; run git diff --check. Verify tools/temp/dev layout, origin/upstream, feature branch and root prompts. Remove only task-created disposable build artifacts outside temp after resolving/checking exact paths; keep logs and audits for review.
 - [ ] Commit final docs/evidence metadata, obtain whole-branch code review, fix confirmed issues and rerun affected checks. Push the feature branch and create a draft PR when authorized network/auth permits; keep main unmerged. Final completion audit must inspect actual files/tests/Git/PR state and state native limitations precisely.
