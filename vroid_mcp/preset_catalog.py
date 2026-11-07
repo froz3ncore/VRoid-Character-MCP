@@ -471,7 +471,20 @@ class PresetCatalog:
             return deepcopy(metadata)
 
     def resolve_image(self, key):
-        return self._resolve_observed_image(self.get(key))
+        _text(key,'key',8192)
+        # Catalog, row and effective framing form one current observation.
+        # A missing scan retains old row identities and bytes for inspection;
+        # those identities alone cannot promote a historical situation preview.
+        with self.locked():
+            data=self._load()
+            if key not in data['presets']:raise ValueError('UNKNOWN_CATALOG_KEY')
+            row=data['presets'][key]
+            if (row['removed'] or row['status'] not in ('new','changed','unchanged','returned')
+                    or data.get('scan_id') is None or row.get('scan_id')!=data['scan_id']
+                    or row['source']!=data['source']):
+                # Filter only this read's local view; persist no history changes.
+                row['images'].pop('situation',None)
+            return self._resolve_observed_image(row)
 
     def _resolve_observed_image(self, row, raster_cache=None):
         """Validate a bounded frozen row's blob without decoding the catalog again."""

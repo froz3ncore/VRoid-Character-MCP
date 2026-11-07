@@ -273,6 +273,57 @@ def test_legacy_verified_situation_is_historical_and_native_icon_remains_distinc
     assert metadata['kind']=='native-icon' and metadata.get('verified') is not True
 
 
+def publish_current_situation(s, key):
+    from situation_fixture import subject_png, optical_proof
+    from vroid_mcp.capture_quality import quality_plan
+    from vroid_mcp.preset_catalog import capture_identity
+    from vroid_mcp.situation_proof import definition, raster_evidence
+    r=s.get(key);profile=s.get_framing(r['category']);data=subject_png()
+    root={'id':r['id'],'type':r.get('group_type','TransferableGroupType.N00.Level1.Tops'),
+          'resource_name':r.get('resource_name',r['resource']),'revision':r.get('revision','1'),
+          'updated_since_last_revision':False}
+    membership={'verified':True,'revision_verified':True,'root':root,'members':[root]}
+    receipt={'kind':'situation','source':'clean_fixed_camera_render','verified':True,'build':r['source']['build'],
+        'capture_input':capture_identity(r),'requested_framing':profile,'framing':optical_proof(profile),
+        'quality':{**quality_plan(512,'balanced'),'msaa_samples':4},'membership':membership,
+        'native_definition':definition(membership),'raster':raster_evidence(data),
+        'tested':{**{k:r.get(k) for k in ('resource','kind','custom_revision','sha256')},
+                  **{k:root[k] for k in ('id','type','revision')},'group_resource':root['resource_name']}}
+    return s.publish_image(key,data,receipt,r['fingerprint'])
+
+
+@pytest.mark.parametrize('kind',['builtin','custom'])
+@pytest.mark.parametrize('complete',[False,True])
+@pytest.mark.parametrize('new_build',[False,True])
+def test_unobserved_situation_is_historical_even_with_unchanged_row_identity(tmp_path,kind,complete,new_build):
+    from test_preset_previews import png
+    s=store(tmp_path);sync(s,[row() if kind=='builtin' else custom()]);r=s.search()[0];key=r['key']
+    icon=s.publish_image(key,png(),{'kind':'native-icon','source':'native_thumbnail'},r['fingerprint'])
+    image=publish_current_situation(s,key);assert s.resolve_image(key)[0]['kind']=='situation'
+    s.annotate(key,'Me',label='keep');historical=s.get(key);before=(s.root/image['path']).read_bytes()
+    source={'build':('b' if new_build else 'a')*64,'session':'new-generation'}
+    s.sync([],source,{'builtin':complete,'custom':complete})
+    current=s.get(key);catalog_before=s.path.read_bytes()
+    assert current['removed'] is complete and current['status']==('removed' if complete else 'unknown')
+    assert current['scan_id']!=s._load()['scan_id']
+    assert current['source']==historical['source'] and current['images']['situation']==image
+    assert current['manual_label']=='keep' and current['annotations']==historical['annotations']
+    metadata,_=s.resolve_image(key)
+    assert metadata==icon and metadata.get('verified') is not True
+    (s.root/icon['path']).unlink()
+    with pytest.raises(ValueError,match='UNAVAILABLE'):s.resolve_image(key)
+    assert (s.root/image['path']).read_bytes()==before and s.path.read_bytes()==catalog_before
+
+
+@pytest.mark.parametrize('kind',['builtin','custom'])
+def test_current_scan_reobserved_identity_reuses_situation_across_model_generation(tmp_path,kind):
+    s=store(tmp_path);raw=row() if kind=='builtin' else custom();sync(s,[raw]);key=s.search()[0]['key']
+    image=publish_current_situation(s,key)
+    s.sync([raw],{'build':'a'*64,'session':'new-generation'},{'builtin':True,'custom':True})
+    assert s.get(key)['scan_id']==s._load()['scan_id']
+    assert s.resolve_image(key)[0]==image
+
+
 def test_returned_changed_revision_records_history_and_invalidates_images(tmp_path):
     from test_preset_previews import png
     s=store(tmp_path); sync(s,[custom()]); item=s.search()[0]
