@@ -14,14 +14,16 @@ def document(version=1):
     ext = ({'VRMC_vrm': {'specVersion': '1.0', 'meta': {'name': 'Test', 'authors': ['A']}}}
            if version else {'VRM': {'specVersion': '0.0', 'meta': {'title': 'Test', 'author': 'A'}}})
     return {'buffers': [{'byteLength': 4}], 'bufferViews': [{'buffer': 0, 'byteLength': 4}],
-            'accessors': [{'bufferView': 0, 'count': 3}], 'nodes': [{'mesh': 0, 'skin': 0}],
+            'accessors': [{'bufferView': 0, 'count': 3, 'type': 'SCALAR', 'componentType': 5121}], 'nodes': [{'mesh': 0, 'skin': 0}],
             'skins': [{'joints': [0]}], 'meshes': [{'primitives': [{'attributes': {'POSITION': 0}, 'indices': 0}]}],
             'extensions': ext}
 
 
 def glb(data):
     text = json.dumps(data).encode('utf-8'); text += b' ' * (-len(text) % 4)
-    chunks = struct.pack('<I4s', len(text), b'JSON') + text + struct.pack('<I4s', 4, b'BIN\0') + b'\0' * 4
+    length = data.get('buffers', [{'byteLength': 4}])[0]['byteLength']
+    binary = bytes(length + (-length % 4))
+    chunks = struct.pack('<I4s', len(text), b'JSON') + text + struct.pack('<I4s', len(binary), b'BIN\0') + binary
     return struct.pack('<4sII', b'glTF', 2, 12 + len(chunks)) + chunks
 
 
@@ -55,6 +57,49 @@ def harness(tmp_path, monkeypatch, *, opened=False, outcome='true', refuse=False
         raise AssertionError(op)
     runtime._settle, runtime._call = settle, call
     return runtime, calls, state
+
+
+@pytest.mark.parametrize('version', [0, 1])
+@pytest.mark.parametrize('bad', ['offset', 'stride', 'matrix', 'sparse_indices', 'sparse_values'])
+def test_accessor_overrun_never_published(tmp_path, monkeypatch, version, bad):
+    from pathlib import Path
+    runtime, calls, _ = harness(tmp_path, monkeypatch)
+    native = runtime._call
+    data = document(version)
+    a = data['accessors'][0]
+    if bad == 'offset': a.update(byteOffset=4096)
+    if bad == 'stride': data['bufferViews'][0]['byteStride'] = 4
+    if bad == 'matrix': a.update(type='MAT3', count=1)
+    if bad.startswith('sparse'):
+        a.pop('bufferView')
+        a['sparse'] = {'count': 2, 'indices': {'componentType': 5121, 'bufferView': 0},
+                       'values': {'bufferView': 0}}
+        a['sparse'][bad.split('_')[1]]['byteOffset'] = 3
+    async def call(op, args=None):
+        result = await native(op, args)
+        if op == 'start_vrm_export': Path(args['path']).write_bytes(glb(data))
+        return result
+    runtime._call = call
+    with pytest.raises(ValueError):
+        asyncio.run(runtime.export_vrm('live', 'bad.vrm', version=version))
+    assert not (tmp_path / 'saves' / 'bad.vrm').exists()
+    assert sum(op == 'start_vrm_export' for op, _ in calls) == 1
+
+
+@pytest.mark.parametrize('sparse', [True, False])
+def test_padded_matrix_can_omit_trailing_padding(tmp_path, sparse):
+    data = document()
+    data['buffers'][0]['byteLength'] = 28
+    data['bufferViews'] = [{'buffer': 0, 'byteLength': 23}, {'buffer': 0, 'byteOffset': 24, 'byteLength': 2}]
+    a = dict(type='MAT3', componentType=5121, count=2)
+    if sparse:
+        a['sparse'] = dict(count=2, indices=dict(componentType=5121, bufferView=1), values=dict(bufferView=0))
+    else:
+        a['bufferView'] = 0
+    data['accessors'].extend([a, dict(type='VEC3', componentType=5126, count=3)])
+    path = tmp_path / 'legal.vrm'
+    path.write_bytes(glb(data))
+    assert check_vrm_container(path, 1)['self_contained']
 
 
 @pytest.mark.parametrize('option,value', [('hair', True), ('hair', 1.5), ('hair', -1), ('hair', 101),

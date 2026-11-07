@@ -14,6 +14,61 @@ def export_metadata(title: str, author: str, version: str) -> dict:
     return values
 
 
+def _accessor_bounds(accessor, views):
+    """Prove every referenced element fits its declared view, including sparse overlays."""
+    sizes = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
+    shapes = {'SCALAR': (1, 1), 'VEC2': (1, 2), 'VEC3': (1, 3), 'VEC4': (1, 4),
+              'MAT2': (2, 2), 'MAT3': (3, 3), 'MAT4': (4, 4)}
+    component, shape, count = (accessor.get(key) for key in ('componentType', 'type', 'count'))
+    if type(component) is not int or component not in sizes or not isinstance(shape, str) or shape not in shapes:
+        raise ValueError('Invalid accessor component or shape')
+    if type(count) is not int or count < 1:
+        raise ValueError('Invalid accessor count')
+    size = sizes[component]
+    columns, rows = shapes[shape]
+    column = size * rows
+    pitch = (column + 3) // 4 * 4 if columns > 1 else column
+    alignment = 4 if columns > 1 else size
+
+    def span(ref, n, step, last, component_size, align, *, sparse=False):
+        view_index = ref.get('bufferView')
+        if type(view_index) is not int or not 0 <= view_index < len(views):
+            raise ValueError('Invalid accessor buffer view index')
+        view = views[view_index]
+        offset = ref.get('byteOffset', 0)
+        if (type(offset) is not int or offset < 0 or offset % component_size
+                or (view.get('byteOffset', 0) + offset) % align):
+            raise ValueError('Invalid accessor byte offset')
+        if 'byteStride' in view:
+            stride = view['byteStride']
+            if sparse or type(stride) is not int or not max(4, step) <= stride <= 252 or stride % 4:
+                raise ValueError('Invalid accessor byte stride')
+        else:
+            stride = step
+        if offset + (n - 1) * stride + last > view['byteLength']:
+            raise ValueError('Accessor outside buffer view')
+
+    step, last = columns * pitch, (columns - 1) * pitch + column
+    if 'bufferView' in accessor:
+        span(accessor, count, step, last, size, alignment)
+    elif 'byteOffset' in accessor:
+        raise ValueError('Accessor byte offset without buffer view')
+    if 'sparse' in accessor:
+        sparse = accessor['sparse']
+        n = sparse.get('count')
+        if type(n) is not int or not 0 < n <= count:
+            raise ValueError('Invalid sparse count')
+        indices, values = sparse.get('indices'), sparse.get('values')
+        if not isinstance(indices, dict) or not isinstance(values, dict):
+            raise ValueError('Invalid sparse references')
+        kind = indices.get('componentType')
+        if type(kind) is not int or kind not in (5121, 5123, 5125):
+            raise ValueError('Invalid sparse index component')
+        width = sizes[kind]
+        span(indices, n, width, width, width, width, sparse=True)
+        span(values, n, step, last, size, alignment, sparse=True)
+
+
 def validate_vrm(path: Path, vrm_version: int = 1) -> dict:
     raw=path.read_bytes()
     if len(raw)<28:raise ValueError('Native VRM output is truncated')
@@ -51,12 +106,7 @@ def validate_vrm(path: Path, vrm_version: int = 1) -> dict:
     nodes=data.get('nodes',[]);meshes=data.get('meshes',[]);skins=data.get('skins',[]);accessors=data.get('accessors',[])
     if not nodes or not meshes or not skins:raise ValueError('Skinned avatar data missing')
     for a in accessors:
-        if 'bufferView' in a:index(a['bufferView'],views,'accessor buffer view')
-        if type(a.get('count')) is not int or a['count']<=0:raise ValueError('Invalid accessor count')
-        if 'sparse' in a:
-            sparse=a['sparse']
-            if type(sparse.get('count')) is not int or not 0<sparse['count']<=a['count']:raise ValueError('Invalid sparse count')
-            for kind in ('indices','values'):index(sparse[kind]['bufferView'],views,'sparse '+kind+' buffer view')
+        _accessor_bounds(a, views)
     for node in nodes:
         if 'mesh' in node:index(node['mesh'],meshes,'node mesh')
         if 'skin' in node:index(node['skin'],skins,'node skin')
