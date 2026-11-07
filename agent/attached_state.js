@@ -83,7 +83,12 @@ function createAttachedState({main, text, state, sessionTag, observeWork, releas
     }
     function requireIdle() {
         const f = fingerprint(), s = f.state;
-        if (s.pending_edit?.native_work_owner && s.pending_edit.native_work_owner!==sessionTag)
+        const r=s.pending_edit;
+        // Older agents recorded the tool/dispatch count, but no lifetime proof.
+        const legacyOwner=r && !r.work_tracking && r.dispatches>0 &&
+            ['open_from_menu','open_character','undo','redo','export_vrm','apply_custom_item','apply_custom_item_by_key',
+             'export_wear_vrm','open_wear_project','open_current_in_wear','save_wear_project','import_xwear'].includes(r.tool);
+        if (legacyOwner || (r?.native_work_owner && r.native_work_owner!==sessionTag))
             throw Error('ATTACHED_NATIVE_WORK_OWNER_LOST: close this VRoid process to establish termination');
         const work=observeWork();
         if (!work.safe) {
@@ -127,7 +132,8 @@ function createAttachedState({main, text, state, sessionTag, observeWork, releas
             if (!ATTACHED) throw Error('ATTACHED_ONLY');
             if (receipt()) throw Error('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state before acknowledgment');
             const r = {id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-                owner: ATTACHED_OWNER_PID, tool: args.tool, started: new Date().toISOString(), dispatches: 0};
+                owner: ATTACHED_OWNER_PID, tool: args.tool, started: new Date().toISOString(), dispatches: 0,
+                work_tracking:1};
             writeReceipt(r); return r;
         },
         attached_edit_finish(args) {

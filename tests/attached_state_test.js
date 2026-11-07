@@ -74,6 +74,9 @@ for (const native of ['start_vrm_export','open_from_menu','custom_item_validate_
     orphan.operations.attached_acknowledge({recovery_token:token});
 }
 api=create();
+environment=JSON.stringify({id:'legacy',owner:101,dispatches:1,tool:'export_vrm'});
+assert.throws(()=>api.operations.attached_review(),/NATIVE_WORK_OWNER_LOST/);
+environment=null;
 assert.throws(()=>api.operations.attached_acknowledge({recovery_token:fresh.recovery_token}),/STALE_ATTACHED_REVIEW/);
 // Rejection before any mutation clears the new receipt without claiming work.
 const rejected=api.operations.attached_edit_begin({tool:'save_custom_items'});
