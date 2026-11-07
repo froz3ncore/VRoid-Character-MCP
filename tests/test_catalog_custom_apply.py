@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import os
+import shutil
 
 import pytest
 from test_custom_item_generation import archive
@@ -96,3 +97,21 @@ def test_custom_key_rejects_stale_or_unauthorized_selection(change, tmp_path, mo
     assert 'apply_registered_custom_item' not in calls
     if change not in ('metadata','bytes','rescan'):
         assert not reads
+
+
+def test_registered_generation_cannot_be_replaced_by_identical_link_before_pin(tmp_path,monkeypatch):
+    from vroid_mcp import custom_item_file
+    manager,key,calls=setup(tmp_path,monkeypatch,'attached')
+    pin=runtime_groups.pinned_application
+    def interleave(runtime,path):
+        foreign=tmp_path/'other.vroidcustomitem'
+        shutil.copyfile(path,foreign)
+        path.unlink()
+        os.link(foreign,path)
+        return pin(runtime,path)
+    monkeypatch.setattr(runtime_groups,'pinned_application',interleave)
+    def no_archive(*args):raise AssertionError('redirected generation reached archive decoding')
+    monkeypatch.setattr(custom_item_file,'_inspect_archive',no_archive)
+    with pytest.raises(ValueError,match='ALIAS|GENERATION'):
+        asyncio.run(manager.get_tool('apply_custom_item_by_key').fn(expected_model='live',key=key))
+    assert 'custom_item_validate_begin' not in calls

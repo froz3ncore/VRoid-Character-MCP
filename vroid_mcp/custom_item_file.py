@@ -37,13 +37,16 @@ def catalog_registration(catalog, snapshot, profile):
         raise ValueError('CUSTOM_ITEM_PATH_OUTSIDE_REGISTRY_OR_PROFILE')
     _filename(path.name, ('.vroidcustomitem',))
     _physical(path)
-    if path.resolve(strict=True) != path or path.stat().st_nlink != 1:
+    info = path.stat()
+    if path.resolve(strict=True) != path or info.st_nlink != 1 or not info.st_ino:
         raise ValueError('CUSTOM_ITEM_PATH_ALIAS')
-    return row
+    return row, info
 
 
-def inspect_custom_item(path, *, include_icon=False):
-    path = Path(path).resolve(strict=True)
+def inspect_custom_item(path, *, include_icon=False, registered_generation=None):
+    path = Path(path)
+    if registered_generation is None:
+        path = path.resolve(strict=True)
     if not path.is_file() or path.suffix.lower() != '.vroidcustomitem':
         raise ValueError('CUSTOM_ITEM_FILE_REQUIRED')
     # One protected descriptor owns metadata, streamed digest and optional icon.
@@ -51,6 +54,11 @@ def inspect_custom_item(path, *, include_icon=False):
     # path identity before accepting a generation that could have changed.
     with pinned_file(path), path.open('rb') as stream:
         before = os.fstat(stream.fileno())
+        if registered_generation is not None:
+            _physical(path)
+            if (not os.path.samestat(before, registered_generation) or before.st_nlink != 1
+                    or path.resolve(strict=True) != path):
+                raise ValueError('CUSTOM_ITEM_REGISTERED_GENERATION_CHANGED')
         if not 0 < before.st_size <= 512 * 1024 * 1024:
             raise ValueError('CUSTOM_ITEM_SIZE_LIMIT')
         digest, count = hashlib.sha256(), 0

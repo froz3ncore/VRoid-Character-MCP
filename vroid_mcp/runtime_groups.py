@@ -137,6 +137,7 @@ class GroupTools:
             return dict(result, key=key, scan_id=row['scan_id'])
 
     async def _apply_custom_item_unlocked(self, expected_model, filename, *, catalog_row=None):
+        inspection = {}
         if catalog_row is None:
             path = file_input(self.lab, filename, ('.vroidcustomitem',), attached=self.mode == 'attached')
             info = inspect_custom_item(path)
@@ -151,12 +152,13 @@ class GroupTools:
                 raise ValueError('CUSTOM_ITEM_PROFILE_MISMATCH')
         else:
             profile = None if self.mode == 'attached' else self.lab / 'profile'
-            row = catalog_registration(catalog_row, snapshot, profile)
+            row, generation = catalog_registration(catalog_row, snapshot, profile)
+            inspection['registered_generation'] = generation
             path = registered_path = Path(row['path'])
         dispatched, receipt = False, None
         validation_dispatched, validation_terminal, primary_error = False, False, None
         with pinned_application(self, registered_path):
-            checked = inspect_custom_item(registered_path)
+            checked = inspect_custom_item(registered_path, **inspection)
             if catalog_row is not None:
                 if (checked['sha256'] != catalog_row['sha256']
                         or checked['metadata']['rootTransferableGroupId'] != row['id']
@@ -185,7 +187,7 @@ class GroupTools:
                 validation_terminal = result.get('completed') is True
                 if not result.get('compatible'):
                     raise ValueError('CUSTOM_ITEM_INCOMPATIBLE: ' + str(result.get('error')))
-                if inspect_custom_item(registered_path)['sha256'] != info['sha256']:
+                if inspect_custom_item(registered_path, **inspection)['sha256'] != info['sha256']:
                     raise ValueError('CUSTOM_ITEM_CHANGED')
                 if catalog_row is not None:
                     current = PresetCatalog(self.lab/'preset_cache').current_custom(catalog_row['key'])
