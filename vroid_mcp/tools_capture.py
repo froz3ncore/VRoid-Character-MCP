@@ -54,6 +54,11 @@ def register(ready_tool, runtime, lab, read, edit):
         arguments; it reads Unity's actual application framebuffer at end of frame,
         including UI, with native dimensions/quality. It never focuses the desktop
         and never falls back between capture modes. Photo settings are restored.
+        Clean cameras exclude native auxiliary guide layers without changing UI
+        selection. Fixed/regional/current-editor clones preserve selected hair on
+        its native Outline layer. Bone material overrides must be cleared manually;
+        live photo capture also requires hair selection to be cleared. An unavailable
+        guide-isolation binding fails explicitly before render or selection changes.
         """
         return Image(data=await runtime.screenshot(view, expected_model, size, quality,
             width=width, height=height, msaa=msaa, ssaa=ssaa, clean=clean), format='png')
@@ -88,6 +93,8 @@ def register(ready_tool, runtime, lab, read, edit):
         mode accepts Front/Right/Top/Reverse/RotateUp/RotateLeft/RotateRight/RotateDown.
         projection toggles the actual projection. Animated modes poll to completion.
         Saved model/history is unchanged. Multi-camera ambiguity is refused.
+        Get is read-only; known prewrite rejections return ok=False without leaving
+        an edit receipt. Unknown or post-invocation failures retain uncertainty.
         """
         return await runtime.editor_camera(expected_model, action, angles=angles, delta=delta, pan=pan,
             mode=mode, position=position, center=center)
@@ -101,6 +108,9 @@ def register(ready_tool, runtime, lab, read, edit):
         the scoped face only; restore reapplies the original snapshot with readback.
         Renderer/mesh identity and weights are checked at capture. Rebuilds/animation
         can replace preview state. Does not modify saved expression definitions.
+        Successful restore releases tracking; the next preview snapshots its new
+        baseline. Listing is read-only. Known prewrite refusal is distinguishable
+        from an uncertain/partial invocation and never requires a blind retry.
         """
         return await runtime.face_preview(expected_model, name, weight, filter, reset=reset, restore=restore)
 

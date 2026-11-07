@@ -15,7 +15,7 @@ def test_invalid_plan(size,quality):
     with pytest.raises(ValueError):quality_plan(size,quality)
 
 def native_result():
-    return {'width':256,'height':256,'quality':{**quality_plan(256,'high'),'msaa_samples':4},
+    return {'model_token':'token','width':256,'height':256,'quality':{**quality_plan(256,'high'),'msaa_samples':4},
             'base64':base64.b64encode(b'\x89PNG\r\n\x1a\n'+b'\x00\x00\x00\x0dIHDR'+(256).to_bytes(4,'big')*2).decode()}
 
 @pytest.mark.parametrize('change',['png','dimensions','budget','samples','bool_samples'])

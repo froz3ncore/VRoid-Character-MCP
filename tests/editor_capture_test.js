@@ -6,7 +6,7 @@ const value=a=>({field:k=>({value:a[k]} )});
 function native(fail=''){
  const live=new Set(),events=[];let sequence=0;
  const projection=Object.fromEntries(Array.from({length:16},(_,i)=>['m'+Math.floor(i/4)+i%4,[1,0,.1,0,0,1.75,.2,0,0,0,-1,-1,0,0,-1,0][i]]));
- const source={position:{x:2,y:3,z:4},rotation:{x:0,y:.7,z:0,w:.7},projection,ortho:true,aspect:1.75};
+ const source={position:{x:2,y:3,z:4},rotation:{x:0,y:.7,z:0,w:.7},projection,ortho:true,aspect:1};
  function camera(data){
   const tr={method:n=>({invoke(v){if(n.startsWith('get_'))return value(data[n.slice(4)]);data[n.slice(4)]=v?Object.fromEntries((n==='set_position'?['x','y','z']:['x','y','z','w']).map(k=>[k,v.field(k).value])):null;}})};
   return {method:n=>({invoke(...a){
@@ -16,6 +16,9 @@ function native(fail=''){
    if(n==='get_projectionMatrix')return value(data.projection);
    if(n==='get_orthographic')return data.ortho;
    if(n==='get_aspect')return data.aspect;
+   if(n==='get_targetTexture')return {handle:{isNull:()=>true}};
+   if(n==='get_pixelWidth')return 1750;
+   if(n==='get_pixelHeight')return 1000;
    if(n==='get_fieldOfView')return 40;
    if(n==='get_orthographicSize')return 2;
    if(n==='set_aspect')throw Error('STRIPPED_SETTER');
@@ -38,6 +41,8 @@ function native(fail=''){
  const n=native(),r=n.render({expected_model:'token',size:512,quality:'balanced',width:640,height:1024});
  assert.equal(r.provenance,'clean_current_editor_render');assert.equal(r.width,640);assert.equal(r.height,1024);
  assert.equal(r.projection,'orthographic');assert.deepEqual(r.framing.render_position,[2,3,4]);
+ assert.equal(r.framing.source_pixel_width,1750);assert.equal(r.framing.source_pixel_height,1000);
+ assert.equal(r.framing.source_optical_aspect,1);assert.equal(r.framing.source_aspect,1.75);
  assert.equal(n.live.size,0);assert.deepEqual(n.events,['render','destroy','dispose']);
 }
 for(const fail of ['allocate','render','encode']){
@@ -65,3 +70,9 @@ for(const aspect of [16/9,1,9/16])for(const perspective of [true,false])for(cons
     assert.deepEqual(fit.render_viewport,[0,0,plan.render_width,plan.render_height]);
 }
 console.log('live pose/projection, rectangular output, cleanup and no-fallback behavior passed');
+{
+ const target={handle:{isNull:()=>false},method:n=>({invoke:()=>n==='get_width'?1600:900})};
+ const camera={method:n=>({invoke:()=>n==='get_targetTexture'?target:n==='get_aspect'?1:123})};
+ const raster=captureSourcePixels(camera);assert.equal(raster.source_aspect,16/9);assert.equal(raster.source_optical_aspect,1);
+ assert.equal(raster.source_pixel_extent,'full_source_render_texture');
+}

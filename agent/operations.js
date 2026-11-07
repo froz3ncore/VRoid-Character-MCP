@@ -35,9 +35,12 @@ globalThis.vroid = (() => {
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
     const captureFraming = createCaptureFraming({ core, text });
     const attachedState = createAttachedState({main: mainViewModel, text, state});
-    const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text})});
+    const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text,retain}),
+        beforeMutation:name=>attachedState.guard(name)});
+    const cleanCaptureScope=createCleanCaptureScope({model:modelContext});
     const appFrame = createNativeAppFrame({core,cls,preview:editorPreview,mainThread:()=>state.mainThread,frame:()=>state.frame});
-    const editorCapture = createEditorCapture({core,preview:editorPreview,quality:captureQuality});
+    const editorCapture = createEditorCapture({core,preview:editorPreview,quality:captureQuality,cleanScope:cleanCaptureScope});
+    const photoCapture=createPhotoCapture({core,quality:captureQuality,invokeManaged,model:modelContext,cleanScope:cleanCaptureScope});
 
     // ---------------------------------------------------------------- session
     function mainViewModel() {
@@ -632,47 +635,7 @@ globalThis.vroid = (() => {
     }
 
     function photoScreenshot(m, size, quality, options={}) {
-        const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
-        if (!photo.method('get_IsActive').invoke()) throw Error('PHOTO_MODE_REQUIRED');
-        const camera = photo.method('get_PhotoBoothCamera').invoke();
-        const renderTexture = core('RenderTexture');
-        const previousTarget = camera.method('get_targetTexture').invoke();
-        const previousActive = renderTexture.method('get_active').invoke();
-        const wasEnabled = camera.method('get_enabled').invoke();
-        const requestedPlan=captureQualityPlan(size,quality,options);
-        const photoProjection=options.width!=null?expandCaptureProjection(captureProjectionValues(camera),camera.method('get_aspect').invoke(),requestedPlan):null;
-        let capture = null;
-        let backupObject = null;
-        let backupCamera = null;
-        try {
-            // allowMSAA has no getter in this binary, so CopyFrom snapshots the
-            // whole camera configuration and restores it in the finally block.
-            backupObject = core('GameObject').alloc();
-            backupObject.method('.ctor', 1).invoke(Il2Cpp.string('MCP photo capture settings backup'));
-            backupCamera = backupObject.method('AddComponent', 1).invoke(core('Camera').type.object);
-            backupCamera.method('CopyFrom').invoke(camera);
-            backupCamera.method('set_enabled').invoke(false);
-            capture = captureQuality.begin(size, quality, options);
-            camera.method('set_allowMSAA').invoke(true);
-            invokeManaged(camera, 'set_targetTexture', [capture.target.handle]);
-            if(photoProjection)writeCaptureProjection(core,camera,photoProjection.matrix);
-            invokeManaged(camera, 'Render');
-            const base64 = capture.encode();
-            return { model_token: m.token, view: 'photo', width: capture.metadata.output_width, height: capture.metadata.output_height,
-                     mime_type: 'image/png', quality: capture.metadata, provenance:'clean_photo_camera_render',
-                     projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
-                     framing:{...(photoProjection?captureProjectionMetadata(photoProjection):{}),projection_matrix:captureProjectionValues(camera),
-                         output_aspect:requestedPlan.output_width/requestedPlan.output_height,source:'native_photo_camera'},base64 };
-        } finally {
-            captureCleanup([
-                ()=>{if(backupCamera)camera.method('CopyFrom').invoke(backupCamera);},
-                ()=>camera.method('set_enabled').invoke(wasEnabled),
-                ()=>invokeManaged(camera,'set_targetTexture',[previousTarget.handle]),
-                ()=>renderTexture.method('set_active').invoke(previousActive),
-                ()=>{if(backupObject)core('Object').method('DestroyImmediate',1).invoke(backupObject);},
-                ()=>{if(capture)capture.dispose();},
-            ]);
-        }
+        return photoCapture(m,size,quality,options);
     }
 
     function screenshot(args) {
@@ -686,6 +649,7 @@ globalThis.vroid = (() => {
         const qualityPlan=captureQualityPlan(size, args.quality,args),aspect=qualityPlan.output_width/qualityPlan.output_height;
         if (view === 'photo') return photoScreenshot(m, size, args.quality,args);
         if(view==='current_editor')return editorCapture(args);
+        const guideScope=cleanCaptureScope.inspect(m,{clonedCamera:true});
         const parsed = parseCaptureView(view);
         if (parsed.regional
             && m.root.field('obsoleteLegacyPhotoBoothViewModel').value.method('get_IsActive').invoke()) {
@@ -709,6 +673,7 @@ globalThis.vroid = (() => {
             capture = captureQuality.begin(size, args.quality,args);
             camera.method('set_allowMSAA').invoke(true);
             camera.method('set_targetTexture').invoke(capture.target);
+            cleanCaptureScope.apply(camera,guideScope);
             camera.method('set_orthographic').invoke(false);camera.method('set_fieldOfView').invoke(30);
             camera.method('ResetProjectionMatrix').invoke();
             const projection=captureProjectionValues(camera),nativeAspect=camera.method('get_aspect').invoke();
@@ -753,12 +718,13 @@ globalThis.vroid = (() => {
             // do not silently render a rebuilt or animation-overwritten face.
             editorPreview.verifyIfTracked(args.expected_model);
             camera.method('Render').invoke();
+            cleanCaptureScope.verify(m,guideScope);
             editorPreview.verifyIfTracked(args.expected_model);
             const base64 = capture.encode();
             return { model_token: m.token, view, width: qualityPlan.output_width, height: qualityPlan.output_height, mime_type: 'image/png',
                      quality: capture.metadata, provenance:'clean_fixed_camera_render',
                      projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
-                     framing:{...captureFraming.readback(camera,framing),projection_matrix:captureProjectionValues(camera),
+                     framing:{...captureFraming.readback(camera,framing),projection_matrix:captureProjectionValues(camera),guide_scope:guideScope,
                          render_viewport:[0,0,qualityPlan.render_width,qualityPlan.render_height],projection_policy:'fixed_vertical_fov_at_output_aspect'},base64 };
         } finally {
             captureCleanup([()=>renderTexture.method('set_active').invoke(previousActive),
@@ -790,21 +756,7 @@ globalThis.vroid = (() => {
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         const m = modelContext(args.expected_model);
-        const hair = m.root.method('get_HairEditor').invoke();
-        const bone = hair.method('get_BoneEditor').invoke();
-        const design = hair.method('get_DesignEditor').invoke();
-        if (!bone.handle.isNull()) {
-            invokeManaged(bone, 'ClearSelection');
-            invokeManaged(bone, 'OnLeaveFeature');
-        }
-        if (!design.handle.isNull()) invokeManaged(design, 'ClearSelectHairOutLine');
-        const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
-        if (photo.method('get_IsActive').invoke()) {
-            const hidden = Memory.alloc(1);
-            hidden.writeU8(0);
-            invokeManaged(photo.method('get_PosesViewModel').invoke(), 'set_IsVisibleController', [hidden]);
-        }
-        return { model_token: m.token, frame: state.frame };
+        return { model_token: m.token, frame: state.frame,guide_scope:cleanCaptureScope.inspect(m,{clonedCamera:true}),ui_changed:false };
     }
 
     const operations = {
@@ -896,7 +848,7 @@ globalThis.vroid = (() => {
         }
         const hairGroupOperation = ['list_hair_groups','get_hair_group_state','get_procedural_hair_controls','scale_brush_hair',
             'clone_brush_hair','set_procedural_hair'].includes(name);
-        const previewOperation=['editor_camera','face_preview','start_app_frame','poll_app_frame'].includes(name);
+        const previewOperation=['editor_camera','face_preview','get_editor_camera','list_face_preview','start_app_frame','poll_app_frame'].includes(name);
         const edits = EDIT_OPERATION.test(name) || hairGroupOperation || previewOperation
             || (name === 'set_parameters' && args.domain !== 'photo');
         if (edits && dressUpActive()) {
@@ -923,7 +875,7 @@ globalThis.vroid = (() => {
             const checkpoint=hairMutation?attachedState.hairPrewriteCheckpoint(name):null;
             let entered=false,result;
             try{
-                attachedState.guard(name);
+                if(!['editor_camera','face_preview'].includes(name))attachedState.guard(name);
                 requireOrdinaryEditing(name, args);
                 if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
                     modelContext(args.expected_model);
@@ -932,6 +884,8 @@ globalThis.vroid = (() => {
                 }
                 entered=true;result=operations[name](args);
             }catch(error){
+                if(['editor_camera','face_preview'].includes(name)&&!entered)return {model_token:args.expected_model,
+                    ok:false,uncertain:false,native_invocation_attempted:false,dispatch_state:'prewrite_rejected',error:String(error)};
                 if(!hairMutation||entered)throw error;
                 result={model_token:args.expected_model,ok:false,uncertain:false,partial:false,
                     dispatch_state:'prewrite_rejected',native_invocation_attempted:false,

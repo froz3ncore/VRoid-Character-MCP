@@ -10,6 +10,14 @@ function writeCaptureProjection(core,camera,values){
     camera.method('set_projectionMatrix').invoke(matrix);
 }
 function captureProjectionMetadata({matrix,...metadata}){return metadata;}
+function captureSourcePixels(camera){
+    const target=camera.method('get_targetTexture').invoke(),fullTarget=target&&!target.handle.isNull();
+    const width=fullTarget?target.method('get_width').invoke():camera.method('get_pixelWidth').invoke();
+    const height=fullTarget?target.method('get_height').invoke():camera.method('get_pixelHeight').invoke();
+    if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1)throw Error('INVALID_SOURCE_PIXEL_VIEWPORT');
+    return {source_pixel_width:width,source_pixel_height:height,source_aspect:width/height,
+        source_pixel_extent:fullTarget?'full_source_render_texture':'camera_pixel_viewport',source_optical_aspect:camera.method('get_aspect').invoke()};
+}
 function expandCaptureProjection(source,sourceAspect,plan){
     if(!Array.isArray(source)||source.length!==16||!source.every(Number.isFinite)||!Number.isFinite(sourceAspect)||sourceAspect<=0)throw Error('INVALID_SOURCE_PROJECTION');
     const outputAspect=plan.output_width/plan.output_height;
@@ -20,22 +28,23 @@ function expandCaptureProjection(source,sourceAspect,plan){
         render_viewport:[0,0,plan.render_width,plan.render_height],
         output_resample_scale:[plan.output_width/plan.render_width,plan.output_height/plan.render_height]};
 }
-function createEditorCapture({core,preview,quality}){
+function createEditorCapture({core,preview,quality,cleanScope=null}){
     const vector=(v,n)=>['x','y','z','w'].slice(0,n).map(k=>v.field(k).value);
     function snapshot(camera){const transform=camera.method('get_transform').invoke();
         const result={render_position:vector(transform.method('get_position').invoke(),3),
             render_rotation:vector(transform.method('get_rotation').invoke(),4),
             projection_matrix:captureProjectionValues(camera),
             projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
-            source_aspect:camera.method('get_aspect').invoke(),fov_degrees:camera.method('get_fieldOfView').invoke(),
+            ...captureSourcePixels(camera),fov_degrees:camera.method('get_fieldOfView').invoke(),
             orthographic_size:camera.method('get_orthographicSize').invoke()};
-        if(![...result.render_position,...result.render_rotation,...result.projection_matrix,result.source_aspect,
+        if(![...result.render_position,...result.render_rotation,...result.projection_matrix,result.source_aspect,result.source_optical_aspect,
             result.fov_degrees,result.orthographic_size].every(Number.isFinite))throw Error('NONFINITE_EDITOR_CAMERA_STATE');
         return result;
     }
     return function render(args){
         const plan=captureQualityPlan(args.size===undefined?512:args.size,args.quality,args);
         const owner=preview.verify(args.expected_model),source=owner.camera,before=snapshot(source);
+        const guideScope=cleanScope?cleanScope.inspect(owner.m,{clonedCamera:true}):null;
         if(preview.adapter.cameraState(owner).rotating)throw Error('EDITOR_CAMERA_ROTATION_PENDING');
         let holder=null,capture=null;
         try{
@@ -47,6 +56,7 @@ function createEditorCapture({core,preview,quality}){
             target.method('set_rotation').invoke(sourceTransform.method('get_rotation').invoke());
             capture=quality.begin(args.size===undefined?512:args.size,args.quality,args);
             camera.method('set_allowMSAA').invoke(true);camera.method('set_targetTexture').invoke(capture.target);
+            if(cleanScope)cleanScope.apply(camera,guideScope);
             // Camera.targetTexture uses the entire RT; Unity ignores rect and
             // pixelRect here. Expand only the clone's optical projection so the
             // original frustum fits without crop or distorted subject proportions.
@@ -59,11 +69,15 @@ function createEditorCapture({core,preview,quality}){
             if(actual.projection_matrix.some((v,i)=>Math.abs(v-fit.matrix[i])>1e-5*Math.max(1,Math.abs(v))))throw Error('LIVE_CAMERA_PROJECTION_READBACK_MISMATCH');
             if(actual.projection!==before.projection)throw Error('LIVE_CAMERA_PROJECTION_READBACK_MISMATCH');
             preview.verify(args.expected_model);camera.method('Render').invoke();preview.verify(args.expected_model);
+            if(cleanScope)cleanScope.verify(owner.m,guideScope);
             if(JSON.stringify(snapshot(source))!==JSON.stringify(before))throw Error('LIVE_CAMERA_CHANGED_DURING_CAPTURE');
             return {model_token:owner.token,view:'current_editor',width:plan.output_width,height:plan.output_height,
                 mime_type:'image/png',base64:capture.encode(),quality:capture.metadata,
                 provenance:'clean_current_editor_render',projection:actual.projection,
                 framing:{...preview.adapter.cameraState(owner),...actual,...captureProjectionMetadata(fit),
+                    source_pixel_width:before.source_pixel_width,source_pixel_height:before.source_pixel_height,
+                    source_optical_aspect:before.source_optical_aspect,source_pixel_extent:before.source_pixel_extent,
+                    guide_scope:guideScope,
                     projection_property_scope:'native camera property getters; effective optics use projection_matrix',
                     camera_readback_verified:true,ui_visibility:'unchanged'}};
         }finally{captureCleanup([

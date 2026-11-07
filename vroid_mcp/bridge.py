@@ -43,6 +43,8 @@ AGENT_MODULES = (
     'capture_framing.js',
     'editor_preview.js',
     'editor_capture.js',
+    'capture_scope.js',
+    'photo_capture.js',
     'app_frame.js',
     'parameters.js',
     'texture_layers.js',

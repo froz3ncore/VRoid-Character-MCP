@@ -117,7 +117,7 @@ def test_clean_failure_does_not_fall_back_to_application_frame():
 
 def test_camera_mode_polls_terminal_state_without_replaying_mutation():
     def handler(operation, args):
-        assert operation == 'editor_camera'
+        assert operation in ('editor_camera', 'get_editor_camera')
         return {'model_token': 'token', 'angles': [45, 0], 'rotating': args['action'] == 'mode'}
     r = runtime_double(handler)
     result = asyncio.run(r.editor_camera('token', 'mode', mode='Right'))
@@ -140,3 +140,72 @@ def test_preview_native_response_loss_marks_uncertain_without_retry(tool):
             asyncio.run(r.screenshot('current_editor', 'token', clean=False))
     assert r.uncertain
     assert len(r.calls) == (2 if tool == 'app' else 1)
+
+
+@pytest.mark.parametrize('mode', ['copy', 'attached'])
+def test_known_preview_prewrite_does_not_poison_corrected_request(mode):
+    def handler(operation, args):
+        if operation.startswith('attached_'):
+            return {'id': 'receipt'} if operation == 'attached_edit_begin' else {'needs_review': False}
+        if args.get('name') == 'ile':
+            return {'model_token': 'token', 'ok': False, 'uncertain': False, 'dispatch_state': 'prewrite_rejected',
+                    'native_invocation_attempted': False, 'error': 'AMBIGUOUS_BLENDSHAPE_SUFFIX'}
+        return {'model_token': 'token', 'ok': True}
+    r = runtime_double(handler);r.mode = mode
+    rejected = asyncio.run(r.face_preview('token', 'ile'))
+    assert not rejected['ok'] and not r.uncertain
+    assert asyncio.run(r.face_preview('token', 'Smile'))['ok'] and not r.uncertain
+
+
+@pytest.mark.parametrize('tool', ['camera', 'face'])
+def test_readonly_preview_errors_do_not_create_receipts_or_uncertainty(tool):
+    def handler(operation, args):
+        assert not operation.startswith('attached_')
+        raise RuntimeError('NATIVE_READ_FAILED')
+    r = runtime_double(handler);r.mode = 'attached'
+    with pytest.raises(RuntimeError, match='NATIVE_READ_FAILED'):
+        asyncio.run(r.editor_camera('token') if tool == 'camera' else r.face_preview('token'))
+    assert not r.uncertain
+
+
+@pytest.mark.parametrize('metadata', [False, True])
+def test_default_capture_never_destructively_prepares_ui(metadata):
+    def handler(operation, args):
+        assert operation != 'prepare_capture', 'selection clearing cannot be exactly undone'
+        raise RuntimeError('CAPTURE_FAILED')
+    r = runtime_double(handler)
+    with pytest.raises(RuntimeError, match='CAPTURE_FAILED'):
+        asyncio.run(r.screenshot_with_metadata('front', 'token') if metadata else r.screenshot('front', 'token'))
+
+
+@pytest.mark.parametrize('tool', ['default', 'metadata', 'review'])
+@pytest.mark.parametrize('failure', ['settle', 'native', 'png', 'model'])
+def test_clean_capture_failures_never_clear_or_restore_ui_on_another_model(tool, failure):
+    def handler(operation, args):
+        assert operation == 'screenshot'
+        if failure == 'native':
+            raise RuntimeError('NATIVE_FAILED_AFTER_GUIDE_ISOLATION')
+        return {'model_token': 'replacement' if failure == 'model' else 'token', 'width': 512, 'height': 512,
+                'quality': {**quality_plan(512), 'msaa_samples': 4}, 'base64': png(256 if failure == 'png' else 512, 512)}
+    r = runtime_double(handler)
+    if failure == 'settle':
+        async def failed(*args):
+            raise RuntimeError('SETTLE_FAILED')
+        r._settle = failed
+    with pytest.raises((RuntimeError, ValueError)):
+        if tool == 'review':
+            asyncio.run(r.capture_review('token', ['front'], size=512))
+        elif tool == 'metadata':
+            asyncio.run(r.screenshot_with_metadata('front', 'token'))
+        else:
+            asyncio.run(r.screenshot('front', 'token'))
+    assert all(operation == 'screenshot' for operation, args in r.calls)
+
+
+def test_native_capture_cleanup_uncertainty_is_retained_without_retry():
+    def handler(operation, args):
+        raise RuntimeError('CAPTURE_CLEANUP_FAILED: camera rollback unconfirmed')
+    r = runtime_double(handler)
+    with pytest.raises(RuntimeError, match='CAPTURE_CLEANUP_FAILED'):
+        asyncio.run(r.screenshot('photo', 'token'))
+    assert r.uncertain and len(r.calls) == 1

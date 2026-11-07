@@ -107,7 +107,7 @@ rows still require Task 10 field/contract audit; no alias is promised.
 | 49 | `vroid_camera` | Camera/preview/capture (Task 6) | `editor_camera` implements get/angles/relative rotate/zoom/pan/reset/named native mode/projection toggle/custom, with bounded typed inputs and terminal motion polling. Exact active edit-root/engine/bus/face/controller ownership; distinct single-camera and instantiated multi-group alternatives, rejecting ambiguous active primaries. Reads actual owned camera projection/FOV/orthographic size; unavailable pan/zoom scalars stay unavailable. Pan/zoom are native deltas. Existing photo controls remain separate. | Task 6 offline action/ownership/enum/settled-readback tests verified; native movement/visible framing unverified. |
 | 50 | `vroid_apply_custom` | Groups/parts/presets (Task 3) | `apply_custom_item(filename)` validates bounded safe ZIP metadata and matches an already registered path/resource/custom-resource/revision using byte and metadata identity. Native load/deserialization/root/type/revision/no-migration preflight precedes exact registered option selection. Windows source pin survives uncertainty. No arbitrary registration, profile copying or migration; later catalog wrappers must resolve keys to this validated file/identity. | Offline ZIP/byte/registry/native-compatibility doubles verified (Task 3); full native-format acceptance remains gated by supported lab. |
 | 51 | `vroid_remove_item` | Groups/parts/presets (Task 3) | `remove_items` resolves exact group ID/full native type and prevalidates all requested groups against exact native clear capability. Uses RemoveTransferableGroupAndChildren, polls requested-group absence and returns remaining inventory/per-group partial outcomes. Missing capability is nonremovable; no invented descendant registry or short-suffix remove-all. | Offline mandatory/stale/partial failure and native command doubles verified (Task 3); descendant identities not independently established; native acceptance unverified. |
-| 52 | `vroid_face_preview` | Camera/preview/capture (Task 6) | `face_preview` lists/filter raw current-model face shapes and applies 0..100 weights, explicit reset-to-zero or snapshot restore with readback. Exact name wins; ambiguous suffixes fail before any setter. Current active edit-root/engine/bus/ModelOrigin/renderer/mesh identities are checked; no scene scan or saved-expression command. Tracked identity/weights are checked at clean current/fixed capture and app-frame pickup; animation/rebuild can invalidate them. Named `preview_expression` remains separate. | Task 6 offline native/ambiguity/reset/restore/stale-state tests verified; actual deformation, rebuild and visual acceptance unverified. |
+| 52 | `vroid_face_preview` | Camera/preview/capture (Task 6) | `face_preview` lists/filter raw current-model face shapes and applies 0..100 weights, explicit reset-to-zero or snapshot restore with readback. Exact name wins; ambiguous suffixes fail before any setter. Current active edit-root/engine/bus/ModelOrigin/renderer/mesh identities are checked; no scene scan or saved-expression command. Native weights must be finite at initial/write/final/capture readback. A successful restore releases tracking; each later preview takes a fresh baseline. Reset retains active tracking. Full ownership walks are constant per synchronous batch with pinned owners and cheap per-point checks. Named `preview_expression` remains separate. | Task 6 offline native/ambiguity/reset/restore/stale-state tests verified; actual deformation, rebuild and visual acceptance unverified. |
 | 53 | `vroid_begin_hair_edit` | Textures/materials (Task 4) | `begin_hair_edit` validates an actually worn shared material, executes source BeginHairMaterialAdvancedEditCommand(path,"Layer",true), settles PNG work and returns fresh query-derived material/image/layer mappings. Explicit screen_entered=false; shared ownership is not inferred from an unrelated hair group. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
 
 ## Source files, destination ownership and MIT attribution
@@ -206,13 +206,15 @@ multiple-match broadcast. Snapshot restore refuses changed renderer/mesh identit
 
 Clean sides stay within 256..2048 and internal work within 8,000,000 pixels;
 budget clamping preserves aspect with reported per-axis rounding. MSAA accepts
-1/2/4 and reports the created GPU texture's actual downgrade. Rectangular new
-paths do not clear UI selection or hide controllers. The old default fixed/photo
-preparation remains compatible. Photo camera configuration/target/enabled state,
+1/2/4 and reports the created GPU texture's actual downgrade. Every clean path,
+including default screenshot, metadata and review, avoids destructive selection
+preparation. Photo camera configuration/target/enabled state,
 temporary cameras, render targets and CPU textures have explicit finally cleanup.
 `current_editor` uses a cloned camera with exact copied/read-back world pose.
-Projection rows 0/1 are scaled by min(1,A/B) and min(1,B/A), where A is the live
-source pixel aspect and B is the final output aspect. This expands the frustum
+Projection rows 0/1 are scaled by min(1,A/B) and min(1,B/A), where A is measured
+from the actual source pixel viewport, or the entire non-null source RenderTexture,
+and B is the final output aspect. Optical aspect is separately reported and may
+disagree with the pixel dimensions/custom projection. This expands the frustum
 to contain the source view while keeping projected subject proportions; the live
 matrix is unchanged. Source/effective matrices, clip scale, actual full render
 viewport and per-axis final resampling are reported separately. Projected square
@@ -249,3 +251,47 @@ screen UI, native color/orientation, rendered facial deformation, preservation
 after native rebuilds, or visual quality. No VRoid process was launched/attached,
 registry changed, build allowed, or installed service modified. Task 10 owns final
 manifest regeneration; a supported disposable native lab remains required.
+
+### Task 6 fix round 1
+
+Review `da73010` against parent plan/spec-only HEAD `1cb6b99`: all seven recorded
+findings received focused regression coverage. Successful raw restore now clears
+its snapshot/tracking only after final identity and finite weight readback, so
+animation/rebuild after restoration is ordinary state and the next cycle snapshots
+a fresh baseline. Initial or late NaN/Infinity refuses success; failed writes keep
+an uncertain receipt. A legal 4096-shape batch pins the renderer/mesh/engine/root
+once and uses bounded full-scope discovery plus cheap per-point owner checks.
+
+Camera get and face listing use read-only native aliases. Attached receipts cover
+only mutations, after host validation, and the native attached guard runs only
+after exact mutation preflight. Definite prewrite results carry no invocation and
+leave no pending edit; lost responses/partial or late failures retain uncertainty.
+Public attached and copy tests include an ambiguous name followed by a valid name.
+
+Clean default/review/metadata no longer call destructive `prepare_capture`.
+Native cameras resolve the actual `LayerConstants` values through the owning
+BuildModifier resources: keep the avatar mask and Outline (selected strands may
+live there), omit UI/UI3D/UI3DGizmo/BrushPreview. Fresh fixed/regional/current-editor
+Camera-only clones have no standalone SelectionOutline post-effect, so selected
+hair remains supported. Nonempty bone-material overrides are explicitly refused
+in all clean modes until the user clears them; the existing live photo route also
+refuses selected hair because its post-effect isolation is not proven. No feature
+is left, selection cleared, controller visibility changed or model update queued.
+Named presentation/layer bindings are validated on the actual supported runtime;
+missing bindings report `CAPTURE_GUIDE_ISOLATION_UNAVAILABLE`, without a guessed
+ed65 offset, silent compatibility claim for 793e, or destructive fallback.
+
+Photo rollback uses only a completed backup and only after an actual live-camera
+mutation attempt, with exact model/root/photo/camera ownership checked again.
+An initial partial backup failure never writes settings back to the real camera.
+Material-selection changes do not prevent restoring an otherwise still-owned
+camera; a replaced owner is never blindly updated. Native rollback/cleanup failure
+retains host uncertainty. Source raster extent and optical aspect are separate on
+photo and current-editor routes, including the full-source-RT rule and disagreement
+fixtures with a round source subject.
+
+Fix-round validation uses focused Python capture/attached/review/stability suites
+and 12 affected JavaScript behavior/native-double suites. The full suite's 834-pass
+result above is historical pre-review evidence; it was not replayed unchanged in
+this round. Exact commands/results and file hashes remain in the appended Task 6
+report under project temp. Native and visual acceptance remain unverified.

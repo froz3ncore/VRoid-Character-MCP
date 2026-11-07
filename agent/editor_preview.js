@@ -13,20 +13,32 @@ function validateEditorCamera(args){
     if(args.action==='mode'&&!editorCameraModes.includes(args.mode))throw Error('INVALID_CAMERA_MODE');
     if(args.action==='custom'&&(!vector(args.position,3,10000)||!vector(args.center,3,10000)||args.position.every((x,i)=>x===args.center[i])))throw Error('INVALID_CAMERA_CUSTOM');
 }
-function createEditorPreview({adapter}){
+function createEditorPreview({adapter,beforeMutation=()=>{}}){
     let snapshot=null,tracked=null;
+    function validShapes(rows){
+        if(!Array.isArray(rows)||rows.length>4096||rows.some((s,i)=>s.index!==i||typeof s.name!=='string'||!Number.isFinite(s.weight)))throw Error('NONFINITE_OR_INVALID_NATIVE_BLENDSHAPE');
+        return rows;
+    }
+    function execute(name,args,work){
+        let attempted=false;
+        try{return {...work(()=>{attempted=true;beforeMutation(name);}),ok:true,native_invocation_attempted:attempted,uncertain:false};}
+        catch(error){const uncertain=attempted||error.native_uncertain===true;
+            if(uncertain&&name==='face_preview'&&tracked)tracked.weights=null;
+            return {model_token:args.expected_model,ok:false,uncertain,
+            native_invocation_attempted:attempted,dispatch_state:uncertain?'invocation_unconfirmed':'prewrite_rejected',error:String(error)};}
+    }
     function open(expected){if(typeof expected!=='string'||!expected)throw Error('EXPECTED_MODEL_REQUIRED');return adapter.open(expected);}
     function verify(expected){
         const c=open(expected),identity=adapter.identity(c);
         if(tracked&&tracked.token===expected){
             if(tracked.identity!==identity)throw Error('STALE_PREVIEW_RENDERER');
             if(tracked.weights===null)throw Error('PREVIEW_WRITE_UNCONFIRMED: do not retry');
-            const now=adapter.face(c);
+            const now=validShapes(adapter.face(c));
             if(tracked.weights&&(now.length!==tracked.names.length||now.some((s,i)=>s.name!==tracked.names[i]||Math.abs(s.weight-tracked.weights[i])>.001)))throw Error('PREVIEW_WEIGHT_CHANGED_BEFORE_CAPTURE');
         }
         return c;
     }
-    function camera(args){
+    function camera(args,enter=()=>{}){
         validateEditorCamera(args);const c=open(args.expected_model);adapter.identity(c);
         let action=args.action,request=args;
         const before=adapter.cameraState(c);
@@ -34,20 +46,23 @@ function createEditorPreview({adapter}){
             request={...args,angles:before.angles.map((x,i)=>x+args.angles[i])};
             validateEditorCamera({...request,action:'angles'});action='angles';
         }
-        if(action!=='get')adapter.cameraAction(c,action,request);
+        if(action!=='get'){
+            const invoke=adapter.prepareCameraAction?adapter.prepareCameraAction(c,action,request):()=>adapter.cameraAction(c,action,request);
+            enter();invoke();
+        }
         const result=adapter.cameraState(c);adapter.identity(c);
         if(action==='projection'&&result.projection===before.projection)throw Error('CAMERA_PROJECTION_TOGGLE_UNCONFIRMED');
         return {model_token:c.token,...result,units:{angles:'degrees',pan:'native_delta',zoom:'native_delta'},
             unavailable_fields:['zoom_scalar','pan_scalar'],saved_model_changed:false};
     }
-    function face(args){
+    function face(args,enter=()=>{}){
         if(args.name!=null&&(typeof args.name!=='string'||!args.name||args.name.length>256))throw Error('INVALID_BLENDSHAPE_NAME');
         if(args.filter!=null&&(typeof args.filter!=='string'||args.filter.length>256))throw Error('INVALID_BLENDSHAPE_FILTER');
         const weight=args.weight===undefined?100:args.weight;
         if(typeof weight!=='number'||!Number.isFinite(weight)||weight<0||weight>100)throw Error('INVALID_BLENDSHAPE_WEIGHT');
         if(args.reset!=null&&typeof args.reset!=='boolean'||args.restore!=null&&typeof args.restore!=='boolean')throw Error('INVALID_PREVIEW_RESET');
         if([!!args.name,!!args.reset,!!args.restore].filter(Boolean).length>1)throw Error('CONFLICTING_PREVIEW_ACTIONS');
-        const c=open(args.expected_model),identity=adapter.identity(c),all=adapter.face(c);
+        const c=open(args.expected_model),identity=adapter.identity(c),all=validShapes(adapter.face(c));
         if(tracked&&tracked.token===c.token&&tracked.identity!==identity)throw Error('STALE_PREVIEW_RENDERER');
         if((args.restore||args.reset)&&snapshot&&snapshot.token===c.token&&snapshot.identity!==identity)throw Error('STALE_PREVIEW_RENDERER');
         let changed=[];
@@ -57,27 +72,39 @@ function createEditorPreview({adapter}){
             if(changed.length!==1)throw Error(changed.length?'AMBIGUOUS_BLENDSHAPE_SUFFIX':'BLENDSHAPE_NOT_FOUND');
         }else if(args.reset||args.restore)changed=all;
         if(args.restore&&(!snapshot||snapshot.token!==c.token||snapshot.identity!==identity))throw Error('PREVIEW_SNAPSHOT_UNAVAILABLE');
+        if(args.restore&&(snapshot.shapes.length!==all.length||all.some((s,i)=>s.name!==snapshot.shapes[i].name)))throw Error('PREVIEW_SNAPSHOT_UNAVAILABLE');
         if(changed.length){
-            if(!snapshot||snapshot.token!==c.token||snapshot.identity!==identity)snapshot={token:c.token,identity,shapes:all.map(s=>({...s}))};
-            if(args.restore&&(snapshot.shapes.length!==all.length||all.some((s,i)=>s.name!==snapshot.shapes[i].name)))throw Error('PREVIEW_SNAPSHOT_UNAVAILABLE');
+            const original=snapshot&&snapshot.token===c.token&&snapshot.identity===identity?snapshot:{token:c.token,identity,shapes:all.map(s=>({...s}))};
+            if(args.restore&&(original.shapes.length!==all.length||all.some((s,i)=>s.name!==original.shapes[i].name)))throw Error('PREVIEW_SNAPSHOT_UNAVAILABLE');
             // Snapshot precedes every raw write; partial failures retain the receipt.
-            tracked={token:c.token,identity,names:all.map(s=>s.name),weights:null};
-            for(const shape of changed){adapter.identity(c);adapter.setWeight(c,shape.index,args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight);}
-            const result=adapter.face(c);
-            for(const shape of changed){const expected=args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight;
-                if(Math.abs(result[shape.index].weight-expected)>.001)throw Error('PREVIEW_WEIGHT_READBACK_FAILED');}
-            tracked.weights=result.map(s=>s.weight);
+            const batch=adapter.beginFaceBatch?adapter.beginFaceBatch(c):{setWeight:(i,w)=>adapter.setWeight(c,i,w),dispose:()=>{}};
+            try{
+                enter();
+                snapshot=original;tracked={token:c.token,identity,names:all.map(s=>s.name),weights:null};
+                for(const shape of changed)batch.setWeight(shape.index,args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight);
+                const result=validShapes(adapter.face(c));adapter.identity(c);
+                for(const shape of changed){const expected=args.restore?snapshot.shapes[shape.index].weight:args.reset?0:weight;
+                    if(result[shape.index].name!==all[shape.index].name||Math.abs(result[shape.index].weight-expected)>.001)throw Error('PREVIEW_WEIGHT_READBACK_FAILED');}
+                tracked.weights=result.map(s=>s.weight);
+            }finally{batch.dispose();}
         }
-        const result=adapter.face(c);adapter.identity(c);
+        const result=validShapes(adapter.face(c));adapter.identity(c);
+        if(changed.length&&(result.length!==tracked.names.length||tracked.weights.some((v,i)=>result[i]?.weight!==v||result[i]?.name!==tracked.names[i])))throw Error('PREVIEW_LATE_WEIGHT_READBACK_FAILED');
+        if(args.restore){snapshot=null;tracked=null;}
         return {model_token:c.token,preview_identity:identity,shapes:result.filter(s=>!args.filter||s.name.toLowerCase().includes(args.filter.toLowerCase())),
             changed_indices:changed.map(s=>s.index),saved_model_changed:false,
             reset_to_zero:!!args.reset,restored_original:!!args.restore,restoration_verified:!!args.restore,
             persistence:'raw renderer weights; rebuild or animation may replace them; checked again at capture'};
     }
-    return {verify,verifyIfTracked(expected){if(tracked&&tracked.token===expected)return verify(expected);return null;},open,adapter,operations:{editor_camera:camera,face_preview:face}};
+    return {verify,verifyIfTracked(expected){if(tracked&&tracked.token===expected)return verify(expected);return null;},open,adapter,operations:{
+        editor_camera:args=>execute('editor_camera',args,enter=>camera(args,enter)),
+        face_preview:args=>execute('face_preview',args,enter=>face(args,enter)),
+        get_editor_camera:args=>camera({...args,action:'get'}),
+        list_face_preview:args=>face({...args,name:null,reset:false,restore:false}),
+    }};
 }
 
-function createEditorPreviewNative({model,core,cls,text}){
+function createEditorPreviewNative({model,core,cls,text,retain=()=>({free(){}})}){
     const id=o=>o.handle.toString(),same=(a,b)=>a&&!a.handle.isNull()&&b&&!b.handle.isNull()&&a.handle.equals(b.handle);
     const type=(o,name)=>{if(!o||o.handle.isNull()||o.class.type.name!==name)throw Error('EDITOR_NATIVE_TYPE_MISMATCH: '+name);return o;};
     function values(v,n){return ['x','y','z','w'].slice(0,n).map(k=>v.field(k).value);}
@@ -135,23 +162,45 @@ function createEditorPreviewNative({model,core,cls,text}){
         if(![...result.angles,...result.position,...result.center,result.fov_degrees,result.orthographic_size,result.aspect].every(Number.isFinite))throw Error('NONFINITE_EDITOR_CAMERA_STATE');
         return result;
     }
-    function cameraAction(c,action,args){
+    function prepareCameraAction(c,action,args){
         identity(c);const api=c.controller;
-        if(action==='angles')api.method('ChangeAngles').invoke(vector(args.angles));
-        if(action==='pan')api.method('Pan').invoke(vector(args.pan));
-        if(action==='zoom')api.method('Zoom').invoke(args.delta);
-        if(action==='reset')api.method('ResetPosition').invoke();
-        if(action==='projection')api.method('SwitchCameraProjection').invoke();
-        if(action==='custom')api.method('SetCustomView').invoke(vector(args.position),vector(args.center));
+        const names={angles:'ChangeAngles',pan:'Pan',zoom:'Zoom',reset:'ResetPosition',projection:'SwitchCameraProjection',custom:'SetCustomView',mode:'RotateAxis'};
+        const method=api.method(names[action]);let mode;
         if(action==='mode'){
             const enumClass=cls('VRoid.UI','VRoid.UI.Component.AvatarCameraPosition').nestedClasses.find(c=>c.name==='CameraRotationMode');
             if(!enumClass)throw Error('NATIVE_CAMERA_MODE_UNAVAILABLE');
             const field=enumClass.fields.find(f=>f.isStatic&&f.name===args.mode);
-            if(!field)throw Error('NATIVE_CAMERA_MODE_UNAVAILABLE');api.method('RotateAxis').invoke(field.value);
+            if(!field)throw Error('NATIVE_CAMERA_MODE_UNAVAILABLE');mode=field.value;
         }
+        return ()=>{
+            if(action==='angles')method.invoke(vector(args.angles));
+            if(action==='pan')method.invoke(vector(args.pan));
+            if(action==='zoom')method.invoke(args.delta);
+            if(action==='reset'||action==='projection')method.invoke();
+            if(action==='custom')method.invoke(vector(args.position),vector(args.center));
+            if(action==='mode')method.invoke(mode);
+        };
     }
+    const cameraAction=(c,action,args)=>prepareCameraAction(c,action,args)();
     function face(c){identity(c);const count=c.mesh.method('get_blendShapeCount').invoke();
         if(count<0||count>4096)throw Error('BLENDSHAPE_COUNT_LIMIT');
         return Array.from({length:count},(_,index)=>({index,name:text(c.mesh.method('GetBlendShapeName').invoke(index)),weight:c.renderer.method('GetBlendShapeWeight').invoke(index)}));}
-    return {open,identity,cameraState,cameraAction,face,setWeight(c,i,w){identity(c);c.renderer.method('SetBlendShapeWeight').invoke(i,w);}};
+    function cheapFaceIdentity(c){
+        const file=c.m.main.field('_mainModel').value.field('currentFile').value;
+        if(!same(file,c.m.file)||!same(file.field('engine').value,c.m.engine)||!same(c.m.face.method('GetFaceSMR').invoke(),c.renderer)
+            ||!same(c.m.main.method('get_GlobalBus').invoke(),c.bus)
+            ||!same(c.bus.method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke(),c.m.root)
+            ||!same(c.renderer.method('get_sharedMesh').invoke(),c.mesh))throw Error('STALE_FACE_BATCH');
+    }
+    return {open,identity,cameraState,cameraAction,prepareCameraAction,face,
+        setWeight(c,i,w){identity(c);c.renderer.method('SetBlendShapeWeight').invoke(i,w);},
+        beginFaceBatch(c){
+            identity(c);const pins=[];
+            function release(){const failures=[];for(const pin of pins.splice(0).reverse())try{pin.free();}catch(error){failures.push(String(error));}
+                if(failures.length){const error=Error('FACE_BATCH_PIN_CLEANUP_FAILED: '+failures.join('; '));error.native_uncertain=true;throw error;}}
+            try{for(const object of [c.renderer,c.mesh,c.m.engine,c.m.root])pins.push(retain(object));}
+            catch(error){error.native_uncertain=true;try{release();}catch(cleanup){error.message+='; '+String(cleanup);}throw error;}
+            return {setWeight(i,w){cheapFaceIdentity(c);c.renderer.method('SetBlendShapeWeight').invoke(i,w);},
+                dispose:release};
+        }};
 }

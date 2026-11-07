@@ -31,6 +31,15 @@ CHECKLIST = [
 
 
 class CaptureTools:
+    async def _native_capture(self, args):
+        try:
+            return await self._call('screenshot', args)
+        except BaseException as error:
+            if (isinstance(error, asyncio.CancelledError)
+                or any(code in str(error) for code in ('CAPTURE_CLEANUP_FAILED', 'PHOTO_CAMERA_OWNER_CHANGED'))):
+                self.uncertain = True
+            raise
+
     async def capture_body_reference(self, expected_model: str, label: str = '') -> dict:
         """Save the current body and face geometry as one validated JSON artifact."""
         from .body_reference import validate_body_reference
@@ -58,9 +67,11 @@ class CaptureTools:
     async def _capture(self, view: str, expected_model: str, size: int, quality: str = 'balanced',
                        metadata: dict | None = None, framing_metadata: dict | None = None,
                        framing_reference: dict | None = None) -> bytes:
-        result = await self._call('screenshot', {'view': view, 'expected_model': expected_model,
+        result = await self._native_capture({'view': view, 'expected_model': expected_model,
                                                  'size': size, 'quality': quality,
                                                  'framing_reference': framing_reference})
+        if result.get('model_token') != expected_model:
+            raise ValueError('MODEL_CHANGED_DURING_CAPTURE')
         if metadata is not None:
             metadata.update(result['quality'])
         if framing_metadata is not None and 'framing' in result:
@@ -92,15 +103,11 @@ class CaptureTools:
             state = await self._settle()
             if state.get('model_token') != expected_model:
                 raise ValueError('STALE_MODEL: list parameters again')
-            # Legacy calls retain guide-hiding behavior. New capture paths do not
-            # change selection/controllers and therefore require no UI rollback.
-            legacy = clean and view != 'current_editor' and all(v is None for v in overrides.values())
-            if legacy:
-                prepared = await self._call('prepare_capture', {'expected_model': expected_model})
-                await self._settle(prepared['frame'])
+            # Guide isolation belongs to the native render scope. No host-side
+            # selection/controller mutation may survive settle or PNG failures.
             args = dict(view=view, expected_model=expected_model, size=size, quality=quality, clean=clean, **overrides)
             if clean:
-                result = await self._call('screenshot', args)
+                result = await self._native_capture(args)
                 data = decode_capture(result, size, quality, **overrides)
             else:
                 try:
@@ -206,8 +213,6 @@ class CaptureTools:
                 raise ValueError('MODEL_CHANGED')
             if status.get('photo_active'):
                 raise ValueError('Leave photo preview before capture_review')
-            prepared = await self._call('prepare_capture', {'expected_model': expected_model})
-            await self._settle(prepared['frame'])
             framing_reference = framing_mode = None
             if any(is_regional(view) for view in views):
                 fresh = await self._call('capture_framing_reference', {'expected_model': expected_model})

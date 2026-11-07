@@ -142,7 +142,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                     if not (state['retained_pending'] is not None and function.__name__ == 'get_status'):
                         await initialize_runtime()
                     current = runtime.current
-                    edit = options.get('annotations') and not options['annotations'].readOnlyHint
+                    edit = (options.get('annotations') and not options['annotations'].readOnlyHint
+                            and function.__name__ not in {'editor_camera', 'face_preview'})
                     receipt = None
                     if current.mode == 'attached' and edit:
                         receipt = await current._call('attached_edit_begin', {'tool': function.__name__})

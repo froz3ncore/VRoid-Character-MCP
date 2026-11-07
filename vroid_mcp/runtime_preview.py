@@ -2,6 +2,7 @@
 import asyncio
 import math
 import time
+from contextlib import asynccontextmanager
 
 MODES = ('Front', 'Right', 'Top', 'Reverse', 'RotateUp', 'RotateLeft', 'RotateRight', 'RotateDown')
 
@@ -31,6 +32,41 @@ def validate_camera(expected_model, action, **arguments):
 
 
 class PreviewTools:
+    @asynccontextmanager
+    async def _preview_transaction(self, mutation, tool):
+        receipt = None
+        failure = None
+        state = {'success': False}
+        try:
+            if mutation and getattr(self, 'mode', 'copy') == 'attached':
+                receipt = await self._call('attached_edit_begin', {'tool': tool})
+            yield state
+        except BaseException as error:
+            failure = error
+            if mutation:
+                self.uncertain = True
+            raise
+        finally:
+            if receipt:
+                try:
+                    finished = await self._call('attached_edit_finish', {'id': receipt['id'],
+                        'success': state['success'], 'uncertain': self.uncertain})
+                    self.uncertain |= finished['needs_review']
+                except BaseException as cleanup_error:
+                    self.uncertain = True
+                    if failure is None:
+                        raise
+                    failure.add_note('Preview receipt cleanup failed: ' + str(cleanup_error))
+
+    def _preview_rejected(self, result, mutation):
+        if result.get('ok') is not False:
+            return False
+        definite = (result.get('dispatch_state') == 'prewrite_rejected'
+                    and result.get('native_invocation_attempted') is False and result.get('uncertain') is False)
+        if mutation and not definite:
+            self.uncertain = True
+        return True
+
     async def editor_camera(self, expected_model, action='get', *, angles=None, delta=None, pan=None,
                             mode=None, position=None, center=None):
         arguments = dict(angles=angles, delta=delta, pan=pan, mode=mode, position=position, center=center)
@@ -39,28 +75,26 @@ class PreviewTools:
             state = await self._settle()
             if state.get('model_token') != expected_model:
                 raise ValueError('STALE_MODEL')
-            attempted = False
-            try:
-                attempted = action != 'get'
-                result = await self._call('editor_camera', dict(expected_model=expected_model, action=action, **arguments))
+            attempted = action != 'get'
+            async with self._preview_transaction(attempted, 'editor_camera') as transaction:
+                result = await self._call('editor_camera' if attempted else 'get_editor_camera', dict(expected_model=expected_model, action=action, **arguments))
+                if self._preview_rejected(result, attempted):
+                    return result
                 owner = result.get('preview_identity')
                 if attempted:
                     await self._settle()
-                    result = await self._call('editor_camera', dict(expected_model=expected_model, action='get'))
+                    result = await self._call('get_editor_camera', dict(expected_model=expected_model, action='get'))
                 deadline = time.monotonic() + 12
                 # Named native modes may animate; never return their first angle as terminal.
                 while result.get('rotating'):
                     if time.monotonic() >= deadline:
                         raise TimeoutError('CAMERA_ROTATION_UNCONFIRMED: do not retry')
                     await asyncio.sleep(.05)
-                    result = await self._call('editor_camera', dict(expected_model=expected_model, action='get'))
+                    result = await self._call('get_editor_camera', dict(expected_model=expected_model, action='get'))
                 if result.get('model_token') != expected_model or result.get('preview_identity') != owner:
                     raise RuntimeError('CAMERA_MODEL_CHANGED')
+                transaction['success'] = True
                 return {**result, 'settled': True}
-            except BaseException:
-                if attempted:
-                    self.uncertain = True
-                raise
 
     async def face_preview(self, expected_model, name=None, weight=100, filter=None, *, reset=False, restore=False):
         if not isinstance(expected_model, str) or not expected_model:
@@ -75,13 +109,13 @@ class PreviewTools:
             state = await self._settle()
             if state.get('model_token') != expected_model:
                 raise ValueError('STALE_MODEL')
-            try:
-                result = await self._call('face_preview', dict(expected_model=expected_model, name=name,
+            mutation = name is not None or reset or restore
+            async with self._preview_transaction(mutation, 'face_preview') as transaction:
+                result = await self._call('face_preview' if mutation else 'list_face_preview', dict(expected_model=expected_model, name=name,
                     weight=weight, filter=filter, reset=reset, restore=restore))
+                if self._preview_rejected(result, mutation):
+                    return result
                 if result.get('model_token') != expected_model:
                     raise RuntimeError('PREVIEW_MODEL_CHANGED')
+                transaction['success'] = True
                 return result
-            except BaseException:
-                if name is not None or reset or restore:
-                    self.uncertain = True
-                raise

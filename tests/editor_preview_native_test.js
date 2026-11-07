@@ -2,7 +2,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 vm.runInThisContext(fs.readFileSync('agent/editor_preview.js','utf8'));
 function fixture(multi=true){
- let sequence=0;const calls=[];
+ let sequence=0,modelCalls=0,pins=0;const calls=[];
  function obj(name,methods={},fields={}){
    const key=++sequence;return {class:{type:{name}},handle:{isNull:()=>false,toString:()=>String(key),equals:h=>h?.toString()===String(key)},
      field:n=>{if(!(n in fields))throw Error('UNKNOWN_FIELD '+n);return {get value(){return fields[n];},set value(v){fields[n]=v;}};},
@@ -19,6 +19,7 @@ function fixture(multi=true){
  const renderer=obj('UnityEngine.SkinnedMeshRenderer',{get_transform:()=>tr,get_gameObject:()=>go,get_sharedMesh:()=>mesh,GetInstanceID:()=>9,
    GetBlendShapeWeight:i=>weights[i],SetBlendShapeWeight:(i,w)=>{calls.push('weight');weights[i]=w;}});
  const engine=obj('engine'),file=obj('file',{}, {engine}),main=obj('main'),face=obj('face',{}, {_engine:engine});
+ main.fields._mainModel=obj('mainModel',{}, {currentFile:file});
  const root=obj('root',{get_FaceEditor:()=>face},{_engineModel:engine});
  let active=root,groups=[],angles=[1,2],rotating=false;
  const transform=obj('Transform',{get_position:()=>v([1,2,3])});
@@ -39,12 +40,20 @@ function fixture(multi=true){
    get_EditAvatarCameraPosition:()=>controller,get_PhotoBoothAvatarCameraPosition:()=>nil,
    get_Common3D:()=>obj('common',{get_AvatarCamera:()=>wrapper})});
  main.methods.get_GlobalBus=()=>bus;face.methods.get_GlobalBus=()=>bus;face.methods.GetFaceSMR=()=>renderer;
- const model=expected=>{if(expected!=='token')throw Error('STALE_MODEL');return {main,root,face,engine,file,token:'token'};};
+ const model=expected=>{modelCalls++;if(expected!=='token')throw Error('STALE_MODEL');return {main,root,face,engine,file,token:'token'};};
  function core(name){return {alloc:()=>{let coordinates=[];return {unbox:()=>({field:k=>({get value(){return coordinates['xyzw'.indexOf(k)];}}),method:()=>({invoke(...args){coordinates=args;}})})};}};}
  const modes={nestedClasses:[{name:'CameraRotationMode',fields:[{name:'Right',isStatic:true,value:701}]}]};
- const adapter=createEditorPreviewNative({model,core,cls:()=>modes,text:s=>s.content});
+ const adapter=createEditorPreviewNative({model,core,cls:()=>modes,text:s=>s.content,retain:()=>{pins++;return {free(){pins--;}};}});
  return {adapter,calls,controller,camera,rig,group,groups,renderer,root,face,wrapper,setActive:v=>active=v,setRotating:v=>rotating=v,
-  orphan(){renderer.methods.get_transform=()=>obj('otherTransform',{get_parent:()=>nil});},go,weights};
+  orphan(){renderer.methods.get_transform=()=>obj('otherTransform',{get_parent:()=>nil});},go,weights,mesh,
+  replaceModel(){main.fields._mainModel.fields.currentFile=obj('replacementFile',{}, {engine:obj('replacementEngine')});},
+  get modelCalls(){return modelCalls;},get pins(){return pins;}};
+}
+{
+ const f=fixture(),write=f.renderer.methods.SetBlendShapeWeight;let count=0;
+ f.renderer.methods.SetBlendShapeWeight=(i,w)=>{write(i,w);if(++count===1)f.replaceModel();};
+ const result=createEditorPreview({adapter:f.adapter}).operations.face_preview({expected_model:'token',reset:true});
+ assert.equal(result.uncertain,true);assert.equal(count,1);assert.equal(f.pins,0);
 }
 for(const multi of [false,true]){
  const f=fixture(multi),c=f.adapter.open('token'),s=f.adapter.cameraState(c);
@@ -66,8 +75,21 @@ for(const multi of [false,true]){
  const before=f.calls.length;
  for(const args of [{action:'angles',angles:[NaN,0]},{action:'custom',position:[0,0,0],center:[0,0,0]},
    {action:'get',mode:'Front'},{action:'mode',mode:'Guess'},{action:'zoom',delta:true},{action:'unknown'}])
-   assert.throws(()=>api.editor_camera({expected_model:'token',...args}));
+   assert.equal(api.editor_camera({expected_model:'token',...args}).native_invocation_attempted,false);
  assert.equal(f.calls.length,before);
+}
+{
+ const f=fixture();f.mesh.methods.get_blendShapeCount=()=>4096;f.mesh.methods.GetBlendShapeName=i=>({content:'shape'+i});
+ f.weights.length=4096;f.weights.fill(10);
+ const api=createEditorPreview({adapter:f.adapter}).operations;
+ assert(api.face_preview({expected_model:'token',reset:true}).ok);assert(f.modelCalls<20);assert.equal(f.pins,0);
+ const before=f.modelCalls;assert(api.face_preview({expected_model:'token',restore:true}).ok);assert(f.modelCalls-before<20);assert.equal(f.pins,0);
+}
+{
+ const f=fixture();let guards=0;const api=createEditorPreview({adapter:f.adapter,beforeMutation:()=>guards++}).operations;
+ const rejected=api.editor_camera({expected_model:'token',action:'mode',mode:'Front'});
+ assert.equal(rejected.native_invocation_attempted,false);assert.equal(rejected.uncertain,false);assert.equal(guards,0);
+ assert(api.editor_camera({expected_model:'token',action:'mode',mode:'Right'}).ok);assert.equal(guards,1);
 }
 for(const mutate of [f=>f.groups.push(f.group),f=>f.orphan(),f=>f.wrapper.fields._body=f.controller,
  f=>f.face.fields._engine=f.root,f=>f.go.methods.get_activeInHierarchy=()=>false]){
