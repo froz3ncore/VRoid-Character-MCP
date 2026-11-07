@@ -16,6 +16,8 @@ Use the [generated reference](tools/TOOLS.md) for current argument names,
 requirements and defaults. Model, group, layer and menu identities belong to the
 current target session. A source name alone does not authorize a write.
 
+Attached recovery checks managed imports and history tasks, retained ordinary VRM exports and registered-item loads and selections before acknowledgement or detach. Source pins survive interrupted work until terminal evidence or confirmed process exit. A replacement agent requires proof that the old agent released its native owners. The cache pins physical Windows directories through publication. ZIP and icon inspection requires an authorized registered path and file generation.
+
 The following revisions locate each domain implementation and its focused
 regressions. The row numbers refer to the source order below. The evidence
 covers real local files, public MCP transport and native doubles where indicated.
