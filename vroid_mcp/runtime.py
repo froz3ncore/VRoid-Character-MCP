@@ -32,11 +32,12 @@ from .runtime_hair import HairGroupTools
 from .runtime_preview import PreviewTools
 from .runtime_catalog import CatalogTools
 from .runtime_situation import SituationTools
+from .runtime_session import SessionTools
 
 __all__ = ['Runtime', 'review_folder', 'save_destination', 'validate_capture']
 
 
-class Runtime(SituationTools, CatalogTools, PreviewTools, HairGroupTools, TextureTools, GroupTools, OrdinaryTools, EditTools, CaptureTools, WearTools):
+class Runtime(SessionTools, SituationTools, CatalogTools, PreviewTools, HairGroupTools, TextureTools, GroupTools, OrdinaryTools, EditTools, CaptureTools, WearTools):
     """One lab: process ownership from the bridge, operations from the mixins."""
 
     def __init__(self, lab: pathlib.Path, bridge_js: pathlib.Path | None = None) -> None:

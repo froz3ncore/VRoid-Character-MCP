@@ -23,6 +23,9 @@ test = ["pytest>=8"]
 [tool.setuptools]
 packages = ["vroid_mcp"]
 
+[tool.setuptools.data-files]
+"share/vroid-character-mcp" = ["MIGRATION.md"]
+
 [tool.setuptools.package-data]
 vroid_mcp = [
     "data/*/LICENSE",

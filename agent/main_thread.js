@@ -18,6 +18,7 @@ const bridge = {
     mainThread: 0,
     frame: 0,
     modelUpdates: 0,
+    navigationRevision: 0,
     retained: new Map(),
     hooks: [],
     backlog: [],
@@ -351,6 +352,11 @@ Il2Cpp.perform(function () {
             .method('Exec').virtualAddress,
         { onLeave: drainOne }));
     retainEditorSingletons();
+    if (nativeBuildProfile(VROID_ASSEMBLY_SHA256)?.session) {
+        const change = nativeClass('VRoid.UI','VRoid.UI.ScreenNavigationViewModel')
+            .method('InvokeOnActiveScreenChange',0);
+        bridge.hooks.push(Interceptor.attach(change.virtualAddress, {onEnter() { bridge.navigationRevision++; }}));
+    }
     if (ATTACHED) installPump(); else holdRunInBackground();
     countModelUpdates();
     bridge.ready = true;

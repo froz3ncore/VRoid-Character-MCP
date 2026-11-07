@@ -59,6 +59,7 @@ AGENT_MODULES = (
     'vrm_export.js',
     'ordinary_extensions.js',
     'attached_state.js',
+    'session_workflows.js',
     'groups.js',
     'catalog.js',
     'hair_procedural.js',
@@ -422,7 +423,20 @@ def close(subject) -> dict:
         outcome.update(close_blocked=True,detached=False,reason=reason,**details)
         return outcome
     try:
-        if getattr(subject, 'mode', 'copy') == 'attached':
+        watch = getattr(subject, 'exit_watch', None)
+        if watch is not None:
+            try:
+                if not watch.exited():
+                    return blocked('GRACEFUL_EXIT_PENDING')
+                watch.close()
+            except Exception as error:
+                return blocked('GRACEFUL_EXIT_UNCONFIRMED', error=str(error))
+            subject.exit_stopped = True
+            subject.exit_watch = None
+            outcome['native_process_stopped'] = True
+        elif getattr(subject, 'exit_stopped', False):
+            outcome['native_process_stopped'] = True
+        elif getattr(subject, 'mode', 'copy') == 'attached':
             if pinned and (subject.script is None or subject.dead):
                 # A lost agent is not proof that the user's process stopped.
                 try:

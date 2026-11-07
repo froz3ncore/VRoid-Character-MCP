@@ -315,11 +315,28 @@ class EditTools:
         if method not in ('undo', 'redo') or not 1 <= steps <= 32:
             raise ValueError('Invalid history operation')
         async with self.lock:
+            completed = 0
+            receipt = {'requested': steps, 'model_token': expected_model}
             for _ in range(steps):
-                result = await self._call(method, {'expected_model': expected_model})
-                await self._task(result)
-                await self._settle(result['frame'])
-            return name_parameters(await self._call('list_face_params', {'expected_model': expected_model}))
+                try:
+                    result = await self._call(method, {'expected_model': expected_model})
+                    if result.get('dispatched') is False:
+                        return {**receipt, 'completed': completed, 'ok':False,
+                                'reason':'NO_HISTORY' if result.get('available') is False else 'HISTORY_UNAVAILABLE'}
+                    await self._task(result)
+                    completed += 1
+                    await self._settle(result['frame'])
+                except asyncio.CancelledError:
+                    self.uncertain = True
+                    raise
+                except Exception as error:
+                    self.uncertain = True
+                    return {**receipt, 'completed':completed, 'ok':False, 'uncertain':True, 'error':str(error)}
+            try:
+                readback = name_parameters(await self._call('list_face_params', {'expected_model': expected_model}))
+            except Exception as error:
+                return {**receipt, 'completed':completed, 'ok':False, 'readback_failed':True, 'error':str(error)}
+            return {**receipt, **readback, 'completed':completed}
 
     async def save_as(self, filename: str, expected_model: str) -> dict:
         async with self.lock:

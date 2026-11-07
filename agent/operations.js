@@ -35,6 +35,11 @@ globalThis.vroid = (() => {
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
     const captureFraming = createCaptureFraming({ core, text, cls });
     const attachedState = createAttachedState({main: mainViewModel, text, state});
+    const session = createSessionWorkflows({main:mainViewModel, model:modelContext, ui:attachedState.snapshot,
+        retain, sessionTag, invalidateModel:() => { boundEngine = ''; }, guard:attachedState.guard,
+        nativeProfile:() => nativeBuildProfile(VROID_ASSEMBLY_SHA256), invoke:invokeManaged, newModel,
+        openFile:args => importFile(args.path, false), windowIdentity:sessionWindowIdentity,
+        png:() => state.pngDecoder, navigationRevision:() => bridge.navigationRevision});
     const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text,retain}),
         beforeMutation:name=>attachedState.guard(name)});
     const cleanCaptureScope=createCleanCaptureScope({model:modelContext});
@@ -53,6 +58,10 @@ globalThis.vroid = (() => {
         const main = mainViewModel();
         const file = main.field('_mainModel').value.field('currentFile').value;
         if (file.handle.isNull()) throw Error('NO_MODEL: initialize a disposable model first');
+        const screen = main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke()
+            .method('get_ActiveScreen').invoke();
+        if (!screen.handle.isNull() && screen.class.type.name === 'VRoid.Studio.StartScreen.ViewModel')
+            throw Error('MODEL_MENU_ACTIVE: no editable character');
         const engine = file.field('engine').value;
         if (engine.handle.isNull() || engine.method('get_Disposed').invoke()) throw Error('MODEL_DISPOSED');
         const rootReference = state.refs['VRoid.Studio.EditRootScreen.ViewModel'];
@@ -84,6 +93,11 @@ globalThis.vroid = (() => {
             ...(ATTACHED ? {attached_state: attachedState.snapshot()} : {}),
         };
         try {
+            Object.assign(base, session.view());
+        } catch (error) {
+            base.session_observation_error = String(error);
+        }
+        try {
             const m = modelContext();
             const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
             const photoActive = photo.method('get_IsActive').invoke();
@@ -101,6 +115,7 @@ globalThis.vroid = (() => {
             const areas = ['face', 'body', 'hair', 'clothing'];
             return {
                 ...base, model_ready: true, model_token: m.token,...captureModelOwnership(m,text),
+                ...sessionModelFields(m.context, text, nativeBuildProfile(VROID_ASSEMBLY_SHA256)),
                 photo_active: photoActive, photo_updating: photoUpdating,
                 presets_loading: areas.some(area => selector(m, area).method('get_IsLoading').invoke()),
                 command_busy: !m.context.method('get_IsCommandExecutable').invoke(),
@@ -530,7 +545,10 @@ globalThis.vroid = (() => {
     // ------------------------------------------------------- model operations
     function history(args, method) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
-        return { ...rememberTask(invokeManaged(modelContext(args.expected_model).engine, method)),
+        const m = modelContext(args.expected_model);
+        const available = m.context.tryMethod(method === 'UndoAsync' ? 'get_CanUndo' : 'get_CanRedo')?.invoke();
+        if (available !== true) return {dispatched:false, available:available ?? null};
+        return { ...rememberTask(invokeManaged(m.engine, method)),
                  frame: state.frame || 0 };
     }
 
@@ -575,23 +593,24 @@ globalThis.vroid = (() => {
     }
 
     function openModel(args) {
-        const path = Il2Cpp.string(args.path);
-        const keepPath = Memory.alloc(1);
+        return importFile(args.path, true);
+    }
+
+    function importFile(filename, withoutAssociation) {
+        const path = Il2Cpp.string(filename);
+        const dontSetPath = Memory.alloc(1);
         const fromXRoid = Memory.alloc(1);
-        keepPath.writeU8(1);
+        dontSetPath.writeU8(withoutAssociation ? 1 : 0);
         fromXRoid.writeU8(0);
         return rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
-            [path.handle, keepPath, fromXRoid]));
+            [path.handle, dontSetPath, fromXRoid]));
     }
 
     function replaceWithFile(args) {
         if (args.discard_unsaved !== true) throw Error('EXPLICIT_DISCARD_REQUIRED');
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         modelContext(args.expected_model);
-        const dontSetPath = Memory.alloc(1), fromXRoid = Memory.alloc(1);
-        dontSetPath.writeU8(0); fromXRoid.writeU8(0);
-        const task = rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
-            [Il2Cpp.string(args.path).handle, dontSetPath, fromXRoid]));
+        const task = importFile(args.path, false);
         boundEngine = '';
         return task;
     }
@@ -801,6 +820,7 @@ globalThis.vroid = (() => {
                 active_material_bindings:exact.materials,global_base_colors:exact.global_base_colors,
                 exact_scope:exact.scope};
         },
+        ...session.operations,
         status,
         list_face_params: listParameters,
         set_face_params: applyChanges,
@@ -884,7 +904,7 @@ globalThis.vroid = (() => {
     }
 
     return {
-        prepareTeardown(){appFrame.dispose();presetCatalog.dispose();return groups.prepareTeardown();},
+        prepareTeardown(){session.clearMenu();appFrame.dispose();presetCatalog.dispose();return groups.prepareTeardown();},
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
@@ -893,7 +913,8 @@ globalThis.vroid = (() => {
             const checkpoint=hairMutation?attachedState.hairPrewriteCheckpoint(name):null;
             let entered=false,result;
             try{
-                if(!['editor_camera','face_preview'].includes(name))attachedState.guard(name);
+                if(!Object.hasOwn(session.operations,name) && !['editor_camera','face_preview'].includes(name))
+                    attachedState.guard(name);
                 requireOrdinaryEditing(name, args);
                 if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
                     modelContext(args.expected_model);

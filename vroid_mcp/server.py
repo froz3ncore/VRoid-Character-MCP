@@ -27,6 +27,8 @@ from . import (toolset, tools_accessories, tools_capture, tools_hair, tools_para
 from .runtime import Runtime
 from .exception_notes import add_exception_note
 from .runtime_handle import RuntimeHandle
+from . import batch, tools_help, tools_session
+from .runtime_session import UNKNOWN_MODEL_FIELDS
 from .texture_tools import register_texture_tools
 
 INSTRUCTIONS = (
@@ -78,17 +80,24 @@ DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorl
 
 def create_server(lab: Path, variant: str, model_file: Path | None = None) -> FastMCP:
     runtime = RuntimeHandle(Runtime(lab))
-    state = {'initialized': False, 'retained_pending': None}
-    session_gate = asyncio.Lock()
+    state = {'initialized': False, 'retained_pending': None, 'stopped': False}
+    gate = batch.SessionGate()
+    session_gate = gate.hold
 
     def retain_pending(phase, failure, cleanup):
         state['retained_pending'] = {'phase': phase, 'error': str(failure), 'cleanup': cleanup}
 
     def rebind_runtime():
+        if getattr(runtime.current, 'exit_stopped', False):
+            state['stopped'] = True
         runtime.rebind(Runtime(lab))
         state.update(initialized=False, retained_pending=None)
 
-    async def initialize_runtime() -> None:
+    async def initialize_runtime(explicit=False) -> None:
+        if getattr(runtime.current, 'exit_watch', None):
+            raise RuntimeError('GRACEFUL_EXIT_PENDING')
+        if (state['stopped'] or getattr(runtime.current, 'exit_stopped', False)) and not explicit:
+            raise RuntimeError('SESSION_STOPPED: use restart_session to start another copy')
         if state['retained_pending'] is not None:
             raise RuntimeError('SESSION_CLEANUP_PENDING: inspect get_status and explicitly close the retained session; automatic initialization is blocked')
         if state['initialized']:
@@ -121,7 +130,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             raise
         finally:
             try:
-                closed = await asyncio.to_thread(runtime.current.close)
+                async with session_gate():
+                    closed = await asyncio.to_thread(runtime.current.close)
                 if closed.get('close_blocked'):
                     raise RuntimeError('NATIVE_WORK_PENDING: runtime/session retained: ' + str(closed))
             except BaseException as cleanup_error:
@@ -137,7 +147,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         def register(function):
             @wraps(function)
             async def ready(*args, **kwargs):
-                async with session_gate:
+                async with session_gate():
                     if owned_disposable:
                         # Refuse before initialization, dirty-state bookkeeping
                         # or an attached edit receipt can touch a real session.
@@ -151,11 +161,13 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                     # A failed, uninitialized session can still own native work.
                     # Status is a synthetic recovery receipt in that state; every
                     # ordinary tool is blocked before startup or native dispatch.
-                    if not (state['retained_pending'] is not None and function.__name__ == 'get_status'):
+                    synthetic = (state['retained_pending'] is not None or state['stopped']
+                                 or getattr(runtime.current,'exit_watch',None) or getattr(runtime.current,'exit_stopped',False))
+                    if not (synthetic and function.__name__ == 'get_status'):
                         await initialize_runtime()
                     current = runtime.current
                     edit = (options.get('annotations') and not options['annotations'].readOnlyHint
-                            and function.__name__ not in {'editor_camera', 'face_preview'})
+                            and function.__name__ not in {'editor_camera', 'face_preview', 'sync_preset_cache'})
                     receipt = None
                     if current.mode == 'attached' and edit:
                         receipt = await current._call('attached_edit_begin', {'tool': function.__name__})
@@ -176,7 +188,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                             and result.get('native_invocation_attempted') is False
                             and result.get('attached_prewrite_verified') is True
                             and result.get('uncertain') is False)
-                        if isinstance(result, dict) and result.get('ok') is False and not definite_hair_prewrite:
+                        exhausted_history = (function.__name__ in {'undo','redo'} and isinstance(result,dict)
+                                             and result.get('reason') in {'NO_HISTORY','HISTORY_UNAVAILABLE'})
+                        if isinstance(result, dict) and result.get('ok') is False and not (definite_hair_prewrite or exhausted_history):
                             current.uncertain = True
                         try:
                             finished = await current._call('attached_edit_finish', {
@@ -199,7 +213,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         Attached mode does not load the lab isolation guard. Save character files
         in VRoid itself; custom item saves use the target window's profile.
         """
-        async with session_gate:
+        async with session_gate():
             candidates = await asyncio.to_thread(bridge.find_open_vroid, lab)
             if pid is None:
                 if len(candidates) != 1:
@@ -223,7 +237,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
                 await asyncio.to_thread(runtime.current.attach, pid)
                 adopted = await runtime.current.adopt()
                 state['initialized'] = True
-                return {**await runtime.current.status(), 'adopted': adopted,
+                status = await runtime.current.status()
+                state['stopped'] = False
+                return {**status, 'adopted': adopted,
                         'notice': 'Editing the real VRoid session; isolation guard is not loaded.'}
             except BaseException as failure:
                 try:
@@ -242,7 +258,7 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
     @mcp.tool(annotations=EDIT)
     async def detach_open_vroid() -> dict:
         """Detach from the user-opened VRoid without closing its process or saving it."""
-        async with session_gate:
+        async with session_gate():
             if runtime.current.mode != 'attached':
                 return {'detached': False, 'mode': runtime.current.mode}
             closed = await asyncio.to_thread(runtime.current.close)
@@ -260,8 +276,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         id issued before it. It also recovers from COPY_DISCONNECTED or an uncertain
         native call, and other VRoid processes are never touched.
         """
-        async with session_gate:
-            if runtime.current.mode == 'attached':
+        async with session_gate():
+            if (runtime.current.mode == 'attached' and not getattr(runtime.current,'exit_stopped',False)
+                    and not getattr(runtime.current,'exit_watch',None)):
                 closed = await asyncio.to_thread(runtime.current.close)
                 if closed.get('close_blocked'):
                     return closed
@@ -273,7 +290,8 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
             if closed.get('close_blocked'):
                 return closed
             rebind_runtime()
-            await initialize_runtime()
+            await initialize_runtime(explicit=True)
+            state['stopped'] = False
             return await runtime.current.status()
 
     @ready_tool(annotations=READ_ONLY)
@@ -284,13 +302,24 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         cached an older tool list can tell whether it needs to reload instead of
         guessing.
         """
-        if state['retained_pending'] is not None:
+        if getattr(runtime.current,'exit_watch',None):
+            closed = runtime.current.close()
+            if closed.get('native_process_stopped'):
+                state['stopped'] = True
+        if state['stopped'] or getattr(runtime.current,'exit_stopped',False) or getattr(runtime.current,'exit_watch',None):
+            stopped = bool(state['stopped'] or getattr(runtime.current,'exit_stopped',False))
+            status = {'mode':runtime.current.mode, 'pid':runtime.current.pid, 'model_ready':False,
+                      'writes_blocked':True, 'stopped':stopped, 'connected':False if stopped else None,
+                      'reason':'SESSION_STOPPED' if stopped else 'GRACEFUL_EXIT_PENDING'}
+        elif state['retained_pending'] is not None:
             status = {'mode': runtime.current.mode, 'pid': getattr(runtime.current, 'pid', None),
                 'model_ready': False, 'writes_blocked': True, 'pending_session': True,
                 'reason': 'SESSION_CLEANUP_PENDING', 'retained_session': state['retained_pending'],
                 'recovery': 'Explicit detach_open_vroid for attached sessions, or restart_session(discard_unsaved=true) for an owned copy; cleanup must succeed before another session starts'}
         else:
             status = await runtime.current.status()
+        status = {**UNKNOWN_MODEL_FIELDS, **status}
+        status['in_place_save_supported'] = runtime.current.mode == 'attached'
         try:
             status.update(await toolset.live_summary(mcp))
         except Exception as error:  # tool enumeration must never hide model state
@@ -305,7 +334,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         interrupted operation. This never retries or reverses the operation.
         Dialogs and active native work must finish before review.
         """
-        async with session_gate:
+        async with session_gate():
+            if getattr(runtime.current, 'exit_watch', None) or getattr(runtime.current, 'exit_stopped', False):
+                raise RuntimeError('GRACEFUL_EXIT_IN_PROGRESS_OR_STOPPED: inspect get_status')
             if runtime.current.mode != 'attached':
                 raise RuntimeError('ATTACHED_ONLY')
             return await runtime.current._call('attached_review')
@@ -317,7 +348,9 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
         Use the fresh token from get_attached_state. A changed model, history,
         file association or busy state invalidates it. No operation is replayed.
         """
-        async with session_gate:
+        async with session_gate():
+            if getattr(runtime.current, 'exit_watch', None) or getattr(runtime.current, 'exit_stopped', False):
+                raise RuntimeError('GRACEFUL_EXIT_IN_PROGRESS_OR_STOPPED: inspect get_status')
             if runtime.current.mode != 'attached':
                 raise RuntimeError('ATTACHED_ONLY')
             result = await runtime.current._call('attached_acknowledge', {'recovery_token': recovery_token})
@@ -327,7 +360,33 @@ def create_server(lab: Path, variant: str, model_file: Path | None = None) -> Fa
     for module in (tools_wear, tools_parameters, tools_hair, tools_accessories, tools_capture, tools_ordinary, tools_groups):
         module.register(ready_tool, runtime, lab, READ_ONLY, EDIT)
     register_texture_tools(ready_tool, runtime, lab, READ_ONLY, EDIT)
-    tools_catalog.register(mcp, ready_tool, runtime, lab, READ_ONLY, EDIT)
+    def offline_tool(**options):
+        def register(function):
+            @wraps(function)
+            async def serialized(*args, **kwargs):
+                async with session_gate():
+                    return await function(*args, **kwargs)
+            return mcp.tool(**options)(serialized)
+        return register
+
+    async def transition(operation, args):
+        async with session_gate():
+            if not state['initialized'] or state['stopped'] or state['retained_pending']:
+                raise RuntimeError('SESSION_NOT_ACTIVE: observe the active session first')
+            result = await runtime.current.session_transition(operation, args)
+            if operation == 'exit_vroid':
+                state.update(stopped=True, initialized=False)
+            return result
+
+    def unsafe_batch_state():
+        current = runtime.current
+        return bool(current.dead or getattr(current, 'uncertain', False) or state['retained_pending']
+                    or getattr(current, 'exit_watch', None))
+
+    tools_catalog.register(offline_tool, ready_tool, runtime, lab, READ_ONLY, EDIT)
+    tools_session.register(mcp, transition, DESTRUCTIVE)
+    batch.register(mcp, gate, unsafe_batch_state, DESTRUCTIVE)
+    tools_help.register(mcp, READ_ONLY)
     return mcp
 
 

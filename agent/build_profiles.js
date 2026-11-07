@@ -2,6 +2,7 @@
 // matching IL2CPP metadata before it supplies a digest to the agent.
 const nativeBuildProfile = (() => {
     const standalone214 = {
+        session: true,
         registryObservation: true,
         hair: {
             length: {getter: '<CreateGroups>b__41', setter: '<CreateGroups>b__42', modifier: '<CreateGroups>b__97'},
@@ -9,6 +10,7 @@ const nativeBuildProfile = (() => {
         },
     };
     const studio216 = {
+        session: true,
         registryObservation: true,
         hair: {
             length: {getter: '<CreateGroups>b__42', setter: '<CreateGroups>b__43', modifier: '<CreateGroups>b__98'},
