@@ -14,6 +14,8 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
 
 当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未发布新的稳定版。此 fork 的 [mcjo79 迁移对照表](MIGRATION.md)逐项列出 53 个源工具的去向、已验证的行为和限制。下文的原生测试是上游基线的历史记录；迁移功能的实机操作、保存重开、导出和画面效果须在兼容的独立副本中按[实机验收清单](docs/superpowers/native-migration-acceptance.md)分别验证。
 
+需要试用迁移功能时，请使用下方的 BunnyBlack 功能分支。连接 MCP 后，可以先用 `get_preset_framing` 传入 `{"category":"Clothing/Tops"}` 查看上衣的默认取景，无需启动 VRoid。`search_preset_cache` 查的是本地目录，第一次在兼容副本中执行 `sync_preset_cache` 前查不到条目是正常的。
+
 ## 效果展示
 
 以下为 **2026-10-19 开发验证中的原生截图**，不是 AI 生成的示意图。妆容、美甲和整套服装来自不同验证场景，尚未合并为最终角色。原图来源见 [截图说明](assets/showcase/README.md)。
@@ -82,7 +84,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · MCP stdio · MIT
 在 PowerShell 中执行。以下统一把仓库放在 `D:\VRoid-Character-MCP`，你可以换成其他目录。
 
 ```powershell
-git clone https://github.com/froz3ncore/VRoid-Character-MCP.git D:\VRoid-Character-MCP
+git clone --branch feat/mcjo79-capability-migration https://github.com/BunnyBlack/VRoid-Character-MCP.git D:\VRoid-Character-MCP
 Set-Location D:\VRoid-Character-MCP
 
 py -3.10 -m venv .venv
