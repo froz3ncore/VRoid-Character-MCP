@@ -27,7 +27,7 @@ const rows=Array.from({length:617},(_,i)=>({id:'id'+i,resource_name:'Clothing/To
     selectable_preset_ids:i<600?['clothing/Tops/id'+i]:[]}));
 const snapshot=context.createPresetCatalogSnapshot({build:'a'.repeat(64),
     presetEntries:(m,area)=>{areas.push(area);return area==='clothing'?rows.slice(0,600).map((r,i)=>{
-        optionReads++;return {id:r.selectable_preset_ids[0],resource_name:r.resource_name,
+        optionReads++;return {id:r.selectable_preset_ids[0],transferable_id:r.id,resource_name:r.resource_name,
             category:'Tops',owned:true,label:'top',p:{}};}):[];},
     catalogRows:(m,options)=>{catalogReads++;assert.equal(options.length,600);return rows;},
     customSnapshot:()=>({rows:[],complete:true,errors:[]})});

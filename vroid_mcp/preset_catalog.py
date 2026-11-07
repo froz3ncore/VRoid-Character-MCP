@@ -168,7 +168,7 @@ class PresetCatalog:
         self.root = Path(root).resolve()
         self.path = self.root / 'catalog.json'
         self.scratch = self.root.parent / 'temp'
-        self.lock_path = self.scratch / ('catalog-' + _hash(str(self.root))[:24] + '.lock')
+        self.lock_path = self.scratch / ('catalog-' + _hash(os.path.normcase(str(self.root)))[:24] + '.lock')
         if not isinstance(lock_timeout,(int,float)) or not 0 < lock_timeout <= 60:
             raise ValueError('INVALID_CATALOG_LOCK_TIMEOUT')
         self.lock_timeout = lock_timeout
@@ -200,6 +200,8 @@ class PresetCatalog:
                 else: fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     def _write(self, path, value):
+        if path == self.path:
+            self._validate(value)
         data = (json.dumps(value,ensure_ascii=False,indent=2,allow_nan=False)+'\n').replace('\n','\r\n').encode('utf-8')
         if len(data)>32*1024*1024: raise ValueError('CATALOG_SIZE_LIMIT')
         self.root.mkdir(parents=True, exist_ok=True)
@@ -213,10 +215,13 @@ class PresetCatalog:
 
     def _load(self):
         data = _json(self.path, {'schema':1,'presets':{},'source':None,'updated':None})
+        return self._validate(data)
+
+    def _validate(self, data):
         if (not isinstance(data,dict) or type(data.get('schema')) is not int or data['schema']!=1
                 or not {'schema','source','updated','presets'}<=set(data) or not isinstance(data.get('presets'),dict)
                 or len(data['presets'])>MAX_ROWS): raise ValueError('CATALOG_SCHEMA_INVALID')
-        if data['presets']:
+        if data != {'schema':1,'presets':{},'source':None,'updated':None}:
             _source(data['source']);_text(data['updated'],'updated',100)
             if not _digest(data.get('fingerprint')) or not _completeness(data.get('completeness')):
                 raise ValueError('CATALOG_HEADER_INVALID')
@@ -293,7 +298,7 @@ class PresetCatalog:
         return {'observed':len(observed),'complete':complete,'fingerprint':data['fingerprint'], 'source':source}
 
     def search(self, query='', category=None, kind=None, annotated_only=False, include_locked=False,
-               status=None, include_removed=False, limit=50):
+               status=None, include_removed=False, limit=50, owned=None):
         _text(query,'query',1024,True)
         if category is not None: framing.category(category)
         if kind is not None and kind not in ('builtin','custom'): raise ValueError('INVALID_CATALOG_KIND')
@@ -301,10 +306,13 @@ class PresetCatalog:
         if type(limit) is not int or not 1<=limit<=200: raise ValueError('INVALID_CATALOG_LIMIT')
         if any(type(v) is not bool for v in (annotated_only,include_locked,include_removed)):
             raise ValueError('INVALID_CATALOG_FILTER')
+        if owned is not None and type(owned) is not bool:
+            raise ValueError('INVALID_CATALOG_OWNED_FILTER')
         words, result = query.casefold().split(), []
         for row in sorted(self._load()['presets'].values(),key=lambda r:r['key']):
             if (category is not None and row['category']!=category or kind is not None and row['kind']!=kind
                     or status is not None and row['status']!=status or not include_removed and row['removed']
+                    or owned is not None and row['owned'] is not owned
                     or not include_locked and not row['usable'] or annotated_only and not row['annotations']): continue
             haystack = ' '.join(str(row.get(k,'')) for k in ('label','description','tags','colors','category','name','kind','resource')).casefold()
             if all(w in haystack for w in words): result.append(deepcopy(row))

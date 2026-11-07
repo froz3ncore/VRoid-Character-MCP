@@ -331,6 +331,7 @@ globalThis.vroid = (() => {
                 const owned = option.method('get_IsOwned').invoke();
                 entries.push({
                     p: option, id: area + '/' + key + '/' + presetId,
+                    transferable_id: presetId,
                     category: key, category_name: name,
                     label: name + ' / ' + resource.split('/').slice(0, -1).pop(),
                     resource_name: resource,

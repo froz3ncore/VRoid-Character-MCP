@@ -401,10 +401,14 @@ function createGroupApi(H) {
             errors:inventory.errors,ui_navigation:false,scope:'active leaf group discovery facade'};
     }
     function catalogRows(m,selectable) {
-        const byId=new Map();
+        const byId=new Map(),byResource=new Map();
         for(const entry of selectable){
             if(entry.clear)continue;
             const id=str(entry.p.method('get_TransferableGroupId').invoke()),list=byId.get(id)||[];
+            if(entry.transferable_id!=null&&entry.transferable_id!==id)throw Error('CATALOG_OPTION_IDENTITY_CONFLICT');
+            const identity=byResource.get(entry.resource_name);
+            if(identity&&identity!==id)throw Error('CATALOG_OPTION_RESOURCE_CONFLICT');
+            byResource.set(entry.resource_name,id);
             list.push(entry);byId.set(id,list);
         }
         const mainModel=prop(m.main,'_mainModel'),user=prop(mainModel,'playFabUser');
@@ -423,6 +427,8 @@ function createGroupApi(H) {
             const resource=str(prop(p,'resourceName')),price=prop(p,'priceInCoin'),owned=prop(p,'isOwned');
             if(typeof owned!=='boolean'||!Number.isFinite(price)||!resource)throw Error('CATALOG_METADATA_INVALID');
             const options=byId.get(id)||[],segments=resource.split('/'),n=segments.indexOf('N00');
+            if(options.some(e=>e.resource_name!==resource)||byResource.has(resource)&&byResource.get(resource)!==id)
+                throw Error('CATALOG_CROSS_INVENTORY_IDENTITY_CONFLICT');
             return {id,resource_name:resource,owned,usable:owned||price===0,locked:!owned&&price!==0,
                 price_in_coin:price,is_set_item:prop(p,'isSetItem'),catalog_only:options.length===0,
                 selectable:options.some(e=>e.owned),selectable_preset_ids:options.map(e=>e.id),

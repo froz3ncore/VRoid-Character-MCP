@@ -280,3 +280,45 @@ def test_image_provenance_cannot_replace_computed_byte_identity(tmp_path):
         'width':999,'height':999,'sha256':'x','path':'../outside.png'},item['fingerprint'])
     assert result['width']==2 and result['sha256']==hashlib.sha256(png()).hexdigest()
     assert s.resolve_image(item['key'])[1]==png()
+
+
+@pytest.mark.parametrize('field',['tags','colors'])
+def test_merged_annotation_bound_preserves_catalog_bytes(tmp_path,field):
+    s=store(tmp_path);sync(s,[row()]);key=s.search()[0]['key']
+    s.annotate(key,'Me',**{field:[str(i) for i in range(100)]})
+    s.annotate(key,'Me',**{field:['0']})
+    before=s.path.read_bytes()
+    with pytest.raises(ValueError):s.annotate(key,'Me',**{field:['novel']})
+    assert s.path.read_bytes()==before and len(store(tmp_path).search()[0][field])==100
+
+
+def test_revision_history_overflow_preserves_prior_bytes(tmp_path):
+    s=store(tmp_path);sync(s,[custom()]);item=s.search()[0]
+    data=json.loads(s.path.read_text(encoding='utf-8'))
+    data['presets'][item['key']]['history']=[dict(revision='0',name='old',fingerprint='a'*64,last_seen='now')]*10000
+    s.path.write_bytes(json.dumps(data).encode('utf-8'));before=s.path.read_bytes()
+    with pytest.raises(ValueError):sync(s,[custom(revision='2')])
+    assert s.path.read_bytes()==before and len(store(tmp_path).search()[0]['history'])==10000
+
+
+@pytest.mark.parametrize('field,value',[('source',123),('updated',[]),('fingerprint','bad'),('completeness',{})])
+def test_persisted_empty_scan_headers_are_still_validated(tmp_path,field,value):
+    s=store(tmp_path);sync(s,[]);data=json.loads(s.path.read_text(encoding='utf-8'))
+    data[field]=value;s.path.write_bytes(json.dumps(data).encode('utf-8'));before=s.path.read_bytes()
+    with pytest.raises(ValueError):sync(s,[])
+    assert s.path.read_bytes()==before
+
+
+@pytest.mark.skipif(os.name!='nt',reason='Windows case alias identity')
+def test_cold_case_alias_store_shares_real_cross_process_lock(tmp_path):
+    from vroid_mcp.preset_catalog import PresetCatalog
+    lower=PresetCatalog(tmp_path/'preset_cache');upper=PresetCatalog(tmp_path/'PRESET_CACHE',lock_timeout=.1)
+    assert not lower.root.exists()
+    code=('from vroid_mcp.preset_catalog import PresetCatalog; import sys; '
+          's=PresetCatalog(sys.argv[1],lock_timeout=.1); '
+          "s.sync([],{'build':'a'*64,'session':'child'},{'builtin':True,'custom':True})")
+    env=dict(os.environ,TEMP=str(tmp_path),TMP=str(tmp_path),TMPDIR=str(tmp_path),PYTHONDONTWRITEBYTECODE='1')
+    with lower.locked():
+        child=subprocess.run([sys.executable,'-B','-c',code,str(upper.root)],env=env,capture_output=True)
+    assert child.returncode!=0 and b'CATALOG_LOCK_TIMEOUT' in child.stderr
+    assert not lower.path.exists()

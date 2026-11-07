@@ -42,7 +42,7 @@ function createPresetCatalogJobs({model,subscribe,queueUpdate,snapshot,sameOwner
 
 function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,build}){
     return (m,observed)=>{
-        const areas=['face','body','hair','clothing'],options=[],byResource=new Map(),byId=new Map();
+        const areas=['face','body','hair','clothing'],options=[],byResource=new Map(),byId=new Map(),byNative=new Map();
         for(const area of areas){
             const entries=presetEntries(m,area);
             if(!Array.isArray(entries)||entries.length>20000)throw Error('CATALOG_OPTION_LIMIT');
@@ -50,8 +50,15 @@ function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,b
                 if(entry.clear)continue;
                 if(typeof entry.resource_name!=='string'||!entry.resource_name)throw Error('CATALOG_OPTION_RESOURCE_UNAVAILABLE');
                 if(byId.has(entry.id))throw Error('CATALOG_DUPLICATE_OPTION_ID');
-                const row={...entry,area};delete row.p;options.push(entry);byId.set(entry.id,row);
+                const native=entry.transferable_id??entry.p.method('get_TransferableGroupId').invoke();
+                const nativeId=typeof native==='string'?native:native?.content;
+                if(typeof nativeId!=='string'||!nativeId)throw Error('CATALOG_OPTION_IDENTITY_UNAVAILABLE');
+                const row={...entry,transferable_id:nativeId,area};delete row.p;options.push(entry);byId.set(entry.id,row);
                 const list=byResource.get(entry.resource_name)||[];list.push(row);byResource.set(entry.resource_name,list);
+                if(list[0].transferable_id!==nativeId)throw Error('CATALOG_OPTION_RESOURCE_CONFLICT');
+                const nativeOptions=byNative.get(nativeId)||[];
+                if(nativeOptions.length&&nativeOptions[0].resource_name!==entry.resource_name)throw Error('CATALOG_OPTION_IDENTITY_CONFLICT');
+                nativeOptions.push(row);byNative.set(nativeId,nativeOptions);
                 if(options.length>20000)throw Error('CATALOG_OPTION_LIMIT');
             }
         }
@@ -60,7 +67,10 @@ function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,b
         for(const entry of catalog){
             if(!entry.resource_name||resources.has(entry.resource_name)||ids.has(entry.id))throw Error('CATALOG_DUPLICATE_METADATA');
             resources.add(entry.resource_name);ids.add(entry.id);
-            const options=byResource.get(entry.resource_name)||[],option=options.find(o=>o.owned)||options[0];
+            const resourceOptions=byResource.get(entry.resource_name)||[],options=byNative.get(entry.id)||[];
+            if(resourceOptions.some(o=>o.transferable_id!==entry.id)||options.some(o=>o.resource_name!==entry.resource_name))
+                throw Error('CATALOG_CROSS_INVENTORY_IDENTITY_CONFLICT');
+            const option=options.find(o=>o.owned)||options[0];
             rows.push({kind:'builtin',id:entry.id,resource:entry.resource_name,
                 category:entry.catalog_category||'VRoid/Unclassified',name:option?.label||entry.resource_name,
                 owned:entry.owned,usable:entry.usable,selectable:options.some(o=>o.owned),
@@ -71,7 +81,7 @@ function createPresetCatalogSnapshot({presetEntries,catalogRows,customSnapshot,b
         for(const [resource,options] of byResource){
             if(resources.has(resource))continue;
             const option=options.find(o=>o.owned)||options[0];
-            rows.push({kind:'builtin',id:option.id,resource,category:option.area[0].toUpperCase()+option.area.slice(1)+'/'+option.category,
+            rows.push({kind:'builtin',id:option.transferable_id,resource,category:option.area[0].toUpperCase()+option.area.slice(1)+'/'+option.category,
                 name:option.label,owned:option.owned,usable:option.owned,selectable:options.some(o=>o.owned),
                 selectable_preset_ids:options.filter(o=>o.owned).map(o=>o.id),area:option.area,catalog_only:false});
         }

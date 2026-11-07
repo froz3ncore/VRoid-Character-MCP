@@ -11,7 +11,7 @@ def snapshot():
     return {'model_token':'token','build':'a'*64,'builtin_complete':True,'custom_complete':True,
             'scope':'registered collection after observed OnUpdate',
             'areas':['face','body','hair','clothing'], 'rows':[
-                {'kind':'builtin','id':'clothing/Tops/a','resource':'Clothing/Tops/N00/a',
+                {'kind':'builtin','id':'canon-a','resource':'Clothing/Tops/N00/a',
                  'category':'Clothing/Tops','owned':True,'usable':True,'selectable':True,
                  'area':'clothing','selectable_preset_ids':['clothing/Tops/a']},
                 {'kind':'builtin','id':'locked-id','resource':'Clothing/Tops/N00/z',
@@ -29,7 +29,7 @@ def test_native_snapshot_sync_and_bounded_icons(tmp_path):
         if op=='preset_catalog_begin': return {'request_id':'scan'}
         if op=='preset_catalog_poll': return {'completed':True, **snapshot()}
         if op=='preset_catalog_release': return {'released':True}
-        if op=='preset_preview_begin': return thumbnail(preset_id='clothing/Tops/a',resource_name='Clothing/Tops/N00/a')
+        if op=='preset_preview_begin': return thumbnail(preset_id='clothing/Tops/a',transferable_id='canon-a',resource_name='Clothing/Tops/N00/a')
         raise AssertionError(op)
     r._call=native
     result=asyncio.run(r.sync_preset_cache('token',icons=True,icon_limit=1))
@@ -42,7 +42,7 @@ def test_native_snapshot_sync_and_bounded_icons(tmp_path):
     assert calls[-2][0]=='preset_catalog_release'
 
 
-@pytest.mark.parametrize('race',['newer-revision','recycled-preset-id'])
+@pytest.mark.parametrize('race',['newer-revision','recycled-preset-id','recycled-native-id'])
 def test_icons_require_the_exact_scanned_resource_and_fingerprint(tmp_path,race):
     from test_preset_previews import thumbnail
     from vroid_mcp.preset_catalog import PresetCatalog
@@ -52,13 +52,14 @@ def test_icons_require_the_exact_scanned_resource_and_fingerprint(tmp_path,race)
     async def native(op,args):
         if op=='preset_catalog_begin':return {'request_id':'scan'}
         if op=='preset_catalog_poll':return {'completed':True,**snapshot()}
-        if op=='preset_catalog_release':
+        if op=='preset_preview_begin':
             if race=='newer-revision':
                 newer=deepcopy(snapshot()['rows']);newer[0]['name']='A newer revision'
                 s.sync(newer,{'build':'b'*64,'session':'other'},{'builtin':True,'custom':True})
-            return {}
-        if op=='preset_preview_begin':return thumbnail(preset_id='clothing/Tops/a',
-            resource_name='Clothing/Tops/N00/REBOUND' if race=='recycled-preset-id' else 'Clothing/Tops/N00/a')
+            return thumbnail(preset_id='clothing/Tops/a',
+                transferable_id='foreign' if race=='recycled-native-id' else 'canon-a',
+                resource_name='Clothing/Tops/N00/REBOUND' if race=='recycled-preset-id' else 'Clothing/Tops/N00/a')
+        if op=='preset_catalog_release':return {'released':True}
         raise AssertionError(op)
     r._call=native
     with pytest.raises(ValueError):asyncio.run(r.sync_preset_cache('token',icons=True,icon_limit=1))
@@ -74,7 +75,7 @@ def test_missing_native_icons_count_toward_attempt_limit(tmp_path):
         if op=='preset_catalog_poll':
             result=snapshot(); extra=deepcopy(result['rows'][0]);extra.update(id='clothing/Tops/b',resource='Clothing/Tops/N00/b',selectable_preset_ids=['clothing/Tops/b'])
             result['rows'].append(extra);return {'completed':True,**result}
-        if op=='preset_catalog_release':return {}
+        if op=='preset_catalog_release':return {'released':True}
         if op=='preset_preview_begin':
             attempted.append(args['preset_id']);return {'completed':True,'ok':False,'model_token':'token','preset_id':args['preset_id'],'error':'missing'}
         raise AssertionError(op)
@@ -117,7 +118,7 @@ def test_partial_custom_scan_preserves_previous_records_unknown(tmp_path):
     async def native(op,args):
         if op=='preset_catalog_begin':return {'request_id':'scan'}
         if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'custom_complete':False,'errors':['one observation failed']}
-        if op=='preset_catalog_release':return {}
+        if op=='preset_catalog_release':return {'released':True}
     r._call=native
     result=asyncio.run(r.sync_preset_cache('token'))
     assert result['complete']['custom'] is False and s.search(kind='custom')[0]['status']=='unknown'
@@ -178,3 +179,63 @@ def test_invalid_public_sync_schema_rejects_before_app_start(tmp_path,monkeypatc
     with pytest.raises(Exception) as error:asyncio.run(server.call_tool('sync_preset_cache',args))
     assert 'app-started-before-validation' not in str(error.value)
     assert not (tmp_path/'absent').exists()
+
+
+@pytest.mark.parametrize('icons',[False,True])
+def test_release_owner_failure_never_publishes_removals(tmp_path,icons):
+    from vroid_mcp.preset_catalog import PresetCatalog
+    from test_preset_catalog import row,SOURCE
+    s=PresetCatalog(tmp_path/'preset_cache');s.sync([row()],SOURCE,{'builtin':True,'custom':True});before=s.path.read_bytes()
+    r=Runtime(tmp_path);releases=[]
+    async def settled(*args):return {'model_token':'token'}
+    async def native(op,args):
+        if op=='preset_catalog_begin':return {'request_id':'scan'}
+        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':[]}
+        if op=='preset_catalog_release':releases.append(op);raise ValueError('CATALOG_OWNER_CHANGED')
+        raise AssertionError(op)
+    r._settle,r._call=settled,native
+    with pytest.raises(ValueError,match='OWNER_CHANGED'):asyncio.run(r.sync_preset_cache('token',icons))
+    assert s.path.read_bytes()==before and len(releases)==1
+
+
+def test_native_receipt_is_finished_before_archive_work(tmp_path,monkeypatch):
+    from vroid_mcp import runtime_catalog
+    from test_preset_catalog import custom
+    r=Runtime(tmp_path);clock=[0];released=[]
+    async def settled(*args):return {'model_token':'token'}
+    item=custom();item.update(group_type='Tops',registered=True)
+    async def native(op,args):
+        if op=='preset_catalog_begin':return {'request_id':'scan'}
+        if op=='preset_catalog_poll':return {'completed':True,**snapshot(),'rows':[item]}
+        if op=='preset_catalog_release':
+            assert clock[0]<10;released.append(op);return {'released':True}
+        raise AssertionError(op)
+    def inspect(path):
+        assert released;clock[0]=20
+        return {'sha256':'a'*64,'metadata':{'rootTransferableGroupId':item['id'],'rootTransferableGroupTypeId':'Tops'}}
+    monkeypatch.setattr(runtime_catalog,'inspect_custom_item',inspect)
+    r._settle,r._call=settled,native
+    assert asyncio.run(r.sync_preset_cache('token'))['observed']==1 and len(released)==1
+
+
+@pytest.mark.parametrize('owned,include_locked,query,expected',[
+    (None,False,'soft','A-free'),(True,False,'soft','B-owned'),(True,True,'soft','B-owned'),
+    (False,False,'soft','A-free'),(False,True,'paid soft','C-paid'),(False,False,'paid soft',None)])
+def test_public_owned_predicate_combines_before_limit(tmp_path,owned,include_locked,query,expected):
+    from vroid_mcp.preset_catalog import PresetCatalog
+    from test_preset_catalog import row,SOURCE
+    s=PresetCatalog(tmp_path/'preset_cache');rows=[]
+    for resource,own,usable in [('A-free',False,True),('B-owned',True,True),('C-paid',False,False)]:
+        item=row(resource);item.update(owned=own,usable=usable);rows.append(item)
+    s.sync(rows,SOURCE,{'builtin':True,'custom':True})
+    for item in rows:s.annotate(item['resource'],'Me',description='paid soft' if item['resource']=='C-paid' else 'soft')
+    server=create_server(tmp_path,'F00')
+    args=dict(owned=owned,include_locked=include_locked,query=query,category='Clothing/Tops',kind='builtin',annotated_only=True,status='new',limit=1)
+    result=asyncio.run(server._tool_manager.get_tool('search_preset_cache').run(args))
+    assert [r['key'] for r in result]==([] if expected is None else [expected])
+
+
+@pytest.mark.parametrize('owned',['true',1,0,[],{}])
+def test_public_ownership_predicate_is_strict(tmp_path,owned):
+    server=create_server(tmp_path,'F00')
+    with pytest.raises(Exception):asyncio.run(server._tool_manager.get_tool('search_preset_cache').run({'owned':owned}))

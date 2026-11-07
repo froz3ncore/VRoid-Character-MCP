@@ -12,14 +12,40 @@ import stat
 import zipfile
 
 
-def inspect_custom_item(path):
+def inspect_custom_item(path, *, include_icon=False):
     path = Path(path).resolve(strict=True)
     if not path.is_file() or path.suffix.lower() != '.vroidcustomitem':
         raise ValueError('CUSTOM_ITEM_FILE_REQUIRED')
-    if not 0 < path.stat().st_size <= 512 * 1024 * 1024:
-        raise ValueError('CUSTOM_ITEM_SIZE_LIMIT')
+    # One protected descriptor owns metadata, streamed digest and optional icon.
+    # Windows denies write/rename; other hosts additionally verify descriptor and
+    # path identity before accepting a generation that could have changed.
+    with pinned_file(path), path.open('rb') as stream:
+        before = os.fstat(stream.fileno())
+        if not 0 < before.st_size <= 512 * 1024 * 1024:
+            raise ValueError('CUSTOM_ITEM_SIZE_LIMIT')
+        digest, count = hashlib.sha256(), 0
+        for chunk in iter(lambda:stream.read(1024*1024), b''):
+            count += len(chunk)
+            if count > before.st_size: raise ValueError('CUSTOM_ITEM_BYTES_CHANGED')
+            digest.update(chunk)
+        stream.seek(0)
+        metadata, icon = _inspect_archive(stream, include_icon)
+        after,current = os.fstat(stream.fileno()),path.stat()
+        identity = lambda info:(info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns)
+        # Windows 3.13 stat/fstat disagree on deprecated st_ctime (creation vs
+        # last-write); compare ctime within fstat, not across the two APIs.
+        if (count != before.st_size or identity(before) != identity(after)
+                or before.st_ctime_ns != after.st_ctime_ns or identity(before) != identity(current)
+                or os.name!='nt' and before.st_ctime_ns != current.st_ctime_ns):
+            raise ValueError('CUSTOM_ITEM_BYTES_CHANGED')
+        result = {'path':str(path),'bytes':count,'sha256':digest.hexdigest(),'metadata':metadata}
+        if include_icon: result['icon'] = icon
+        return result
+
+
+def _inspect_archive(stream, include_icon):
     try:
-        with zipfile.ZipFile(path) as archive:
+        with zipfile.ZipFile(stream) as archive:
             entries, seen, total = archive.infolist(), set(), 0
             if not 1 <= len(entries) <= 4096:
                 raise ValueError('CUSTOM_ITEM_ENTRY_LIMIT')
@@ -43,10 +69,15 @@ def inspect_custom_item(path):
             if not isinstance(metadata, dict) or any(not isinstance(metadata.get(key), str)
                     or not metadata[key] for key in ('rootTransferableGroupId', 'rootTransferableGroupTypeId')):
                 raise ValueError('CUSTOM_ITEM_METADATA_INVALID')
+            icon = None
+            if include_icon:
+                candidates=[e for e in entries if e.filename.startswith('thumbnails/') and e.filename.endswith('.png')]
+                if len(candidates)!=1 or not 0<candidates[0].file_size<=2*1024*1024:
+                    raise ValueError('CUSTOM_ITEM_ICON_AMBIGUOUS_OR_UNAVAILABLE')
+                icon=archive.read(candidates[0])
     except (zipfile.BadZipFile, KeyError, UnicodeError, json.JSONDecodeError) as error:
         raise ValueError('CUSTOM_ITEM_ARCHIVE_INVALID') from error
-    return {'path': str(path), 'bytes': path.stat().st_size,
-            'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'metadata': metadata}
+    return metadata, icon
 
 
 def resolve_registered(info, rows):

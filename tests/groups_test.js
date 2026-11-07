@@ -272,6 +272,7 @@ const args={expected_model:'live',group_id:'g'};
 {
     const f=setup();let optionIdReads=0;
     const selectable=Array.from({length:600},(_,i)=>({id:'clothing/Tops/id'+i,owned:true,
+        resource_name:'pixiv/VRoid/Clothing/Tops/N00/'+i,
         p:new Native('PresetOptionViewModel',{}, {get_TransferableGroupId:()=>{optionIdReads++;return s('id'+i);}})}));
     const catalog=dict(Array.from({length:617},(_,i)=>['id'+i,new Native('PresetModel',{
         transferableGroupId:s('id'+i),resourceName:s('pixiv/VRoid/Clothing/Tops/N00/'+i),

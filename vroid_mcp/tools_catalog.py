@@ -17,9 +17,14 @@ def register(mcp, ready_tool, runtime, lab, read, edit):
     @mcp.tool(annotations=read)
     async def search_preset_cache(query: str='', category: str | None=None, kind: Literal['builtin','custom'] | None=None,
                                   annotated_only: StrictBool=False, include_locked: StrictBool=False, status: str | None=None,
-                                  include_removed: StrictBool=False, limit: StrictInt=50) -> list[dict]:
-        """Search offline with ALL query words and exact combined filters; never starts VRoid."""
-        return store.search(query,category,kind,annotated_only,include_locked,status,include_removed,limit)
+                                  include_removed: StrictBool=False, limit: StrictInt=50,
+                                  owned: StrictBool | None=None) -> list[dict]:
+        """Search offline with ALL query words and exact combined filters; never starts VRoid.
+
+        owned=None keeps either ownership; true/false is an independent exact
+        predicate applied before limit. include_locked controls usability only.
+        """
+        return store.search(query,category,kind,annotated_only,include_locked,status,include_removed,limit,owned)
 
     @mcp.tool(annotations=edit)
     async def annotate_preset_cache(key: str, author: str, label: str | None=None, description: str | None=None,

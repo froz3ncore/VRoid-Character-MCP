@@ -12,6 +12,7 @@ globalThis.createPresetPreviewApi = ({model,main,presetEntries,core,text}) => {
     }
     function finish(holder,extra){
         const result={model_token:holder.token,preset_id:holder.preset_id,resource_name:holder.resource_name,
+            transferable_id:holder.transferable_id,
             completed:true,...extra};
         release(holder);return result;
     }
@@ -78,7 +79,8 @@ globalThis.createPresetPreviewApi = ({model,main,presetEntries,core,text}) => {
         const entry=presetEntries(m,args.area).find(p=>p.id===args.preset_id);
         if(!entry)throw Error('UNKNOWN_PRESET');
         if(!entry.owned)throw Error('PRESET_NOT_OWNED');
-        const identity={model_token:m.token,preset_id:entry.id,resource_name:entry.resource_name,completed:true};
+        const identity={model_token:m.token,preset_id:entry.id,resource_name:entry.resource_name,
+            transferable_id:entry.transferable_id,completed:true};
         if(entry.clear||!entry.resource_name)return {...identity,ok:false,error:'NO_PREVIEW_CLEAR'};
         let directError=null;
         try{
@@ -87,6 +89,7 @@ globalThis.createPresetPreviewApi = ({model,main,presetEntries,core,text}) => {
         }catch(error){directError=String(error);}
         // Only the resource/preview task is prepared; no preset is selected or applied.
         const holder={id:String(++serial),token:m.token,preset_id:entry.id,resource_name:entry.resource_name,
+            transferable_id:entry.transferable_id,
             option:entry.p,optionHandle:retain(entry.p),task:null,started:Date.now(),directError};
         pending.set(holder.id,holder);
         try{entry.p.method('PrepareResources',0).invoke();return poll({expected_model:m.token,request_id:holder.id});}

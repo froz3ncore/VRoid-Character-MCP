@@ -66,6 +66,15 @@ receipt=ops.preset_catalog_begin({expected_model:'token'});
 root.fields._customItemRegistry=new Native('CustomItemRegistry',registry.fields,registry.calls);
 assert.throws(()=>ops.preset_catalog_poll({expected_model:'token',...receipt}),/OWNER_CHANGED/);
 assert.equal(hooks.size,0);root.fields._customItemRegistry=registry;api.dispose();
+// Final receipt release repeats ownership checks after a completed snapshot.
+observed=true;registry.fields._pathToFileCustomItemModels=dictionary([]);
+registry.fields._pathToObservationFailureItems=dictionary([]);
+api=ctx.createNativePresetCatalog(H);ops=api.operations;
+receipt=ops.preset_catalog_begin({expected_model:'token'});
+assert.equal(ops.preset_catalog_poll({expected_model:'token',...receipt}).completed,true);
+root.fields._customItemRegistry=new Native('CustomItemRegistry',registry.fields,registry.calls);
+assert.throws(()=>ops.preset_catalog_release({expected_model:'token',...receipt}),/OWNER_CHANGED/);
+assert.equal(hooks.size,0);root.fields._customItemRegistry=registry;api.dispose();
 // Unproven builds still enumerate builtins, but cannot authorize custom removals.
 api=ctx.createNativePresetCatalog({...H,build:'other'});ops=api.operations;
 receipt=ops.preset_catalog_begin({expected_model:'token'});

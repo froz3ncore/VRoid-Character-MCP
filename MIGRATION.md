@@ -99,7 +99,7 @@ rows still require Task 10 field/contract audit; no alias is promised.
 | 41 | `vroid_begin_clothing_edit` | Textures/materials (Task 4) | `begin_clothing_edit` requires complete actual active ownership, executes source BeginClothingAdvancedEditCommand(ids,group,"Layer"), waits for native readiness/PNG callbacks and returns fresh layer/image IDs. Explicit screen_entered=false; no unproven clothing canvas route is added. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
 | 42 | `vroid_measure` | Groups/parts/presets (Task 3) | Existing `get_height()` returns native label and current live centimeters, preferable to source `boundsMaxY*100`. Verify measurement convention when comparing source results, hair/footwear included as applicable. | Comparable baseline only; field audit pending; native unverified. |
 | 43 | `vroid_set_body_size` | Groups/parts/presets (Task 3) | `set_body_size` separately zeros global scale and solves gender-specific FigureHeight/FigureSlender with native VM bounds and live GetBodyHeight feedback. Optional source BMI-to-waist is labeled heuristic, not measured mass. Exact gender/group/pair evidence required; failed convergence restores all snapshotted pairs when state is known and reports restoration failure/uncertainty. | Offline invalid-input, feedback, nonconvergence/restoration/cancellation contracts verified (Task 3); actual supported-model sizing unverified. |
-| 44 | `vroid_preset_cache_search` | Catalog/framing (Task 7) | `search_preset_cache` performs all-word casefold substring search with exact combined category/kind/annotation/status/removed and usable/locked filters, bounded 1..200 results. Lazy lab-local records use stable resource keys; custom registered copies add normalized full-path identity, while revisions/tokens do not change the key. | Actual-file offline, Unicode stdio and zero-startup tests verified. No installed app was accessed. |
+| 44 | `vroid_preset_cache_search` | Catalog/framing (Task 7) | `search_preset_cache` performs all-word casefold substring search with exact combined category/kind/annotation/status/removed and usable/locked filters, bounded 1..200 results. Optional strict `owned` independently filters ownership before limiting, including free unowned items. Lazy lab-local records use stable resource keys; custom registered copies add normalized full-path identity, while revisions/tokens do not change the key. | Actual-file offline, Unicode/ownership stdio and zero-startup tests verified. No installed app was accessed. |
 | 45 | `vroid_preset_cache_annotate` | Catalog/framing (Task 7) | `annotate_preset_cache` retains author/time and before/after history, manual-label priority, append/replace tags/colors including clearing, across changed/removed/returned entries. Strict schema refusal, fsynced atomic replacement and persistent OS file locks protect concurrent writers without stale-lock deletion. | Actual multiprocess timeout/concurrent-write and corruption/atomic-failure tests verified. Source labels are not treated as resource identity. |
 | 46 | `vroid_preset_thumbnail` | Catalog/framing (Task 7) | `preset_thumbnail` resolves a stable key offline, validates contained paths including symlink/junction resolution, PNG CRC/decompressed size/dimensions and SHA-256, then returns actual situation/native-icon provenance. Missing situation files fall back to validated native icons. Image blobs stage under lab/temp then publish atomically without overwrite; pointer publication uses scanned fingerprint CAS. | Offline actual-byte/path/provenance tests and real MCP wire verified: one image plus metadata, no duplicated structured base64. Situation generation/verification belongs to Task 8. |
 | 47 | `vroid_preset_cache_sync` | Catalog/framing (Task 7) | `sync_preset_cache` obtains one bounded plain-data snapshot of all four selectable areas and the full independent PlayFab dictionary, including catalog-only locked tail, with a linear ID index. Registered customs require exact-this ed65 OnUpdate normal completion via NotifyUpdateFiles after one QueueUpdate refresh, complete count-checked coherent reads and no observation failures before removal inference. Missing proof preserves unknowns. Keeps source build/session, timestamps, revisions/content fingerprints and last-scan statuses; bounded icons require scanned resource and fingerprint. | Python actual-store/runtime and executable native-double contracts verified, including failure tables/truncated scans/cleanup and interleaved image identity races. Live supported-native and visual acceptance remain unverified. |
@@ -239,6 +239,36 @@ new `screenshot_metadata`, preserving its existing content blocks and arguments.
 Legacy `capture_review` keeps its baseline structured schema for compatibility;
 Task 9 must sanitize legacy image payloads in the new batch envelope. No installed
 app, host registry/allowlist, model, export or visual acceptance was exercised.
+
+### Task 7 fix round 1
+
+Seven important review findings now have focused regressions. Catalog writes
+validate the fully mutated candidate using the same schema as cold reads,
+including merged tag/color bounds, appended revision history and persisted empty
+scan headers. Windows lock identity normalizes case before hashing; an actual
+cold case-alias subprocess is excluded before either cache directory exists.
+
+The actual selectable/PlayFab adapters now retain and compare native transferable
+ID and resource together, rejecting contradictions in either dimension while
+keeping matched multi-area, catalog-only and option-only records. Native preview
+results include that same native ID; host image publication checks it with the
+resource. The receipt is finished with exact owner validation before archive IO
+or durable scan publication, with one release attempt. Failed owner checks leave
+prior bytes intact, and offline ZIP work cannot outlive a still-held receipt.
+
+Custom-item inspection pins one generation while streaming its hash and reading
+ZIP metadata/optional bounded icon through the same descriptor. Icon publication
+rechecks decoded native group ID/type and hash. Existing registered custom apply
+checks and uncertainty pins remain in use. Optional strict `owned` is independent
+of usability and is applied before search limits. The minor public sync annotation
+finding remains assigned to Task 9/10's receipt/dispatch distinction; it was not
+changed in this round.
+
+Round evidence is focused: 221 affected Python tests and six JavaScript suites
+passed, plus the controller's real stdio ownership smoke (ten offline calls,
+zero native attempts). The original 925-pass full run remains historical and was
+not replayed. Native compatibility, save/reopen/export and visual gates remain
+unverified.
 
 ## Task 6 implementation boundary
 
