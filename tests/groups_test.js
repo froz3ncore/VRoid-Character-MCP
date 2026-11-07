@@ -23,10 +23,11 @@ const float = value => ({value, writeFloat(v){this.value=v;}, writeU8(v){this.va
     add(offset){ return {writeFloat:v=>{this.channels??=[];this.channels[offset/4]=v;}}; }});
 const context = vm.createContext({console,Il2Cpp:{string:s,corlib:{class:()=>{}},gc:{choose:()=>[]}},
     Memory:{alloc:()=>float(0)},NULL:null,retain:()=>({free(){freed++;}}),bridge:{retained:new Map()}});
+vm.runInContext(fs.readFileSync('agent/build_profiles.js','utf8') + '\nglobalThis.profile=nativeBuildProfile;',context);
 vm.runInContext(fs.readFileSync('agent/groups.js','utf8'),context);
 
-function setup() {
-    const type='TransferableGroupType.N00.Level1.WholeBody';
+function setup(options={}) {
+    const type=options.type || 'TransferableGroupType.N00.Level1.WholeBody';
     const group=new Native('Group',{Id:s('g'),Type:s(type),ResourceName:s('resource'),Revision:s('r'),
         EditableElements:new Native('Elements',{Count:2})});
     const rawColor=new Native('Parameter',{Key:s('color'),color:new Native('ColorParameter',{Color:rgba([.1,.2,.3,1])})});
@@ -63,7 +64,7 @@ function setup() {
         {type:{name:'IEnumerable<KeyValuePair<'+colorInterface.type.name+',UnityEngine.Color>>'}},{type:{name:'System.Boolean'}}]}];
     commandClass.alloc=()=>{const c=new Native('Command');c.calls['.ctor']=(group,dictionary)=>{c.dictionary=dictionary;};return c;};
     context.Il2Cpp.corlib.class=name=>name==='System.Single'?single:{inflate:(key,value)=>({alloc:()=>{
-        const dictionary=new Native('Dictionary',{}, {'.ctor':()=>{},Add:(path,value)=>{dictionary.value=value;}});
+        const dictionary=new Native('Dictionary',{}, {'.ctor':()=>{},Add:(path,value)=>{dictionary.path=path;dictionary.value=value;}});
         const original=dictionary.method.bind(dictionary);
         dictionary.method=(name,...args)=>name==='Add'?{...original(name),parameters:[{type:key.type},{type:value.type}]}:original(name,...args);
         return dictionary;}})};
@@ -73,9 +74,10 @@ function setup() {
     const api=context.createGroupApi({model:expected=>{if(expected!=='live')throw Error('STALE_MODEL');return m;},
         cls:(_assembly,name)=>classFor(name),text:o=>o?.content??null,state:nativeState,teardownState:()=>nativeState,
         invokeManaged:(object,name,args=[])=>object.method(name).invoke(...args),
-        entries:(_model,area)=>area==='body'?[{id:'body/WholeBody/000',p}]:[],
-        details:entry=>({semantic_status:'complete',semantic_group:type,semantic_kind:'combined',
-            semantic_bindings:[{key:'negative'},{key:'positive'}],min:-1,max:1,editable:true,value:entry.p.value}),
+        buildProfile:context.profile(options.build),
+        entries:options.entries || ((_model,area)=>area==='body'?[{id:'body/WholeBody/000',p}]:[]),
+        details:options.details || (entry=>({semantic_status:'complete',semantic_group:type,semantic_kind:'combined',
+            semantic_bindings:[{key:'negative'},{key:'positive'}],min:-1,max:1,editable:true,value:entry.p.value})),
         presetEntries:(_model,area)=>{catalogCalls.push(area);return area==='clothing'?presets:[];},ordinary:{managedCallbacks:()=>({ok:{handle:1},fail:{handle:2}})}});
     return {api:api.operations,helpers:api.helpers,teardown:api.prepareTeardown,nativeState,calls,catalogCalls,m,group,p,rawColor,classes,classFor,presets,type,active};
 }
@@ -98,6 +100,85 @@ function customFixture(f) {
     return {item,native,nativeItem};
 }
 const args={expected_model:'live',group_id:'g'};
+const verifiedGarmentBuilds=[
+    'ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296',
+    '3334b166e298682eeda1ca1c5ca568b12f7085b76cc629668fe8b192af816bd8',
+    'c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2'];
+function garment(build,scenario='template') {
+    const type='TransferableGroupType.N00.Level1.Tops';
+    const plain=new Native('BlendShapeTransformPath',{Key:s('hem')});
+    const path=scenario==='plain'?plain:new Native('TemplateBlendShapeTransformPath',{
+        templatePath:new Native('TemplatePath',{Value:s('skirt')}),
+        editableElementPath:plain});
+    path.class.type={name:'VRoidCore.Common.TransferableTypes.Path.'+path.class.name};
+    const paired=new Native('CombinedBlendShapeTransformParameterViewModel',{
+        _negativeBlendShapePath:path,_positiveBlendShapePath:new Native('BlendShapeTransformPath',{Key:s('other')})});
+    const f=setup({type,build,entries:(_m,a)=>{
+        if(scenario==='failed' && a==='face') throw Error('incomplete typed discovery');
+        return a==='clothing' && ['paired','partial','conflict'].includes(scenario)?[{id:'clothing/g/000',p:paired}]:[];
+    },details:()=>({semantic_group:scenario==='conflict'?'Other':type,semantic_kind:'combined',
+        semantic_status:scenario==='partial'?'partial':'complete',semantic_bindings:[{},{}],editable:true})});
+    let value=37.5, leaf='cloth', reads=0;
+    const raw=new Native('Parameter',{Key:s('hem'),blendShapeTransform:new Native('Scalar',{Value:value})});
+    const item=new Native('Shape',{path});
+    f.m.context.calls.GetParametersForTransferableGroup=()=>scenario==='plain'?dict([['hem',raw]]):[];
+    const query=f.classFor('VRoidCore.Editing.Query.GetTransferableGroupBlendShapesQuery');
+    f.m.context.calls.GetActiveLeafTransferables=()=>dict([[leaf,new Native('Leaf',{GroupId:s('g')})]]);
+    query.alloc=()=>new Native('Query',{},{
+        '.ctor':(owner,transferable)=>{assert.equal(owner.content,'g');assert.equal(transferable.content,leaf);},
+        Execute:()=>new Native('Result',{blendShapes:scenario==='duplicate'?[item,item]:[item]})});
+    const descriptor=f.helpers.pathDescriptor(path);
+    f.active.calls.GetBlendShapeTransformParameter=(owner,actual)=>{
+        assert.equal(owner.content,'g');assert.deepEqual(f.helpers.pathDescriptor(actual),descriptor);
+        reads++;return value;
+    };
+    const ns='VRoidCore.Common.TransferableTypes.Path.';
+    for(const name of ['TemplatePath','BlendShapeTransformPath','TemplateBlendShapeTransformPath']){
+        f.classFor(ns+name).alloc=()=>{
+            const result=new Native(name);
+            result.calls['.ctor']=(first,second)=>{
+                result.fields=second?{templatePath:first,editableElementPath:second}:{Key:first};
+            };return result;
+        };
+    }
+    const cmd=f.classFor('VRoidCore.Editing.History.Command.SetBlendShapeTransformParameterCommand');
+    const iface=f.classFor(ns+'IBlendShapeTransformPath');
+    cmd.methods=[{name:'.ctor',parameters:[{type:{name:'System.String'}},
+        {type:{name:'IEnumerable<KeyValuePair<'+iface.type.name+',System.Single>>'}},{type:{name:'System.Boolean'}}]}];
+    cmd.alloc=()=>{
+        const c=new Native('HistoryCommand');
+        c.calls['.ctor']=(owner,dictionary,dirty)=>{
+            assert.equal(owner.content,'g');assert.equal(dirty.value,1);c.dictionary=dictionary;
+        };return c;
+    };
+    f.m.context.calls.ExecuteSyncCommand=c=>{
+        assert.deepEqual(f.helpers.pathDescriptor(c.dictionary.path),descriptor);
+        value=c.dictionary.value.value;raw.fields.blendShapeTransform.fields.Value=value;f.calls.push(value);
+    };
+    const listed=()=>f.api.list_group_parameters(args).parameters.filter(d=>d.item_slider);
+    const set=(row,value,extra={})=>f.api.set_group_parameters({...args,...extra,changes:[{id:row.id,type:'float',units:row.units,value}]});
+    return {f,listed,set,reads:()=>reads,replaceOwner:()=>{leaf='other';}};
+}
+for(const build of verifiedGarmentBuilds) for(const scenario of ['template','plain']){
+    const g=garment(build,scenario), rows=g.listed();assert.equal(rows.length,1);
+    const row=rows[0];assert.equal(row.editable,true);assert.equal(row.value,37.5);
+    assert.equal(row.min,0);assert.equal(row.max,100);
+    if(scenario==='plain')assert.equal(row.native_dictionary_key,'hem');
+    for(const amount of [-1,100.01])assert.throws(()=>g.set(row,amount),/INVALID_TYPED_NATIVE_VALUE/);
+    for(const amount of [0,58.75,100]){
+        assert.equal(g.set(row,amount).command_count,1);
+        const reads=g.reads();assert.equal(g.listed()[0].value,amount);assert.ok(g.reads()>reads);
+    }
+    assert.throws(()=>g.set(row,1,{expected_model:'stale'}),/STALE_MODEL/);
+    g.replaceOwner();assert.throws(()=>g.set(row,1),/UNKNOWN_OR_STALE_BINDING/);
+    assert.deepEqual(g.f.calls,[0,58.75,100]);
+}
+for(const scenario of ['duplicate','paired','partial','conflict','failed']){
+    const g=garment(verifiedGarmentBuilds[0],scenario), row=g.listed()[0];
+    assert.equal(row.editable,false,scenario);
+    assert.throws(()=>g.set(row,8),/BINDING_UNSUPPORTED/);assert.deepEqual(g.f.calls,[]);
+}
+assert.equal(garment(undefined).listed()[0].editable,false);
 {
     const f=setup();const result=f.helpers.membershipInventory(f.m);
     assert.equal(result.membership_complete,true);assert.equal(f.catalogCalls.length,0,'membership-only inventory must not visit catalogs');

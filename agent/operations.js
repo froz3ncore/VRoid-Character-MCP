@@ -794,7 +794,8 @@ globalThis.vroid = (() => {
     const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged, groupApi:()=>groups });
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
     const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
-        details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status});
+        details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status,
+        buildProfile:nativeBuildProfile(VROID_ASSEMBLY_SHA256)});
     const presetCatalog=createNativePresetCatalog({model:modelContext,presetEntries:collectPresets,
         helpers:groups.helpers,text,build:VROID_ASSEMBLY_SHA256,retain});
     const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,

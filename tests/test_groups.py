@@ -71,6 +71,29 @@ def test_group_partial_result_settles_and_reads_actual_values(tmp_path):
     assert calls == ['list_group_parameters', 'set_group_parameters', 'list_group_parameters']
 
 
+@pytest.mark.parametrize('observation',['match','different','removed','lost-proof'])
+def test_item_slider_receipt_requires_fresh_exact_native_readback(tmp_path, observation):
+    runtime = subject(tmp_path)
+    row = dict(id='item/g/hem', type='float', units='native_item_blendshape', min=0, max=100,
+               editable=True, value=37.5, item_slider=True, binding_keys=['group:g/template:skirt/hem'])
+    calls = []
+    async def call(op, args):
+        calls.append(op)
+        if op == 'set_group_parameters':
+            return dict(model_token='live', ok=True, frame=2, applied=[{'id':row['id'],'requested':58.75}])
+        observations = [row]
+        if len(calls)>1:
+            observations = [] if observation=='removed' else [dict(row, editable=observation!='lost-proof',
+                value=37.5 if observation=='different' else 58.75)]
+        return dict(model_token='live', parameters=observations)
+    runtime._call = call
+    change = dict(id=row['id'],type='float',units=row['units'],value=58.75)
+    result = asyncio.run(runtime.set_group_parameters('live','g',[change]))
+    assert result['ok'] is (observation=='match')
+    assert result['settled'] and result['applied'] and calls.count('set_group_parameters') == 1
+    assert result['item_readback'][0]['verified'] is (observation=='match')
+
+
 def test_custom_zip_checks_and_registered_byte_identity(tmp_path):
     from vroid_mcp.custom_item_file import inspect_custom_item, resolve_registered
     path = tmp_path / 'copy.vroidcustomitem'

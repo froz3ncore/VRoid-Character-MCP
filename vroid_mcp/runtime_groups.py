@@ -7,7 +7,7 @@ from .custom_item_file import catalog_registration, inspect_custom_item, resolve
 from .preset_catalog import PresetCatalog
 from .file_paths import file_input
 from .exception_notes import add_exception_note
-from .group_validation import validate_changes
+from .group_validation import item_readback, validate_changes
 from .silhouette import validate_size, solve
 
 
@@ -53,6 +53,12 @@ class GroupTools:
                     'group_id': group_id, 'changes': changes})
                 await self._settled_for(expected_model, result.get('frame', -1))
                 result['readback'] = await self._group_read('list_group_parameters', expected_model, group_id=group_id)
+                verified = item_readback(changes,result.get('applied',[]),result['readback']['parameters'])
+                if verified:
+                    result['item_readback'] = verified
+                    if not all(row['verified'] for row in verified):
+                        self.uncertain = True
+                        result.update(ok=False,uncertain=True,readback_error='ITEM_SLIDER_READBACK_UNCONFIRMED')
                 result['settled'] = True
                 return result
             except BaseException:

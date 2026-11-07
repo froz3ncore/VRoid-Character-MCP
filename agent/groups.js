@@ -265,12 +265,29 @@ function createGroupApi(H) {
             try {
                 for (const entry of entries(m, area)) {
                     const d = details(entry);
-                    if (d.semantic_status !== 'complete' || d.semantic_group !== group.type) continue;
+                    if (area === 'clothing') {
+                        const owner = entry.id.slice('clothing/'.length,entry.id.lastIndexOf('/'));
+                        if (owner !== group.id) continue;
+                        if (d.semantic_group !== group.type) {
+                            errors.push({source:'typed/'+area,error:'CLOTHING_VM_GROUP_TYPE_UNPROVEN'});
+                            continue;
+                        }
+                    } else if (!d.semantic_group) {
+                        errors.push({source:'typed/'+area,error:'TYPED_VM_GROUP_UNPROVEN'});
+                        continue;
+                    }
+                    if (d.semantic_group !== group.type) continue;
+                    if (d.semantic_status !== 'complete') {
+                        errors.push({source:'typed/'+area,error:'TYPED_VM_BINDINGS_INCOMPLETE'});
+                        continue;
+                    }
                     if (!inventory.membership_complete || !group.active) continue;
                     const sameType = inventory.groups.filter(g => g.active && g.type === group.type);
-                    if (area === 'clothing' ? !entry.id.startsWith('clothing/' + group.id + '/')
-                        : sameType.length !== 1 || sameType[0].id !== group.id
-                            || inventory.groups.some(g=>g.active && !g.type)) continue;
+                    if (area !== 'clothing' && (sameType.length !== 1 || sameType[0].id !== group.id
+                            || inventory.groups.some(g=>g.active && !g.type))) {
+                        errors.push({source:'typed/'+area,error:'TYPED_VM_OWNER_AMBIGUOUS'});
+                        continue;
+                    }
                     const native = d.semantic_bindings.map(b => {
                         // Existing semantic metadata captures concrete path and
                         // template identity. Re-read exact native path below.
@@ -319,8 +336,10 @@ function createGroupApi(H) {
                 unsupported_reason: color && !equivalents.length ? null
                     : equivalents.length ? 'Use exact typed control; paired/alias half writes refused'
                     : 'Native scalar range/history contract not established', ...extra};
-            rows.push({data: d, write: value => executeHistory(m, group.id, kind, descriptor, value),
-                prepare: value => prepareHistory(m,group.id,kind,descriptor,value)});
+            const row = {data:d};
+            if (d.editable) row.prepare = value => prepareHistory(m,group.id,kind,descriptor,value);
+            rows.push(row);
+            return row;
         };
         try {
             for (const [dictionaryKey, p] of pairs(m.context.method('GetParametersForTransferableGroup').invoke(Il2Cpp.string(group.id)))) {
@@ -346,24 +365,47 @@ function createGroupApi(H) {
                 }
             }
         } catch (error) { errors.push({source: 'GetParametersForTransferableGroup', error: String(error)}); }
-        // Template garment/accessory sliders, including stored non-leaf groups.
+        // Preserve observations from partial queries. Only grant writes after
+        // every potentially overlapping source has completed.
+        const candidates = new Map();
         try {
-            const transferables = pairs(m.context.method('GetActiveLeafTransferables').invoke())
-                .filter(([,t]) => str(prop(t,'GroupId')) === group.id).map(([id]) => id);
-            const seen = new Set();
+            const leaves = pairs(m.context.method('GetActiveLeafTransferables').invoke())
+                .map(([id,t]) => ({id,group:str(prop(t,'GroupId'))}));
+            if (leaves.some(t=>!t.id||!t.group) || new Set(leaves.map(t=>t.id)).size !== leaves.length)
+                throw Error('ITEM_TRANSFERABLE_OWNER_UNPROVEN');
+            const transferables = leaves.filter(t=>t.group===group.id).map(t=>t.id);
             for (const id of transferables.length ? transferables : [null]) {
                 const result = nativeQuery(m, 'GetTransferableGroupBlendShapesQuery',
                     [Il2Cpp.string(group.id).handle, id === null ? NULL : Il2Cpp.string(id).handle]);
                 for (const item of sequence(prop(result, 'blendShapes'))) {
                     const path = prop(item, 'path'), descriptor = pathDescriptor(path);
                     const identity = bindingIdentity(group.id, descriptor);
-                    if (seen.has(identity)) continue;
-                    seen.add(identity);
                     const value = active(m).method('GetBlendShapeTransformParameter').invoke(Il2Cpp.string(group.id), path);
-                    if (!rows.some(r => r.data.binding_keys.includes(identity))) add('blendshape', value, descriptor, {item_slider: true});
+                    const matches = rows.filter(r=>r.data.binding_keys.includes(identity));
+                    if (!matches.length) matches.push(add('blendshape',value,descriptor));
+                    for (const row of matches) row.data.item_slider = true;
+                    const row = matches[0];
+                    const exactPath = ['BlendShapeTransformPath','TemplateBlendShapeTransformPath'].includes(descriptor.path_type)
+                        && path.class.type?.name === pathNamespace + descriptor.path_type && !!descriptor.element_key;
+                    const eligible = id && exactPath && !candidates.has(identity) && matches.length === 1
+                        && row.data.kind === 'blendshape' && !row.data.target_binding_ids.length
+                        && row.data.value === value && Number.isFinite(value) && value >= 0 && value <= 100;
+                    candidates.set(identity, eligible ? {row,id,descriptor} : null);
                 }
             }
         } catch (error) { errors.push({source: 'GetTransferableGroupBlendShapesQuery', error: String(error)}); }
+        if (H.buildProfile?.ordinaryItemSlider && inventory.membership_complete && group.active_leaf && group.stored
+                && group.resource_name && sectionFor(group.type)==='Outfit' && !group.type.endsWith('.ClothingSet')
+                && !errors.some(e=>e.source.startsWith('typed/') || ['GetParametersForTransferableGroup',
+                    'GetTransferableGroupBlendShapesQuery'].includes(e.source))) {
+            for (const [key,candidate] of candidates) {
+                if (!candidate) continue;
+                const {row,id,descriptor} = candidate;
+                Object.assign(row.data,{id:rowId(m,group,inventory.topology_fingerprint,['item',id,key]),
+                    item_transferable_id:id,min:0,max:100,units:'native_item_blendshape',editable:true,unsupported_reason:null});
+                row.prepare = value=>prepareHistory(m,group.id,'blendshape',descriptor,value);
+            }
+        }
         return rows;
     }
     function wornColors(m, group, inventory, errors) {
@@ -391,7 +433,6 @@ function createGroupApi(H) {
                         native_bindings: [descriptor], binding_keys: [nativeKey], source: 'worn_color_query',
                         shared_binding_identity: nativeKey, material_identity: null,
                         material_identity_status: 'not established by color query'},
-                        write: value => executeHistory(m, owner, 'color', descriptor, value),
                         prepare: value => prepareHistory(m,owner,'color',descriptor,value)});
                 }
             }
@@ -416,7 +457,7 @@ function createGroupApi(H) {
             const matches = rows.filter(r => r.data.id === change.id);
             if (matches.length !== 1) throw Error('UNKNOWN_OR_STALE_BINDING');
             const row = matches[0], d = row.data, value = change.value;
-            if (!d.editable || !row.write) throw Error('BINDING_UNSUPPORTED: ' + d.unsupported_reason);
+            if (!d.editable || !(row.write || row.prepare)) throw Error('BINDING_UNSUPPORTED: ' + d.unsupported_reason);
             if (change.type !== d.type || change.units !== d.units) throw Error('BINDING_TYPE_OR_UNITS_MISMATCH');
             if (d.binding_keys.some(k => seen.has(k))) throw Error('OVERLAPPING_BINDINGS');
             d.binding_keys.forEach(k => seen.add(k));
@@ -453,7 +494,7 @@ function createGroupApi(H) {
         return create(descriptor.path_type,[Il2Cpp.string(descriptor.element_key).handle]);
     }
     function prepareHistory(m, group, kind, descriptor, value) {
-        const suffix = {bone:'BoneTransform',blendshape:'BlendShapeTransform',color:'Color'}[kind];
+        const suffix = {blendshape:'BlendShapeTransform',color:'Color'}[kind];
         if (!suffix) throw Error('RAW_HISTORY_WRITER_UNSUPPORTED');
         const pathClass = cls('VRoidCore',pathNamespace + 'I' + suffix + 'Path');
         const valueClass = kind === 'color' ? cls('UnityEngine.CoreModule','UnityEngine.Color') : Il2Cpp.corlib.class('System.Single');

@@ -1,9 +1,28 @@
 """Exact group write contracts. No label resolution or scalar unit conversion."""
 import math
+import struct
 
 
 def finite(value):
     return type(value) in (float, int) and math.isfinite(value)
+
+
+def item_readback(changes, applied, parameters):
+    """Compare the command's actual Single input with the settled native model."""
+    written = {entry['id'] for entry in applied}
+    receipts = []
+    for change in changes:
+        if change['units'] != 'native_item_blendshape' or change['id'] not in written:
+            continue
+        matches = [row for row in parameters if row['id'] == change['id']]
+        row = matches[0] if len(matches)==1 else {}
+        after = row.get('value')
+        expected = struct.unpack('<f', struct.pack('<f',change['value']))[0]
+        verified = (row.get('item_slider') is True and row.get('editable') is True
+                    and row.get('units') == change['units'] and finite(after) and after == expected)
+        receipts.append(dict(id=change['id'],requested=change['value'],expected_single=expected,
+                             actual=after,verified=verified))
+    return receipts
 
 
 def validate_changes(parameters, changes):

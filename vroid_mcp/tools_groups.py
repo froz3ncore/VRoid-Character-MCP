@@ -16,8 +16,9 @@ def register(ready_tool, runtime, lab, read, edit):
         """List exact typed/raw/item bindings, native units and unsupported-write reasons.
 
         Relist after any preset/topology change. IDs bind model/group revisions;
-        semantic keys and translated labels are not write addresses. Raw item
-        ranges remain unknown unless a full path matches actual native VM metadata.
+        semantic keys and translated labels are not write addresses. Audited
+        garment item blendshape paths use 0..100 native units. Other raw scalars
+        require exact VM metadata for an editable control.
         """
         return await runtime.list_group_parameters(expected_model, group_id, kind)
 

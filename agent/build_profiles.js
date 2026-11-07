@@ -2,6 +2,7 @@
 // matching IL2CPP metadata before it supplies a digest to the agent.
 const nativeBuildProfile = (() => {
     const standalone214 = {
+        ordinaryItemSlider: true,
         session: true,
         registryObservation: true,
         hair: {
@@ -10,6 +11,7 @@ const nativeBuildProfile = (() => {
         },
     };
     const studio216 = {
+        ordinaryItemSlider: true,
         session: true,
         registryObservation: true,
         hair: {
