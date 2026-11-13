@@ -1,11 +1,15 @@
 """Native cosmetics addressing, raster overlays and guarded layer-state editing."""
 import asyncio,json
+from typing import Annotated
 from pydantic import Field
 from .texture_input import read_texture_input
 from .texture_targets import register_texture_targets
 from .makeup_tools import register_makeup_tools
 from .texture_layer_state import describe_layers,register_layer_state_tools
 from .texture_layer_management import register_layer_management_tools
+
+Channel = Annotated[float, Field(strict=True, ge=0, le=1)]
+Color = Annotated[list[Channel], Field(min_length=3, max_length=4)]
 
 def register_texture_tools(ready_tool,runtime,lab,read,edit):
     register_texture_targets(ready_tool,runtime,lab,read)
@@ -19,7 +23,7 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
 
     @ready_tool(annotations=read)
     async def list_texture_regions(expected_model: str) -> dict:
-        """List real model groups, texture image bindings and editable images. Native keys identify body/face slots; UV mapping is reported separately."""
+        """List texture regions and images. A non-null editor_mode identifies a supported native editor. UV mapping is reported separately."""
         return await runtime.parameter_call('list_texture_regions',{'expected_model':expected_model})
 
     @ready_tool(annotations=read)
@@ -40,22 +44,131 @@ def register_texture_tools(ready_tool,runtime,lab,read,edit):
 
     @ready_tool(annotations=edit)
     async def open_texture_editor(expected_model: str, region_id: str,bake_colors: bool = False) -> dict:
-        """Open native texture editing for a listed region. Optional native color baking creates an editable colored base so authored RGB can survive skin recoloring. Does not save; inspect before further edits."""
+        """Open and verify the native texture editor for a listed region. For Tops, InnerTop, Bottoms, ArmAccessory and Shoes, leave bake_colors false. Optional color baking allows authored RGB to survive skin recoloring. Does not save the model."""
         return await runtime.parameter_call('open_texture_editor',{'expected_model':expected_model,'region_id':region_id,'bake_colors':bake_colors},True)
 
     @ready_tool(annotations=read)
-    async def inspect_texture_canvas(expected_model: str) -> dict:
-        """Read active canvas image paths and their actual referring native texture paths."""
-        return await runtime.parameter_call('inspect_texture_canvas',{'expected_model':expected_model})
+    async def list_clothing_templates(expected_model: str, region_id: str, category: str | None = None) -> dict:
+        """List the templates in VRoid's Add Template dialog for an open clothing canvas.
+
+        The region must match the open texture editor. Optional category filters
+        using an ID from categories. Template IDs come from this list, not the
+        ordinary clothing preset catalog. The dialog closes without a model edit.
+        """
+        return await runtime.parameter_call('list_clothing_templates',
+            {'expected_model': expected_model, 'region_id': region_id, 'category': category})
 
     @ready_tool(annotations=edit)
-    async def import_texture_layer(expected_model: str, region_id: str, image_id: str, filename: str, layer_name: str, opacity: float = Field(default=1,min=0,max=1), expected_png_sha256: str = Field(min_length=64,max_length=64)) -> dict:
+    async def add_clothing_template(expected_model: str, region_id: str,
+                                    template_id: str = Field(min_length=1, max_length=512)) -> dict:
+        """Add a native clothing template to the matching open texture canvas.
+
+        Pass a template ID from list_clothing_templates. VRoid overlays the new
+        garment on the existing one. Check ok and use added_images to address the
+        new garment's texture. If ok is false, inspect the canvas before making
+        any further edits. Close the texture editor before saving the model.
+        """
+        return await runtime.add_clothing_template(expected_model, region_id, template_id)
+
+    @ready_tool(annotations=read)
+    async def inspect_texture_canvas(expected_model: str, compact: bool = False) -> dict:
+        """Read active canvas image paths and their actual referring native texture paths.
+
+        Use compact=true for editing. It returns the matching region and each
+        image's label, full import image_id, and template label when available.
+        The default includes the existing detailed native diagnostics.
+        """
+        return await runtime.parameter_call('inspect_texture_canvas',{'expected_model':expected_model, 'compact':compact})
+
+    @ready_tool(annotations=edit)
+    async def import_texture_layer(expected_model: str, region_id: str, image_id: str, filename: str, layer_name: str, opacity: float = Field(default=1,ge=0,le=1), expected_png_sha256: str = Field(min_length=64,max_length=64)) -> dict:
         """Add a PNG from this lab's saves directory above existing layers in the matching open canvas. Preserves existing layers; reports exact history command count including optional moves. Verify pixels, visible color and save/reopen separately."""
         import base64
         data,width,height=read_texture_input(lab,filename,expected_png_sha256,layer_name)
         result=await runtime.parameter_call('import_texture_layer',{'expected_model':expected_model,'region_id':region_id,'image_id':image_id,'png_base64':base64.b64encode(data).decode(),'width':width,'height':height,'layer_name':layer_name,'opacity':opacity},True)
         result['input_sha256']=expected_png_sha256
         return result
+
+    @ready_tool(annotations=read)
+    async def inspect_hair_materials(expected_model: str) -> dict:
+        """Read active shared hair material channels and exact image regions.
+
+        Base overlay IDs are global and deduplicated. Their exact readback is
+        unavailable; aggregate hair colors are never substituted as evidence.
+        """
+        return await runtime.parameter_call('inspect_hair_materials', {'expected_model':expected_model})
+
+    @ready_tool(annotations=edit)
+    async def begin_clothing_edit(expected_model: str, group_id: str) -> dict:
+        """Convert an exact active garment to editable native textures through history.
+
+        Waits for native readiness and returns fresh image/layer identities.
+        screen_entered=false: conversion does not establish canvas navigation.
+        Does not save; native Undo/Redo requires separate supported-build testing.
+        """
+        return await runtime.begin_clothing_edit(expected_model, group_id)
+
+    @ready_tool(annotations=edit)
+    async def begin_hair_edit(expected_model: str, material_id: str) -> dict:
+        """Convert one active shared hair material and return fresh exact image regions.
+
+        Shared image ownership comes from native material sections. This does not
+        navigate to a canvas; screen_entered=false. Does not save or retry.
+        """
+        return await runtime.begin_hair_edit(expected_model, material_id)
+
+    @ready_tool(annotations=edit)
+    async def replace_texture_layer(expected_model: str, region_id: str, image_id: str,
+            layer_id: str, filename: str, expected_png_sha256: str, expected_layer_sha256: str,
+            expected_state_sha256: str | None = None) -> dict:
+        """Replace an existing raster, preserving name/state/order, with one native history command.
+
+        Requires exact image/layer IDs, input PNG hash and current exported PNG
+        hash; optional state token adds caller metadata preconditions. RGBA8 PNG
+        dimensions must match. Rechecks actual pixels at native write boundary.
+        Returns actual before/after hashes; no canvas navigation or save implied.
+        """
+        return await runtime.replace_texture_layer(expected_model, region_id, image_id, layer_id,
+            filename, expected_png_sha256, expected_layer_sha256, expected_state_sha256)
+
+    @ready_tool(annotations=edit)
+    async def recolor_texture_layer(expected_model: str, region_id: str, image_id: str,
+            layer_id: str, color: Color, expected_layer_sha256: str,
+            mode: str = 'multiply', strength: Channel = 1,
+            expected_state_sha256: str | None = None) -> dict:
+        """Recolor exact existing raster RGB with source multiply or luminance colorize math.
+
+        Alpha bytes are preserved, including transparent pixels. Strength zero
+        preserves input PNG bytes. Uses guarded native replacement/history and
+        returns actual readback hashes; visible appearance needs separate review.
+        """
+        return await runtime.recolor_texture_layer(expected_model, region_id, image_id, layer_id,
+            color, mode, strength, expected_layer_sha256, expected_state_sha256)
+
+    @ready_tool(annotations=edit)
+    async def set_hair_material_color(expected_model: str, material_id: str, key: str,
+                                       color: Color) -> dict:
+        """Write one discovered exact shared material channel or global base:<id> overlay.
+
+        Ordinary material readback uses its actual section path. Global base IDs
+        have unavailable exact readback; known command completion is labelled
+        separately from verification. No getter proves visible appearance.
+        """
+        return await runtime.set_hair_material_color(expected_model, material_id, key, color)
+
+    @ready_tool(annotations=edit)
+    async def colorize(expected_model: str, target: str, color: Color, group_id: str,
+            material_ids: list[str] | None = None, layer_ids: list[str] | None = None,
+            mode: str = 'multiply', strength: Channel = 1) -> dict:
+        """Compose global|texture|both writes within one exact active group.
+
+        Exact optional material/layer filters restrict scope. Shared bindings and
+        rasters are deduplicated. Returns individual receipts and stops on native
+        uncertainty, with partial results and no synthetic rollback. Both can
+        compound tint and baked pixels; rendered color is not verified here.
+        """
+        return await runtime.colorize(expected_model, target, color, group_id, material_ids,
+                                      layer_ids, mode, strength)
 
     @ready_tool(annotations=edit)
     async def close_texture_editor(expected_model: str) -> dict:

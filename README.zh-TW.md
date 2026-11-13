@@ -7,12 +7,16 @@
 VRoid 的系統協定關聯。失敗診斷與驗收邊界見 [相容記錄](REGRESSION.md)。
 
 本地 MCP 伺服器：預設驅動**一份可丟棄的 VRoid Studio 副本**，也可明確連接已開啟的 VRoid；透過
-managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出，共 **103 個工具**。
+managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝與 VRM 匯出。連線後可透過 MCP `tools/list` 查看實際提供的工具與參數。
 不使用滑鼠自動化、OCR 或螢幕抓取。
 
-狀態：**0.5.0.dev0 開發快照**（npm 對應 `0.5.0-dev.0`），共 **103 工具**。
-本機程式碼和受控原生驗收通過，獨立外測仍待進行；未建立新的穩定版或發布標籤。
+狀態：**0.5.0.dev0 開發快照**（npm 對應 `0.5.0-dev.0`），尚未發布新的穩定版。
+此 fork 的 [mcjo79 遷移對照表](MIGRATION.md)逐項列出 53 個來源工具的對應功能、測試與限制。既有原生測試是上游基線的歷史紀錄；遷移功能的實機操作、儲存後重開、匯出及畫面效果，仍須在相容的獨立副本中按[實機驗收清單](docs/superpowers/native-migration-acceptance.md)分別驗證。
 角色美術是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
+
+目前提供 [145 個工具](tools/TOOLS.md)，保留遷移前的 103 個介面，並增加服裝模板列表與疊加。`get_help` 接受 `{"topic":"migration","language":"zh"}`，可離線查閱對照表。從 `return_to_main_menu` 取得 `menu_token`，以 `expected_menu` 傳給 `create_from_menu` 或 `open_from_menu` 即可在同一程序繼續操作。
+
+連線後可向 `get_preset_framing` 傳入 `{"category":"Clothing/Tops"}` 查看上衣的預設取景，不會啟動 VRoid。`search_preset_cache` 查詢本機目錄，首次在相容副本執行 `sync_preset_cache` 前，搜尋結果可能為空。同槽服裝可用 `list_clothing_templates` 與 `add_clothing_template` 由內向外疊層。
 
 已核構建支援同一進程連續編輯體型、貼圖及換裝；真實連接模式使用 VRoid 持有的完成回呼。
 彈窗會阻止寫入，中斷操作須先檢查實際狀態再恢復，見 [恢復步驟](RECOVERY.md)。
@@ -47,7 +51,7 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 使用獨立 profile、獨立登錄鍵與自己的 `TEMP`，以 Frida 附加，並在 Unity 主執行緒呼叫
 managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯直接作用於真實角色與 profile，
 不載入副本隔離守衛；`save_as` 保存新副本並保留原檔案關聯與未保存標記，`save_character` 原位保存前會保留核驗過的備份，`save_character_as` 可另存並關聯新檔案。
-斷開不會關閉視窗。相容視窗可打開指定人物、保存當前人物副本後進入換裝、匯入 XWear 並保存新 XRoid；新建／打開人物須 `discard_unsaved=true`，`new_character` 依原生退出流程完成新建替換，當前人物轉換裝須 `switch_to_wear=true`。人物／XWear／XRoid 流程支援明確的絕對路徑，普通檔名使用 lab 的 saves 目錄。普通編輯可匯出 VRM 0.x/1.0；
+斷開不會關閉視窗。相容視窗可打開指定人物、保存當前人物副本後進入換裝、匯入 XWear 並保存新 XRoid；取代當前人物須 `discard_unsaved=true`，`new_character` 依原生退出流程完成新建替換，當前人物轉換裝須 `switch_to_wear=true`。人物／XWear／XRoid 流程支援明確的絕對路徑，普通檔名使用 lab 的 saves 目錄。普通編輯可匯出 VRM 0.x/1.0；
 自訂物件保存到該視窗的原生衣櫃，核驗檔案與登記並保留人物檔案關聯及原有未保存標記。
 連接和部件操作詳見 [既有工作階段與普通匯出](ATTACHED_SESSION.md)。
 
@@ -59,7 +63,7 @@ managed 方法。`attach_open_vroid` 可明確連接已開啟的 VRoid，編輯�
 ## 需求
 
 - Windows。
-- VRoid Studio **2.14.0 或 2.16.0**（Unity 6000.0.62f1）；須符合 `supported_builds.py` 的精確程式雜湊，未驗證的構建仍會被拒絕。
+- VRoid Studio **2.14.0 或已簽名獨立版 2.16.0**（Unity 6000.0.62f1）；須符合 `supported_builds.py` 的精確程式雜湊，已公布中繼資料指紋的組建還必須相符。未驗證的構建（含 Steam 2.16.0 雜湊）仍會被拒絕。[組建說明](docs/native-evidence/2026-11-07-vroid-216.md)
 - Python 3.10+、Git、Node.js 與 npm（用於 Frida bridge 依賴與 JavaScript 檢查）。
 
 ## 安裝
@@ -134,7 +138,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 -Manife
 
 圖層支援原生重命名、刪除、從底到頂完整排序及 26 種混合模式，保留原生 Undo/Redo。圖層／堆疊雜湊防止陳舊寫入；原生分組尚未完成，遇到組樹會拒絕這四項修改。使用方式與驗證見 [圖層管理](TEXTURE_LAYERS.md)。
 
-最新程式碼回歸在 Python 3.10／3.12 均為 **571 通過、1 跳過**；12 組 JS、103 工具合同與 347 檔案原始碼清單通過。原有 99 工具輸入 schema 保持，新增四個圖層工具。F00／M00 圖層專項各通過 11 項，包括實際合成貼圖變化及保存冷重開；分組未計為完成。
+採納社群分支前的程式碼回歸在 Python 3.10／3.12 均為 **571 通過、1 跳過**；12 組 JS、103 工具合同與 347 檔案原始碼清單通過。原有 99 工具輸入 schema 保持，其後新增四個圖層工具。F00／M00 圖層專項各通過 11 項，包括實際合成貼圖變化及保存冷重開；分組未計為完成。目前工具數量以 [工具參考](tools/TOOLS.md) 為準。
 2026-10-28 擴展後的 F00／M00 真實視窗編輯與檔案流程各通過 26 項，包括新建、絕對路徑另存／打開、原位保存備份與冷重開、當前人物轉換裝、XWear 匯入和 XRoid 保存重開。
 另有獨立的 18 項 F00 連接生命週期，以及此前五域與同進程體型→貼圖→換裝→匯出記錄。版本與文件調整本身不算新的原生驗收，復現方式見 [連接說明](ATTACHED_SESSION.md)。
 

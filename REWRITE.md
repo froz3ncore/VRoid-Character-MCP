@@ -1,7 +1,7 @@
 # Rewrite plan: from fork to independent source
 
 This is the historical 0.4.1 rewrite ledger (completed 2026-10-20). Its 86-tool
-gate describes that snapshot. Current development has 103 tools; later additive
+gate describes that snapshot. The upstream snapshot at `b02b108` exposed 103 tools. Later additive
 features use their own input-contract checks. Current status is in [SCOPE.md](SCOPE.md).
 
 The upstream project this repository started from,

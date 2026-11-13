@@ -7,7 +7,7 @@ a strand is created through `edit_hair_structure` and then edited point by point
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -15,10 +15,62 @@ from .tool_models import HairColorChange
 
 CATEGORIES = ('HairFront', 'HairBack', 'AllHair', 'HairTied', 'HairSideburns', 'HairAhoge', 'HairHanege')
 ASSEMBLIES = Literal['VRoid.Studio', 'VRoidCore', 'VRoid.UI', 'UnityEngine.CoreModule', 'VRM10']
+FiniteFloat = Annotated[float, Field(strict=True, allow_inf_nan=False)]
+PositiveInt = Annotated[int, Field(strict=True, gt=0)]
 
 
 def register(ready_tool, runtime, lab, read, edit):
     """Publish the hair authoring and introspection tools."""
+
+    @ready_tool(annotations=read)
+    async def list_hair_groups(expected_model: str, category: str | None = None) -> dict:
+        """List exact groups, concrete type and control-point polyline statistics.
+
+        Optional category selects one of the seven hair parts; omission scans all.
+        Lengths use native control-point coordinates without guide transforms.
+        They are independent of procedural Length and rendered spline length.
+        """
+        return await runtime.list_hair_groups(expected_model, category)
+
+    @ready_tool(annotations=edit)
+    async def set_procedural_hair(expected_model: str, category: str, scope: str,
+                                  length: FiniteFloat | None = None,
+                                  hair_count: PositiveInt | None = None) -> dict:
+        """Set exact native procedural Length/HairCount controls within live UI ranges.
+
+        At least one value is required. Available on the admitted pixiv-signed
+        2.16.0 standalone and pixiv-signed 2.14.0 builds. The upstream 2.14.0
+        descriptor and the unadmitted Steam 2.16.0 hash refuse this write.
+        Existing exact native VM controls supply live ranges and setters. Other
+        paths use verified native managed modifiers and static native UI bounds,
+        without creating a property or JS-owned history delegate. Each scalar is
+        settled and read back before the next write. Configured Length has native
+        parameter units, separate from measured control-point geometry.
+        """
+        return await runtime.set_procedural_hair(expected_model, category, scope, length, hair_count)
+
+    @ready_tool(annotations=edit)
+    async def scale_brush_hair(expected_model: str, category: str, scope: str,
+                               factor: FiniteFloat = Field(gt=0, le=10)) -> dict:
+        """Scale all nonroot brush-group points about each strand's own root.
+
+        Factor must be finite in (0,10]. Normal, UV, guide and material are preserved.
+        Each moved point creates one native history command. Partial/uncertain
+        receipts identify completed points; never blindly retry those operations.
+        """
+        return await runtime.scale_brush_hair(expected_model, category, scope, factor)
+
+    @ready_tool(annotations=edit)
+    async def clone_brush_hair(expected_model: str, category: str, scope: str,
+                               offset: list[FiniteFloat] = Field(min_length=3, max_length=3)) -> dict:
+        """Clone a whole brush group, then offset every cloned point including roots.
+
+        Finite XYZ offset uses native control-point coordinates, without guide or
+        world conversion. Returns unique new group/strand IDs, completed native
+        command calls and verified geometry counts. Merged undo-entry counts are
+        unknown. Ambiguous or partial results must not be retried blindly.
+        """
+        return await runtime.clone_brush_hair(expected_model, category, scope, offset)
 
     @ready_tool(annotations=read)
     async def list_hair_nodes(category: str = 'HairFront') -> dict:

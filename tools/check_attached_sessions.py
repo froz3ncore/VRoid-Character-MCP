@@ -13,6 +13,7 @@ import os
 import signal
 from pathlib import Path
 import sys
+import tempfile
 from datetime import timedelta
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +36,8 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
     out.mkdir(parents=True)
     scratch = out / 'temp'
     scratch.mkdir()
-    os.environ['TEMP'] = os.environ['TMP'] = str(scratch)
+    os.environ['TEMP'] = os.environ['TMP'] = os.environ['TMPDIR'] = str(scratch)
+    tempfile.tempdir = None
     target = out / 'target'
     await asyncio.to_thread(prepare_lab.main, ['--source', str(source), '--lab', str(target)])
     fixture = Runtime(target)

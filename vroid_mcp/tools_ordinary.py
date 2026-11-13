@@ -37,13 +37,35 @@ def register(ready_tool, runtime, lab, read, edit):
 
     @ready_tool(annotations=edit)
     async def export_vrm(expected_model: str, filename: str, version: Literal[0, 1] = 1,
-                         title: str | None = None, author: str | None = None) -> dict:
+                         title: str | None = None, author: str | None = None,
+                         model_version: str | None = None, options: dict | None = None,
+                         leave: bool | None = None) -> dict:
         """Export the ordinary edit model using its native VRM metadata and settings.
 
         version 0 exports VRM 0.x, version 1 exports VRM 1.0. A new filename is
         written under lab/saves; existing files are refused. The model's native
         VRM title/name must be set in the model or supplied as title. Optional
         title/author override only the exported metadata; other permissions use
-        the model's own settings. Container checks do not establish visual quality.
+        the model's own settings. model_version overrides only the exported version.
+        Omitted options keep observed native settings. A supplied object overlays
+        those settings: delete_transparent, hair_cross_section, combine_hair are
+        booleans; hair_smoothness, hair, face, body, outfit, hair_bones are integer
+        sliders 0..100; material_mode, texture_mode, atlas_resolution are native
+        choice indices from get_vrm_export_options. Returns requested/effective
+        settings and warnings if VRoid refuses a combination after one reapply.
+        Fresh screen rebuilds are required. leave=None preserves the pre-call
+        screen ownership; explicit True/False closes/keeps the export screen safely.
+        Uncertain export work retains native handles and forbids retry/navigation.
+        Container/reference checks do not establish visual or engine acceptance.
         """
-        return await runtime.export_vrm(expected_model, filename, version, title, author)
+        return await runtime.export_vrm(expected_model, filename, version, title, author,
+                                        model_version, options, leave)
+
+    @ready_tool(annotations=edit)
+    async def get_vrm_export_options(expected_model: str, leave: bool = True) -> dict:
+        """Enter the native export screen and return actual settings and choice labels.
+
+        This query changes the screen. leave=True returns to the editor;
+        leave=False keeps the export screen open. Native preview work must settle.
+        """
+        return await runtime.get_vrm_export_options(expected_model, leave)

@@ -6,7 +6,7 @@
 vroid_mcp/data/** -text
 
 # Generated manifests record hashes; keep them byte-stable as well.
-pipeline/source-manifest.json -text
+pipeline/source-manifest.json -text whitespace=trailing-space,space-before-tab,cr-at-eol
 pipeline/source-snapshot.json -text
 
 # Shell and PowerShell scripts stay LF so a Linux checkout can run them.

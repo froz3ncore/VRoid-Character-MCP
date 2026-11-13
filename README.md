@@ -3,14 +3,20 @@
 **English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
 A local MCP server that normally drives **one disposable copy of VRoid Studio** through
-the application's own managed API, with optional attachment to an existing session. It exposes 103 tools for character
+the application's own managed API, with optional attachment to an existing session. It exposes tools for character
 parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
-Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), **103 tools**.
-Local code and controlled native checks have passed; independent external-user
-acceptance is pending. This snapshot has no new stable release or release tag.
+Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), with no new stable release or tag.
+This tree exposes [145 tools](tools/TOOLS.md), including all 103 baseline interfaces, the mcjo79 migration, and clothing-template tools. The [migration matrix](MIGRATION.md) maps each of the 53 source tools to its public entry points.
+It distinguishes implemented operations, offline tests and remaining limits. Earlier native runs cover the upstream baseline;
+the migrated operations still need [native, save/reopen, export and visual checks](docs/superpowers/native-migration-acceptance.md) on a physical lab copy under an eligible Windows test profile.
 Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).
+
+For offline help call `get_help` with `{"topic":"migration","language":"en"}`. A cold server can answer
+`get_preset_framing({"category":"Clothing/Tops"})` without launching VRoid.
+`search_preset_cache` searches the local catalog; an empty result before the
+first live `sync_preset_cache` is expected.
 
 Validated copies support body, texture and Dress-up editing in one process.
 Native PNG decoding runs on Unity's main thread with deferred callbacks to avoid
@@ -93,8 +99,10 @@ See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 ## Requirements
 
 - Windows.
-- VRoid Studio **2.14.0 or 2.16.0** (Unity 6000.0.62f1), matching an exact
-  `GameAssembly.dll` hash in `supported_builds.py`. Unverified builds remain rejected.
+- VRoid Studio **2.14.0 or signed standalone 2.16.0** (Unity 6000.0.62f1), matching an exact
+  `GameAssembly.dll` hash in `supported_builds.py`. A published metadata pin must match.
+  Unverified builds, including the Steam 2.16.0 hash, remain rejected.
+  See [package notes](docs/native-evidence/2026-11-07-vroid-216.md).
 - Python 3.10+, Git, Node.js and npm (for the Frida bridge dependency and JavaScript checks).
 
 ## Install
@@ -167,7 +175,10 @@ For an outfit: `get_wear_status` → `open_wear_project` → `import_xwear` →
 of ordinary editing and has its own token.
 
 Textures and makeup are native too: list regions and layers, open the matching
-canvas, and add PNG layers or bounded stamps through native history. Those tools
+canvas (including Tops, InnerTop, Bottoms, ArmAccessory and Shoes), and add PNG
+layers, clothing templates or bounded stamps through native history. `inspect_texture_canvas(compact=true)`
+returns import IDs. `capture_review(include_images=false)` returns paths without image bytes.
+`client_repl.py --compare` can render a local preset comparison. Those tools
 refuse to run while a Dress-up assembly is open.
 Raster layers also support guarded rename/delete/order and all 26 native blend
 modes, with native Undo/Redo. Order is bottom to top; folder editing is unfinished.
@@ -199,7 +210,7 @@ own report is not the evidence.
 
 ## Known limitations
 
-Latest code checks: **571 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+Historical code checks before this adoption recorded **571 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
 **twelve JS suites**, **103 tools** and a 347-file source manifest. The earlier 99
 input schemas are unchanged; four raster-layer tools were added. F00 and M00
 each passed 11 dedicated layer checks, including cold persistence and actual
@@ -274,7 +285,7 @@ that finds inherited lines moved into new modules.
 | `agent/operations.js` | model, history, saving and capture dispatch |
 | `agent/parameters.js` | typed parameter bindings |
 | `tools/run_checks.ps1` | one-command acceptance with a JSON report |
-| `tools/TOOLS.md` | generated reference for all 103 tools |
+| `tools/TOOLS.md` | generated tool reference; `tools/list` gives the schemas served by a running checkout |
 | `SCOPE.md` | must-do, may-skip and out-of-scope for 0.4.x |
 | `REWRITE.md` | rewrite ledger and provenance gates |
 | `CHANGELOG.md` | release notes |

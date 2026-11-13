@@ -45,6 +45,10 @@ passed. The earlier process exit is not claimed to have a proven root cause.
 两次完整回收，不代表长时间运行无泄漏。系统协议关联保持原样，旧版 2.14 回归也
 使用新隔离策略。诊断中的一次进程退出没有确定原生栈，保留为已知未定位记录。
 
+The Steam 2.16.0 assembly hash is recorded in the [package notes](docs/native-evidence/2026-11-07-vroid-216.md) and is not on the allowlist. Migrated group, hair, camera, catalog and export tools still need the [native acceptance checklist](docs/superpowers/native-migration-acceptance.md). The historical F00 baseline below covers three fixed square views and does not certify those new captures.
+
+Steam 2.16.0 程序集哈希只作记录，不在准入名单。迁移进来的分组、头发、相机、目录和导出工具仍须按[验收清单](docs/superpowers/native-migration-acceptance.md)在一次性实验副本上验证。下文历史基准只覆盖 F00 的三个固定方形视图。
+
 ## Native repeatability / 原生静态复采
 
 Use an exclusive prepared lab and a saved `.vroid` inside its `saves/` folder.

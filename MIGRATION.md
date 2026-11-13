@@ -1,0 +1,393 @@
+# mcjo79 capability migration and provenance
+
+Inventory opened 2026-11-06 and reconciled 2026-11-07. Source: [mcjo79/vroid-mcp](https://github.com/mcjo79/vroid-mcp)
+at `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; target baseline:
+`b02b108ab4a8b4333ecf206a199a7a0403aa7ffe`. Work is on
+`feat/mcjo79-capability-migration`, following the versioned
+[design](docs/superpowers/specs/2026-11-06-mcjo79-migration-design.md) and
+[plan](docs/superpowers/plans/2026-11-06-mcjo79-migration.md).
+
+## Evidence and state vocabulary
+
+All 53 tools in the pinned source inventory (`mcp_server/vroid_mcp.py:160-661`)
+have an implemented target operation or a documented composition in the matrix.
+The BunnyBlack fork registered 143 tools and retained all 103 tools from its baseline. This repository keeps that set and adds `list_clothing_templates` and `add_clothing_template`, for 145 tools. Steam 2.16.0 is not admitted.
+Use the [generated reference](tools/TOOLS.md) for current argument names,
+requirements and defaults. Model, group, layer and menu identities belong to the
+current target session. A source name alone does not authorize a write.
+
+Attached recovery checks managed imports and history tasks, retained ordinary VRM exports and registered-item loads and selections before acknowledgement or detach. Source pins survive interrupted work until terminal evidence or confirmed process exit. A replacement agent requires proof that the old agent released its native owners. The cache pins physical Windows directories through publication. ZIP and icon inspection requires an authorized registered path and file generation.
+
+The following revisions locate each domain implementation and its focused
+regressions. The row numbers refer to the source order below. The evidence
+covers real local files, public MCP transport and native doubles where indicated.
+The [native checklist](docs/superpowers/native-migration-acceptance.md) records
+the outstanding process, history, save/reopen, export and appearance checks.
+
+| Source rows | Implementation and review fixes | Reproducible evidence in `tests/` |
+| --- | --- | --- |
+| 1–6, 9–10, 35–36 | `da916b7`, `1c5b817` | `test_session_workflows.py`, `test_session_rejection.py`, `session_workflows_test.js` |
+| 7–8 | `5520cb7`, `b7084ff` | `test_ordinary_vrm_options.py`, `vrm_export_test.js` |
+| 14–23, 38–39, 43, 50–51 | `c87bf0e`, `a36d7cf`, `39852e4`; garment and custom-file integration through `97e3cbf` | `test_groups.py`, `groups_test.js`, `test_catalog_custom_apply.py`, `test_custom_item_generation.py` |
+| 24–30, 40–41, 53 | `8555d58`, `c0fa924` | `test_texture_pixels.py`, `advanced_materials_test.js`, `texture_pixels_test.js` |
+| 31–34 | `2bd5861`, `3f7335d`, `1d86d4e` | `test_hair_group_runtime.py`, `hair_groups_ownership_test.js`, `hair_procedural_native_test.js` |
+| 37, 49, 52 | `da73010`, `a4dd528`, `0f3f56d` | `test_editor_capture.py`, `editor_capture_test.js`, `editor_preview_native_test.js` |
+| 11–13, 44–47 | `5613f93`, `afe765e`, `6053afd` | `test_catalog_runtime.py`, `test_preset_catalog.py`, `catalog_native_test.js` |
+| 42, 48; situation-image checks for 11–12, 46 | `d959120`, `fd404df`, `c4d53b6`, `a51a9da`, `6053afd` | `test_situation_gallery.py`, `test_situation_fix.py`, `situation_framing_test.js`, `situation_revision_test.js` |
+
+The two 2.16.0 package descriptors and verified native roles landed in
+`1ddeb83` and `7a50acb`. The historical Task 1 scratch baseline
+(`207d456`) had 571 passing Python tests, ten JavaScript behavior suites and
+103 tools before these adaptations.
+
+## Architecture and safeguards retained
+
+- Keep Python MCP, the Frida bridge and JavaScript IL2CPP main-thread dispatch.
+  Do not install a second BepInEx/Harmony/HTTP or GUI-input control kernel.
+- Keep supported-build checks, fresh model identities, session serialization,
+  native history, attached/copy ownership and lab-scoped no-overwrite artifacts.
+- Validate before side effects; use exact native bindings and units. A raw
+  source key, normalized scalar or fuzzy label is not an established write ID.
+- Native completion needs bounded state/task polling. An uncertain dispatch
+  retains its barrier/handles and must not be retried or cleaned up blindly.
+- Catalog reads work offline. Scans retain annotations and unknown custom
+  records. Situation imagery uses an acknowledged disposable owned-copy model.
+- The [2.16.0 compatibility record](docs/native-evidence/2026-11-07-vroid-216.md)
+  identifies the Steam and pixiv standalone pairs, native descriptor changes,
+  and the outstanding per-domain live checks. This account's crash guard
+  blocked launch of the verified Steam copy.
+
+## All source tools and domain owners
+
+The owner column links each source behavior to its implementation domain above.
+
+| # | Source tool | Domain owner | Target entry points, behavior and restrictions | Verification state |
+| --- | --- | --- | --- | --- |
+| 1 | `vroid_help` | Help/batch/lifecycle (Task 9) | `get_help(topic, language)` and `vroid://help/{en,zh}/{topic}` provide offline guidance, installed tool schemas and this mapping. Unsupported languages explicitly fall back to English. | Offline SDK resource and schema tests. |
+| 2 | `vroid_batch` | Help/batch/lifecycle (Task 9) | `run_batch` dispatches 1..200 published SDK tools under a task-owned session gate. Each call revalidates current arguments/model and keeps its original attached receipt. Results carry attempted counts and zero-based indices. Up to eight images and 16 MiB are returned once. | Offline stop/continue, error, serialization, prevalidation and wire-image checks. |
+| 3 | `vroid_status` | Session baseline (Task 9 field audit) | `get_status` adds model_open, active_screen, edit_root_active, file_path, dirty, model_type, model_variant, is_editing, can_undo and can_redo to existing PID/build/readiness/model/toolset fields. Unavailable fields are null. in_place_save_supported describes mode policy. | Field audit and offline stopped/unknown cases. Native status unverified. |
+| 4 | `vroid_create` | Session baseline (Task 9 field audit) | `create_from_menu` takes a current single-use menu_token, F00/M00 and an attached-window acknowledgment. Fresh settled edit-root identity and actual synthesis variant are read back. Existing guarded replacement `new_character` remains available. | Signed ed65 and both 2.16.0 packages statically identified, offline guard/readback tested. Native acceptance open. |
+| 5 | `vroid_open` | Session baseline (Task 9 field audit) | `open_from_menu` opens a pinned CRC-checked archive from lab saves or an explicitly acknowledged attached absolute path in the same session. Its non-generic Task, new edit-root identity and actual path association must complete. Existing `open_character` retains replacement/discard guards. | Offline file-policy, task and path checks. Native acceptance open. |
+| 6 | `vroid_save` | Session baseline (Task 9 field audit) | `save_as` publishes fresh lab snapshots. Attached `save_character` requires an existing associated absolute path and makes a verified backup. `save_character_as` associates a new path. A path reported by status never grants overwrite authority. | Existing copy/attached file-policy and hash tests. Native persistence unverified. |
+| 7 | `vroid_export_vrm` | Ordinary VRM (Task 2) | Implemented source adaptation: `export_vrm` adds model_version/options/leave. Twelve strict options overlay observed native settings; omitted options never reset settings. Preserves stored metadata/permissions, integer VRM0/1 selection, model identity, staged no-overwrite publication and separate XWear path. Fresh preview -> staged apply -> reopen -> readback, at most one settings reapplication with effective values/warnings. Signature-derived native TaskCompletionSource<bool> and typed setters; task false/fault/cancel, possible dispatch failure or timeout never publishes or auto-retries. Retains handles until successful task, stable file and consecutive quiet preview polls; uncertainty forbids navigation/release. Both versions receive complete GLB chunk and embedded resource-reference checks. | Offline Python orchestration/validation and executable JS native doubles verified in Task 2. Native compatibility, actual reduction, delayed cleanup survival and visual/engine acceptance remain unverified. |
+| 8 | `vroid_export_vrm_options` | Ordinary VRM (Task 2) | Implemented `get_vrm_export_options`: actual settings plus native choice indices, translated labels and managed values. Annotated as an edit because it enters a native screen; leave=True by default, explicit False keeps it open. Four consecutive idle polls require PreviewAvatar, no preview blocker/queued work and no model updating. Export leave=None preserves prior screen ownership; explicit leave controls are honored only when safe. Uncertain job status is inspectable without permitting cleanup/retry. | Offline lifecycle/readback/native-double tests verified in Task 2. Native option combinations and screen cleanup survival require a supported disposable lab. |
+| 9 | `vroid_main_menu` | Help/batch/lifecycle (Task 9) | `return_to_main_menu` verifies the current edit-root owner, Unity window, UI/PNG state, dirty flag and exact token. Explicit discard is required for dirty models. Poll until currentFile is null on the genuine ModelSelection screen, then issue a separate menu_token. | Offline guards and signed-build callback/enum evidence. Native transition unverified. |
+| 10 | `vroid_exit` | Help/batch/lifecycle (Task 9) | `exit_vroid` requests the built-in graceful quit continuation on a verified edit model. Attached requires close_attached=true, dirty requires explicit discard. Hold a SYNCHRONIZE-only process handle through confirmation. A pending quit blocks kill/cleanup/restart and an exited session blocks automatic launch. | Offline pending/confirmed lifecycle and static callback evidence. Native quit unverified. |
+| 11 | `vroid_framing_get` | Catalog/framing (Tasks 7-8) | `get_preset_framing` lazily resolves 22 exact shipped defaults, explicit custom-slot equivalents, category/prefix fallback and local overrides. Situation capture consumes downward fractions, numeric horizontal half-width/model-height, region-span distance multiplier and full-body inactive fields using owned renderer min/max bounds. | Offline persistence, translated/yawed/aspect geometry and independently projected full-body corner containment verified. Native/visual acceptance unverified. |
+| 12 | `vroid_framing_set` | Catalog/framing (Tasks 7-8) | `set_preset_framing` persists validated category overrides atomically under the catalog's cross-process lock: 0<=top<bottom<=1, null or 0<half<=1, .1<=distance<=100, -360<=yaw<=360, region/full-body. `clear_half=true` explicitly stores null; omitted half preserves it. Capture reports requested/effective distances and full-body inactive regional inputs. | Offline validation, persistence, immutable defaults and effective geometry verified. Camera rendering/visual acceptance unverified. |
+| 13 | `vroid_framing_reset` | Catalog/framing (Task 7) | `reset_preset_framing` removes one/all local overrides with atomic replacement and actual OS locking. Malformed overrides fail without overwriting evidence; shipped defaults remain immutable. All framing tools are offline and bypass app startup. | Offline reset/fallback/corruption/lock checks verified. Native/visual acceptance unverified. |
+| 14 | `vroid_list_groups` | Groups/parts/presets (Task 3) | `list_groups` merges exact active/leaf/stored identities, native type/resource/revision, topology fingerprint, discovery errors and exact native clear-option removal evidence. | Offline contracts and native doubles verified (Task 3); supported-binary/native acceptance unverified. |
+| 15 | `vroid_get_params` | Groups/parts/presets (Task 3) | `list_group_parameters` exposes exact typed and raw bone/blendshape/color/unsupported enum entries. Reuses typed writers only with full group/path/template evidence; raw unknown scalar ranges and Bool/Float history writes remain explicitly unsupported. | Offline exact/stale/typed contracts verified (Task 3); native layouts/ranges require supported lab. |
+| 16 | `vroid_get_item_params` | Groups/parts/presets (Tasks 3, 10) | Use `list_groups` to discover stored non-leaf groups and `list_group_parameters` with the exact group ID. GetTransferableGroupBlendShapesQuery supplies exact item paths, and GetClothingQuery supplies worn colors. The audited ordinary garment single-slider VM has an unscaled 0..100 range. An editable item row identifies its active garment leaf, transferable, model, group revision and topology. | Static ed65 and 2.16.0 UI caller/bounds evidence and offline native-query tests. Live garment/accessory coverage and renderer material identity remain unverified. |
+| 17 | `vroid_sections` | Groups/parts/presets (Task 3) | `list_sections` maps known full native group types to active-leaf sections and reports unknown types unclassified. Explicit group discovery facade, not actual UI navigation or every available preset category. | Offline section contract verified (Task 3); native acceptance unverified. |
+| 18 | `vroid_categories` | Groups/parts/presets (Task 3) | `list_categories(section)` returns full native type IDs, distinct labels and every matching active group ID. Parameter-only active groups remain visible; native preset categories stay in list_presets. | Offline identity/ambiguity contract verified (Task 3); native acceptance unverified. |
+| 19 | `vroid_enter` | Groups/parts/presets (Task 3) | `enter_category` resolves exact section/native category IDs to group controls. Multiple groups produce explicit ambiguity; ui_navigation=false. No fuzzy label writes or desktop input. | Offline facade and ambiguity checks verified (Task 3); no UI navigation claim. |
+| 20 | `vroid_set_param` | Groups/parts/presets (Tasks 3, 10) | `set_group_parameters` requires fresh exact {id,type,units,value} rows and validates all values, type-resolved clothing owners, overlaps and native command contracts before the first write. Receipts include partial application and settled native readback. Item slider writes compare the actual Single with a fresh read of that exact binding. | Offline bounds, overlap, cancellation, stale owner and discrepant readback tested. Native history/save/reopen gates remain. |
+| 21 | `vroid_set_blendshape` | Groups/parts/presets (Tasks 3, 10) | `set_group_parameters` routes exact single/paired VM paths to their owner. On ed65 and both verified 2.16.0 packages an independently discovered ordinary garment item path with complete ownership and no overlapping VM can use SetBlendShapeTransformParameterCommand. Raw keys with unknown ranges stay read-only. | Static UI caller and command ABI evidence. Offline plain/template path constructors, history dispatch and fresh readback exercised at 0, 58.75 and 100. Live edit and undo unverified. |
+| 22 | `vroid_set_bone` | Groups/parts/presets (Tasks 3, 10) | `set_group_parameters` uses exact group-bound bone VMs for single and paired controls. Uncovered raw bones stay read-only. On ed65 and 2.16.0 the four-argument SetBoneTransformParameterCommand accepts a null template-key dictionary for ordinary plain-bone callers. Template callers can supply a dictionary. Arbitrary raw rows have no verified binding-specific range. | Static plain-bone caller/default and offline typed pair/stale/refusal evidence. Live native history remains unverified. |
+| 23 | `vroid_set_color` | Groups/parts/presets (Task 3) | `set_group_parameters` writes raw or worn colors. Exact owner+ColorPath/TemplateColorPath RGBA values use source SetColorParameterCommand history and readback; overlap aliases stay explicit. Shared binding identity is reported separately from unknown actual renderer/material identity. | Offline native generic Color ABI, prevalidation and readback doubles verified (Task 3); visual/material acceptance unverified. |
+| 24 | `vroid_colorize` | Textures/materials (Task 4) | `colorize` composes global/texture/both within one exact active group, with exact material/layer filters, shared-binding/raster deduplication, conversion receipts, refreshed paths, per-target readbacks and stop-on-uncertainty partial results. Known BaseColor completion continues with unavailable readback explicitly labelled; no synthetic rollback or rendered-color claim. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 25 | `vroid_list_layers` | Textures/materials (Task 4) | `list_texture_layers` preserves group/image/node identities and additionally accepts exact query-derived shared material regions returned by `inspect_hair_materials`/`begin_hair_edit`. Conversion settles native PNG work and re-enumerates layers; existing canvas-only edits retain their guards. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 26 | `vroid_recolor_layer` | Textures/materials (Task 4) | `recolor_texture_layer` implements source multiply and HSV-unit-value/luminance colorize with strength in [0,1], alpha-byte preservation and explicit round-half-up RGBA8 publication. Current PNG hash, exact layer/image, metadata, dimensions and native-boundary current pixels guard replacement; returned PNG hashes describe actual readback. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 27 | `vroid_export_layer` | Textures/materials (Task 4) | `export_texture_layer` retains lab review publication and actual PNG SHA-256. The same native ComposeTiles/PNGUtil path now supports query-derived shared material image regions, without adding a guessed canvas navigation route. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 28 | `vroid_import_layer` | Textures/materials (Task 4) | `replace_texture_layer` replaces only an existing exact raster through LoadImageToEditableImageRasterLayerCommand. Input PNG/current layer hashes, dimensions, exact image/layer, metadata/order and boundary pixel snapshots are checked. One command preserves nonpixel state; `import_texture_layer` adds a new named overlay from an admitted PNG under the existing canvas guards. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 29 | `vroid_list_hair_materials` | Textures/materials (Task 4) | Canonical `list_hair_materials` now includes active native section channels and exact image bindings, alongside legacy thumbnail fields; `inspect_hair_materials` exposes active ownership and deduplicated global base overlays. MaterialColor preserves its actual section path; shared path IDs and native query metadata must resolve exactly. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 30 | `vroid_set_hair_color` | Textures/materials (Task 4) | `set_hair_material_color` writes exact section MaterialColor paths through SetMaterialColorCommand with immediate/post-settle GetMaterialColorQuery verification. BaseColor uses global SetBaseColorCommand, reports unavailable exact readback and never substitutes HairSetColor. Neither getter verification nor known command completion claims visible acceptance. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 31 | `vroid_list_hair_groups` | Hair groups (Task 5) | `list_hair_groups(expected_model, category=None)` maps all active native leaves through exact category transferable types, including siblings absent from the selected editor, without changing selection. One complete membership-only inventory avoids removal catalogs; group discovery is linear, read-only geometry pins are released per group, and group/aggregate point work is bounded. Concrete paths include brush grouplet identity; tagged material references read only their selected native arm. Counts and mean control-point polyline lengths use native control-point coordinates, independently of rendered spline length and procedural Length. | Offline algorithm/native-double/runtime tests verified; supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 32 | `vroid_set_procedural_hair` | Hair groups (Task 5) | `set_procedural_hair` takes the discovered category/scope and Length and/or HairCount. The ed65 2.14.0 descriptor and both audited 2.16.0 packages have verified bindings. The following ordinals apply to ed65. See the [2.16.0 role map](docs/native-evidence/2026-11-07-vroid-216.md) for the new ordinals. A matching existing UI-owned property supplies true native b41/b42 Length and b51/b52 HairCount controls with live bounds. Other paths, including hidden siblings, use native managed captures b97/b102 and the real Action/ModifyProceduralHairGroupParameterSetCommand constructor, with exact owner/path validity checks and statically proved native UI bounds (Length Single 0.1..1, HairCount 1..20). No property or JS history delegate is created. Single conversion precedes range validation; all requested values are admitted before writes, then each scalar is settled/read back before the next. `793eb5fc...` remains unsupported for this descriptor. Receipts distinguish setter calls, explicit command calls and unknown merged history entries. Geometry remains separate from Length. See [static evidence](docs/native-evidence/2026-11-07-procedural-hair.md). | Static native identity and offline algorithm/native-double/runtime tests verified; supported native dispatch ABI, actual Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 33 | `vroid_scale_brush_hair` | Hair groups (Task 5) | `scale_brush_hair` takes a discovered brush scope. Nonroot points scale about their own original root, finite factor (0,10]. Whole boxed ControlPoint copies preserve unknown fields, normal/UV and materials. Captured owner/full strand identity is checked with minimal native lookups before invocation; constructors and rejected ownership checks do not count as command attempts. Actual coordinates must equal intended Math.fround components exactly. Completed calls, verified points and genuinely changed geometry are separate; definite prewrite rejection preserves usability, whereas partial/invoked-uncertain work blocks replay. | Offline algorithm/native-double/runtime tests verified; supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 34 | `vroid_clone_brush_hair` | Hair groups (Task 5) | `clone_brush_hair` accepts a three-component native offset. One CloneBrushHairGroupCommand is scoped to the exact source transferable/captured owner. The original must remain present and exactly one new brush group under that same transferable/owner must appear; unrelated same-category additions are never translated. Full child/group/grouplet identities and source-copy material/guide/geometry are checked. Every offset point, including zero-offset clone coordinates, has exact Single readback; receipts return new IDs and distinguish completed native calls from verified changed points and unknown undo entries. Offsets use native control-point coordinates, without world conversion. Ambiguous/partial work is never retried blindly. | Offline algorithm/native-double/runtime tests verified; supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 35 | `vroid_undo` | Session baseline (Task 9 field audit) | `undo(expected_model, steps)` reads native CanUndo on each step before invoking UndoAsync. Reports requested/completed and preserves successful face-parameter readback. | Offline prefix exhaustion and existing history regressions. Native history unverified. |
+| 36 | `vroid_redo` | Session baseline (Task 9 field audit) | `redo(expected_model, steps)` uses the same bounded history loop and checks native CanRedo before RedoAsync. Unavailable history, exhaustion and an uncertain native invocation yield distinct results. | Offline prefix/refusal contracts. Native history unverified. |
+| 37 | `vroid_screenshot` | Camera/preview/capture (Task 6) | `screenshot` supports paired rectangular output, explicit MSAA 1/2/4 and SSAA 1/2/3, aspect-aware fixed/regional framing and preserved square/photo/review defaults. `current_editor` copies the owned live camera pose and verifies an aspect-adapted projection that contains the source view without crop or distorted proportions. `clean=False` uses an identity-checked one-shot Unity end-of-frame backbuffer read at actual screen dimensions/quality, rejects clean-render overrides and never falls back. `screenshot_metadata` returns image plus effective plan/framing/provenance without duplicated base64. | Task 6 offline math/runtime/native doubles verified; live native callback, UI/color/orientation, image and cleanup acceptance unverified. |
+| 38 | `vroid_list_presets` | Groups/parts/presets (Task 3) | `list_presets` adds case-insensitive ID/resource search and owned_only=False locked metadata while preserving owned-only defaults. Separate all-category PlayFab catalog pages expose price/set/usable/locked, exact selectable IDs, nonselectable catalog-only IDs and explicit completeness/next_offset. | Offline search/catalog pagination/ownership doubles verified (Task 3); catalog discovery never authorizes locked application. |
+| 39 | `vroid_apply_preset` | Groups/parts/presets (Task 3) | `apply_preset` with optional preserve_material invokes the proven native flag for owned simple built-ins; clear/custom/set/unknown-set options are refused. Snapshots/restores/readbacks only exact compatible color-owner/resource/revision/path identities; each binding reports preserved/restored/incompatible/unverified. all_materials_preserved remains false. | Offline preserve flag, actual color restoration and incompatibility doubles verified (Task 3); texture/raster/material coverage and native appearance unverified. |
+| 40 | `vroid_clothing_colors` | Textures/materials (Task 4) | `list_group_parameters` exposes worn-color query bindings. `colorize` composes exact owner/ColorPath/TemplateColorPath history writes, with binding deduplication and post-settle color readback. Query-derived color sharing is kept separate from unestablished renderer material identity. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 41 | `vroid_begin_clothing_edit` | Textures/materials (Task 4) | `begin_clothing_edit` requires complete actual active ownership, executes source BeginClothingAdvancedEditCommand(ids,group,"Layer"), waits for native readiness/PNG callbacks and returns fresh layer/image IDs. Explicit screen_entered=false; no unproven clothing canvas route is added. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+| 42 | `vroid_measure` | Model measurement (Task 8) | `vroid_measure(expected_model)` reads the active current ModelOrigin subtree with enabled renderers only: raw XYZ bounds/count, horizontal center, vertical span, separately labeled renderer extent and source ground-dependent maxY*100. Returns optional uniquely scoped humanoid Head/LeftFoot world Y; missing, ambiguous or external bones are unavailable. Native height remains separate and existing `get_height()` is unchanged. No image or editor camera is required. | Translated bounds, disabled/inactive/unrelated renderers, scoped/missing/external/ambiguous landmarks and read-only host behavior verified with native doubles; native acceptance unverified. |
+| 43 | `vroid_set_body_size` | Groups/parts/presets (Task 3) | `set_body_size` separately zeros global scale and solves gender-specific FigureHeight/FigureSlender with native VM bounds and live GetBodyHeight feedback. Optional source BMI-to-waist is labeled heuristic, not measured mass. Exact gender/group/pair evidence required; failed convergence restores all snapshotted pairs when state is known and reports restoration failure/uncertainty. | Offline invalid-input, feedback, nonconvergence/restoration/cancellation contracts verified (Task 3); actual supported-model sizing unverified. |
+| 44 | `vroid_preset_cache_search` | Catalog/framing (Task 7) | `search_preset_cache` performs all-word casefold substring search with exact combined category/kind/annotation/status/removed and usable/locked filters, bounded 1..200 results. Optional strict `owned` independently filters ownership before limiting, including free unowned items. Lazy lab-local records use stable resource keys; custom registered copies add normalized full-path identity, while revisions/tokens do not change the key. | Actual-file offline, Unicode/ownership stdio and zero-startup tests verified. No installed app was accessed. |
+| 45 | `vroid_preset_cache_annotate` | Catalog/framing (Task 7) | `annotate_preset_cache` retains author/time and before/after history, manual-label priority, append/replace tags/colors including clearing, across changed/removed/returned entries. Strict schema refusal, fsynced atomic replacement and persistent OS file locks protect concurrent writers without stale-lock deletion. | Actual multiprocess timeout/concurrent-write and corruption/atomic-failure tests verified. Source labels are not treated as resource identity. |
+| 46 | `vroid_preset_thumbnail` | Catalog/framing (Task 7) | `preset_thumbnail` resolves a stable key offline, validates contained paths including symlink/junction resolution, PNG CRC/decompressed size/dimensions and SHA-256, then returns actual situation/native-icon provenance. Missing files and invalid stored member proofs fall back to separately validated native icons. Image blobs stage under lab/temp then publish atomically without overwrite; pointer publication uses scanned fingerprint CAS. | Offline actual-byte/path/provenance tests and real MCP wire verified: one image plus metadata, no duplicated structured base64. Malformed member IDs and missing fallback icons covered in Task 10. |
+| 47 | `vroid_preset_cache_sync` | Catalog/framing (Task 7) | `sync_preset_cache` obtains one bounded plain-data snapshot of all four selectable areas and the full independent PlayFab dictionary, including catalog-only locked tail, with a linear ID index. Registered customs require same-instance OnUpdate on ed65 and both audited 2.16.0 packages, with normal completion via NotifyUpdateFiles after one QueueUpdate refresh, complete count-checked coherent reads and no observation failures before removal inference. Missing proof preserves unknowns. Keeps source build/session, timestamps, revisions/content fingerprints and last-scan statuses; bounded icons require scanned resource and fingerprint. | Python actual-store/runtime and executable native-double contracts verified, including failure tables/truncated scans/cleanup and interleaved image identity races. Live supported-native and visual acceptance remain unverified. |
+| 48 | `vroid_preset_cache_build` | Situation thumbnails (Task 8) | `build_preset_thumbnails(expected_model, category, disposable_model=False, refresh=False, limit=None)` rejects attached/unacknowledged calls before startup. One session gate/runtime lock spans complete scan, pre-mutation ZIP/hash generation pin, frozen original required anatomy, independently bound tested native types, clean stored/active member revisions, actual camera matrix/pose/clip/region proof and nonblank 512 raster. Publication CAS binds scan/build/native ID/current framing while preserving annotations. Restoration additionally requires a new engine, actual snapshot association and original inventory; reminted tokens alone are unconfirmed. Full-category selection exceeds 200; only complete images with current native version proof skip, while unprovable old captures regenerate after missing/outdated rows. | Offline/native-double failure, pre-clear/capture Windows pinning, cross-process CAS, exact version graph using named enum Int32 values from both stored literal fields and managed getters, optical/raster and interruption/restore contracts verified. Native execution, reopen fidelity and visual acceptance remain unverified; no neutral anatomy/history/file-association guarantee. |
+| 49 | `vroid_camera` | Camera/preview/capture (Task 6) | `editor_camera` implements get/angles/relative rotate/zoom/pan/reset/named native mode/projection toggle/custom, with bounded typed inputs and terminal motion polling. Exact active edit-root/engine/bus/face/controller ownership; distinct single-camera and instantiated multi-group alternatives, rejecting ambiguous active primaries. Reads actual owned camera projection/FOV/orthographic size; unavailable pan/zoom scalars stay unavailable. Pan/zoom are native deltas. Existing photo controls remain separate. | Task 6 offline action/ownership/enum/settled-readback tests verified; native movement/visible framing unverified. |
+| 50 | `vroid_apply_custom` | Groups/parts/presets (Tasks 3, 10) | `apply_custom_item(expected_model, filename)` matches a validated file to its registered bytes and metadata. `apply_custom_item_by_key(expected_model,key)` resolves a currently usable custom row in copy or attached mode. The live build and unique registered path, group, resource and revisions authorize the file read. Native validation verifies the unique root in the deserialized group list and its metadata. Registration must also match a uniquely selectable native option. Both routes select the exact retained FileCustomItemModel and pin the file through settled readback. Key application holds the catalog write lock across the final generation check and through the selection worker, including after caller cancellation. Copy keys require a physical lab profile file. | Offline public contracts exercised in both modes, including stale, redirected and ambiguous selections. Native-format application and visual acceptance require a supported live lab. |
+| 51 | `vroid_remove_item` | Groups/parts/presets (Task 3) | `remove_items` resolves exact group ID/full native type and prevalidates all requested groups against exact native clear capability. Uses RemoveTransferableGroupAndChildren, polls requested-group absence and returns remaining inventory/per-group partial outcomes. Missing capability is nonremovable; no invented descendant registry or short-suffix remove-all. | Offline mandatory/stale/partial failure and native command doubles verified (Task 3); descendant identities not independently established; native acceptance unverified. |
+| 52 | `vroid_face_preview` | Camera/preview/capture (Task 6) | `face_preview` lists/filter raw current-model face shapes and applies 0..100 weights, explicit reset-to-zero or snapshot restore with readback. Exact name wins; ambiguous suffixes fail before any setter. Current active edit-root/engine/bus/ModelOrigin/renderer/mesh identities are checked; no scene scan or saved-expression command. Native weights must be finite at initial/write/final/capture readback. A successful restore releases tracking; each later preview takes a fresh baseline. Reset retains active tracking. Full ownership walks are constant per synchronous batch with pinned owners and cheap per-point checks. Named `preview_expression` remains separate. | Task 6 offline native/ambiguity/reset/restore/stale-state tests verified; actual deformation, rebuild and visual acceptance unverified. |
+| 53 | `vroid_begin_hair_edit` | Textures/materials (Task 4) | `begin_hair_edit` validates an actually worn shared material, executes source BeginHairMaterialAdvancedEditCommand(path,"Layer",true), settles PNG work and returns fresh query-derived material/image/layer mappings. Explicit screen_entered=false; shared ownership is not inferred from an unrelated hair group. | Offline pixel/runtime/native-boundary behavioral tests verified (Task 4); supported native ABI, Undo/Redo, save/reopen and visual acceptance remain unverified. |
+
+## Source files, destination ownership and MIT attribution
+
+Source copyright: **Copyright (c) 2026 mcjo79 and vroid-mcp contributors**.
+The complete source `LICENSE` is preserved by file-level copy in
+[licenses/mcjo79-0dc7d5e.txt](licenses/mcjo79-0dc7d5e.txt); see also
+[NOTICE](NOTICE) and [LICENSING.md](LICENSING.md). All paths below are
+relative to that fixed source revision unless marked target. This table is
+the source-to-destination ledger for the revisions listed above.
+
+| Source files/reference | Destination/owner | Adaptation and evidence |
+| --- | --- | --- |
+| `LICENSE` | `licenses/mcjo79-0dc7d5e.txt`, NOTICE, LICENSING.md | Full MIT text copied; provenance added. |
+| `mcp_server/vroid_mcp.py` (tool schemas/dispatch), `README.md`, `docs/AGENT_REFERENCE_EN.md` | This 53-row matrix and domain contracts | Capability/reference documentation adapted; no source runtime copied. |
+| `VRoidMcpBridge/VrmExport.cs`; read-only API references in `FileLifecycle.cs`, `LifecycleHooks.cs`, `HttpBridge.cs` | `vroid_mcp/runtime_ordinary.py`, `vrm_export.py`, `vrm_options.py`, `tools_ordinary.py`, `agent/vrm_export.js`, metadata integration in `ordinary_extensions.js`, explicit module ordering/status inspection in `bridge.py` (Task 2) | Adapted settings/lifecycle/native post-dialog API behavior at fixed source revision `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. No HTTP/Harmony/BepInEx runtime transferred. Commit subject: `feat: migrate native VRM export settings`. Offline tests only; native acceptance remains open. |
+| `VRoidMcpBridge/VRoidApi.cs`, `Catalog.cs`, `Presets.cs`, `CustomItems.cs`, `ClothingSliders.cs`, `AdvancedEdit.cs`; silhouette dispatch in `mcp_server/vroid_mcp.py` | `agent/groups.js`, preset/registry extensions and focused Python group/silhouette/custom-file modules (Task 3) | Implemented source adapters with offline contracts; unknown ranges/history/layouts remain explicit. No guessed aliases or weight-as-mass claims; native acceptance unverified. |
+| `VRoidMcpBridge/Textures.cs`, `AdvancedEdit.cs`, `Hair.cs`; colorize composition in `mcp_server/vroid_mcp.py` | Texture/material runtime, pixel helpers and JS (Task 4) | Adapted conversion, exact material discovery/commands, existing-raster replacement history and source recolor algorithms; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. Native acceptance unverified. |
+| `VRoidMcpBridge/HairShape.cs` | `agent/hair_groups.js`, `runtime_hair.py`, `tools_hair.py` and narrow parameter/group/operation composition (Task 5) | Adapted concrete group queries, native control-point polyline statistics, root-relative group scale, native whole-group clone/offset and exact procedural scalar/query behavior from fixed source revision `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. No BepInEx runtime or JS-owned managed modifier transferred. Independently derived checksum-scoped VM/native-managed-modifier descriptors in `agent/hair_procedural.js` and `agent/hair_procedural_fallback.js`, including verified immutable native UI bounds and Action constructor ABI, are recorded in the versioned native-evidence note; native binaries and method bodies are not included. |
+| `VRoidMcpBridge/CameraView.cs`, `FacePreview.cs`, `PreviewCapture.cs`; screenshot portion of `VRoidApi.cs` | `agent/editor_preview.js`, `editor_capture.js`, `app_frame.js`, capture-quality/framing/operation composition; Python `runtime_preview.py`, capture runtime/quality/tools (Task 6) | Adapted native actions/raw-face/rectangular render behavior from fixed mcjo79 revision. MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`; existing brainrom capture notices retained. Supported-build ownership and one-shot Awaitable end-frame backbuffer route were independently derived from ed65 metadata/static control flow; no ScreenCapture wrapper exists there. No BepInEx, managed callback history, desktop input or second control kernel. |
+| `mcp_server/preset_cache.py`, `config/framing.json`; `Catalog.cs`, `Presets.cs`, `CustomItems.cs` metadata references | `preset_catalog.py`, `catalog_framing.py`, `runtime_catalog.py`, `tools_catalog.py`, `agent/catalog.js` and linear catalog enumeration in `agent/groups.js` (Task 7); situation orchestration in Task 8 | Adapted persistent catalog/search/annotation/framing defaults and native-icon behavior at pinned mcjo79 revision. MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`; existing brainrom preview attribution retained. Positive registry receipt derives independently from exact signed ed65 metadata/control flow, not an observer-field guess. No native images vendored or second control kernel imported. |
+| `mcp_server/vroid_mcp.py` (`strip_mannequin`, `cache_build`, `frame_region`, `crop_model`); `VRoidMcpBridge/BodySize.cs` | `runtime_situation.py`, lock-held phases in existing catalog/edit/group mixins, `tools_catalog.py`, scoped `capture_framing.js`, screenshot composition and direct-entry certificates in `groups.js` (Task 8) | Adapted at fixed mcjo79 revision `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; MIT notice retained in `licenses/mcjo79-0dc7d5e.txt`. Snapshot pin/hash restoration, scoped enabled geometry, optional owner-verified humanoid bones, numeric-half perspective fitting and native direct-set graph certificates are stronger target behavior derived from the approved design and signed ed65 metadata. No native framework, model/template or images copied. |
+| `mcp_server/vroid_mcp.py`, `mcp_server/help_i18n.py`, `docs/AGENT_REFERENCE_EN.md`, `VRoidMcpBridge/FileLifecycle.cs`, `VRoidApi.cs`, `ContextState.cs` and `LifecycleHooks.cs` | `tools_help.py`, `batch.py`, `runtime_session.py`, `tools_session.py`, server registration, native session/history operations | Task 9 adapts topic discovery, ordered results, template selection, file status and guarded navigation at mcjo79 `0dc7d5e` under the retained MIT notice. The process-handle exit guard and verified native callbacks are target implementations. |
+| `Plugin.cs`, `HttpBridge.cs`, `Interop.cs`, BepInEx/Harmony build/runtime and source MCP JSON-RPC transport | None | Do not incorporate the second control kernel; native API references may inform Frida adaptations with provenance. |
+
+Task 1 scratch changes are local regression fixes in the target check runners,
+independent of the mcjo79 runtime.
+
+## Task 9 native evidence boundary
+
+Task 9's new native transitions are enabled for the metadata-paired ed65
+standalone 2.14 and both inspected 2.16 packages. The legacy 793e build keeps
+its existing routes and refuses the newly unverified callbacks. On the inspected
+packages the edit-root callback constructs StartScreen.ViewModel. The menu gate
+checks its MainViewModel and named ModelSelection enum, the active window and
+the empty current file. The navigation-change notification invalidates old
+receipts even when a screen object is revisited. The template readback follows
+Context.ActiveModel.BaseCollection.Global.BlendShapeSynthesisParameters.BlendShapeSynthesisType.
+Context.ModelType is reported separately. Native import uses dontSetPath=false
+for this path-verified menu route. A graceful quit is confirmed by the exact
+process handle even if Frida disconnects first. Live transition timing,
+save/reopen, export and visual acceptance still require a disposable test lab.
+
+## Other candidate dispositions
+
+| Candidate | Useful material and disposition | Provenance/verification limit |
+| --- | --- | --- |
+| brainrom/vroid-studio-mcp | Retain already adapted labels, paired/mixed color semantics, capture quality/framing. Further useful patterns are readiness-driven completion, queue health, exact disambiguated keys, combined stock/custom listing and signal-driven tests. Do not copy its BepInEx/Harmony transport/build. | Existing adapted revision `a6b0719d01fa6cac9a857956907243d9916390b2`; Copyright (c) 2026 Ilya Chelyadin and vroid-studio-mcp contributors, MIT. Keep the five existing per-data-directory LICENSE/NOTICE/source hashes. New material needs its own exact revision/file record; no new code copied in Task 1. |
+| Karylcode/VRoid-MCP | Historical Python/Frida relative; target already exceeds its published 42-tool scope in several domains. No independent wholesale feature migration recommended. Only narrowly justified later MIT material may be reused. | Preserve historic unlicensed baseline `9b264d3ad3a33bea2e18e91a0476e395246a6be6` record in UPSTREAM.json. Later MIT revision `baaa94e2fdc0419c68cb83b0ecc0b61fcc5661dd`, Copyright (c) 2026 Karylcode, already has `licenses/karylcode-upstream-20261023.txt`. Do not restore rewritten baseline code or recast its former licence status. |
+| nhodges/mcp-vroid | Linux/Wayland screenshot, OCR and pointer/keyboard injection are unsuitable for the Windows background-native server. Window identity and checking a fresh image after an action are useful QA ideas. No code or GUI fallback was incorporated. | Separately verified the [README, project metadata and MIT license at `1a8a30e`](https://github.com/nhodges/mcp-vroid/tree/1a8a30e7322eb2018d9f2198414d88b3f54fc4a5), Copyright (c) 2026 Nuri Hodges. The earlier local snapshot has no verified commit. |
+
+## Required later acceptance
+
+Follow the [native migration acceptance checklist](docs/superpowers/native-migration-acceptance.md) in a supported disposable lab and keep exact source/build/fixture hashes.
+Per-domain offline tests are required but cannot prove IL2CPP marshaling,
+native history or visible effect. Native texture acceptance must compare RGBA
+pixels and appearance through Undo/Redo and save/reopen; hair acceptance must
+check root invariance, group IDs, offsets and materials; preview/camera/capture
+must verify native state, cleanup and image provenance without foreground input.
+Menu/exit need dirty/discard and ownership checks. Catalog imagery needs exact
+remaining-slot/framing evidence and explicit restore/discard results.
+
+Ordinary export acceptance additionally needs VRM0 and VRM1, baseline and one
+changed option at a time, actual mesh/material/image/bone counts, metadata,
+two consecutive exports, explicit leave behavior, boolean task completion,
+stable valid output, healthy process after delayed exit and Player.log review.
+Cold import/render and visual/motion inspection remain separate acceptance gates.
+The source export notes are historical evidence of its implementation only.
+
+## Task 3 implementation boundary
+
+Implemented nine group/body tools plus backward-compatible preset search and
+preserve-material options on the feature branch. Tests cover exact bindings,
+paired controls, stale group revisions, all-before-write validation, raw native
+history ABI checks, registered current-format preflight and uncertain cancellation.
+Raw floats without independently discovered native bounds remain explicit read-only
+rows. Unsupported native Bool/Float history constructors are not invented.
+
+Source adapters are `agent/groups.js`, the registry metadata addition to
+`agent/ordinary_extensions.js`, preset metadata in `agent/operations.js`, and
+`vroid_mcp/runtime_groups.py`, `silhouette.py`, `custom_item_file.py` and
+`group_validation.py`, exposed by `tools_groups.py`. Adapted source files are
+VRoidApi.cs, ClothingSliders.cs, AdvancedEdit.cs, Presets.cs, CustomItems.cs,
+Catalog.cs and the section/silhouette algorithms in mcp_server/vroid_mcp.py at
+the pinned source commit; the MIT notice in licenses/mcjo79-0dc7d5e.txt applies.
+
+Native dictionaries are inflated with path interfaces and actual value types;
+no fake managed key/value structs or guessed raw Bool/Float commands are used.
+Raw history command counts are exact on successful raw dispatches. Native VM
+internal command counts remain unknown, rather than being equated with one undo.
+Preservation reports incomplete material coverage even when all known colors match.
+Removal verifies the requested group and returns a fresh full inventory; the native
+child-removal command does not establish a separately discovered descendant list.
+
+Offline Python/native-double checks do not establish supported-binary compatibility,
+Undo/Redo, save/reopen, actual garment/accessory coverage, native file-format acceptance,
+export or visual quality. The installed Steam package was subsequently identified as 2.16.0. Its binaries were read for static verification.
+
+## Task 7 implementation boundary
+
+Seven tools add an offline catalog and persistent category framing, with only
+`sync_preset_cache` using the existing app-readiness wrapper. Construction,
+schema listing and absent-cache reads create no files or native session. Cache
+records use resource identity; registered custom copies use custom resource plus
+a normalized full registered-path hash. A move/rename is a new copy identity;
+revision-only changes keep annotations. Scan status is last-scan state rather
+than sticky news, and changed returns retain history while invalidating images.
+
+Catalog and framing writes share actual OS file locks under lab/temp, use unique
+fsynced staging and atomic replacement, and refuse malformed evidence. Locks
+remain as persistent inodes and are never removed by age. PNG blobs publish with
+same-volume atomic no-overwrite links after complete staging. Image reads check
+containment, actual bytes, CRC, decompressed size, dimensions and SHA-256. Images
+carry actual native-icon or verified situation provenance; a missing situation
+can fall back to a validated icon. Situation capture uses the store contract with
+copy-returning search/get, fingerprint-CAS publication and framing resolution.
+
+Native sync uses one bounded plain-data snapshot instead of confusing the
+independent selectable/catalog pagination streams. The selectable ID index is
+linear and the PlayFab dictionary is visited once, including catalog-only tail.
+The signed ed65 build and both audited 2.16.0 packages receive the traced custom
+observation hook: exact registry OnUpdate entry, matching NotifyUpdateFiles and
+normal return after one QueueUpdate request. The hooks stay installed through both
+registry reads. Any new update invalidates the previous generation. A snapshot
+can certify removals only if the same normally notified generation is stable
+through both reads. Hooks detach after the read, error, cancellation, timeout
+or teardown. Coherent count-checked registry reads
+plus an available empty failure table are still required. This establishes only
+the observed registered collection; failed/unproven/custom archive scans cannot
+infer removals. Other supported builds keep missing custom rows unknown.
+
+Twenty-two source framing defaults retain their exact values and dimensionless
+distance multiplier. Regional fractions/half-width and requested full-body fields
+remain stored; full-body reports regional fields inactive. Actual translated
+bounds, yaw/aspect geometry, containment and situation capture belong to Task 8,
+and are not claimed by these storage tests.
+
+Actual-file/cross-process tests, native doubles and public MCP conversion checks
+pass; the single full Python run has 925 passes. The counting fixture verifies
+600 native option ID reads for 600 selectable items and a 617-row global catalog,
+including 17 catalog-only locked rows. Parent-controller stdio checks additionally
+verify Unicode annotation/search and one metadata/one image with zero native
+attempts. A narrowly related correction disables duplicate structured base64 on
+new `screenshot_metadata`, preserving its existing content blocks and arguments.
+Legacy `capture_review` keeps its baseline structured schema. `run_batch` removes duplicate structured image payloads from its envelope. No installed
+app, host registry/allowlist, model, export or visual acceptance was exercised.
+
+### Task 7 fix round 1
+
+Seven important review findings now have focused regressions. Catalog writes
+validate the fully mutated candidate using the same schema as cold reads,
+including merged tag/color bounds, appended revision history and persisted empty
+scan headers. Windows lock identity normalizes case before hashing; an actual
+cold case-alias subprocess is excluded before either cache directory exists.
+
+The actual selectable/PlayFab adapters now retain and compare native transferable
+ID and resource together, rejecting contradictions in either dimension while
+keeping matched multi-area, catalog-only and option-only records. Native preview
+results include that same native ID; host image publication checks it with the
+resource. The receipt is finished with exact owner validation before archive IO
+or durable scan publication, with one release attempt. Failed owner checks leave
+prior bytes intact, and offline ZIP work cannot outlive a still-held receipt.
+
+Custom-item inspection pins one generation while streaming its hash and reading
+ZIP metadata/optional bounded icon through the same descriptor. Icon publication
+rechecks decoded native group ID/type and hash. Existing registered custom apply
+checks and uncertainty pins remain in use. Optional strict `owned` is independent
+of usability and is applied before search limits. `sync_preset_cache` is marked as an edit because it writes the catalog. Its attached observation does not open a character-edit receipt.
+
+Round evidence is focused: 221 affected Python tests and six JavaScript suites
+passed, plus the controller's real stdio ownership smoke (ten offline calls,
+zero native attempts). The original 925-pass full run remains historical and was
+not replayed. Native compatibility, save/reopen/export and visual gates remain
+unverified.
+
+## Task 6 implementation boundary
+
+Task 6 adds `editor_camera`, `face_preview` and `screenshot_metadata`, and extends
+the existing image-returning `screenshot` without changing its square/view/quality
+defaults. Camera inputs are finite and bounded; unrelated action arguments are
+rejected. Native enum values are resolved by name. Motion completion is polled,
+and loss/cancellation after a preview mutation retains the uncertainty barrier.
+Raw preview weights are renderer state only, with explicit zero-reset versus
+original-weight restore. Ambiguous suffixes reject instead of the source's
+multiple-match broadcast. Snapshot restore refuses changed renderer/mesh identity.
+
+Clean sides stay within 256..2048 and internal work within 8,000,000 pixels;
+budget clamping preserves aspect with reported per-axis rounding. MSAA accepts
+1/2/4 and reports the created GPU texture's actual downgrade. Every clean path,
+including default screenshot, metadata and review, avoids destructive selection
+preparation. Photo camera configuration/target/enabled state,
+temporary cameras, render targets and CPU textures have explicit finally cleanup.
+`current_editor` uses a cloned camera with exact copied/read-back world pose.
+Projection rows 0/1 are scaled by min(1,A/B) and min(1,B/A), where A is measured
+from the actual source pixel viewport, or the entire non-null source RenderTexture,
+and B is the final output aspect. Optical aspect is separately reported and may
+disagree with the pixel dimensions/custom projection. This expands the frustum
+to contain the source view while keeping projected subject proportions; the live
+matrix is unchanged. Source/effective matrices, clip scale, actual full render
+viewport and per-axis final resampling are reported separately. Projected square
+and circle tests cover portrait/landscape source/output, perspective/orthographic
+and rounded SSAA cap dimensions. Fixed views instead retain their vertical FOV
+while adapting the matrix to output aspect. The supported ed65 binary strips
+`set_aspect`, so only actual supported projection-matrix APIs are used.
+[Unity 6 documents that Camera.targetTexture renders to the whole texture and
+ignores rect/pixelRect](https://docs.unity3d.com/ja/current/ScriptReference/Camera-targetTexture.html);
+no viewport-based letterbox assumption is used.
+
+Multi-rig camera selection uses the exact bus-owned rig's instantiated-group
+dictionary keys and requires one active enabled primary. Multiple candidates fail
+closed; the template is never treated as authoritative current projection. A
+single attached camera is a separate valid route, with no required multi-rig.
+Editor/photo controllers must be distinct. The active screen and current-face
+renderer must match the exact model scope on every use.
+
+The allowlisted ed65 binary has no managed ScreenCapture class. Application frame
+capture instead wires Unity's idempotent Awaitable gate and installs a bounded,
+main-thread-only one-shot on `OnEndOfFrame.onLeave`, then reads the actual screen
+backbuffer with `ReadPixels`. No ordinary frame-pump sampling, clean-render
+fallback, UI change, desktop focus or input is used. Native screen area over 8M
+is refused. App MSAA is explicitly the live QualitySettings value, not a claim of
+GPU RenderTexture verification; SSAA remains application-owned. Hooks, textures,
+active render target and retained results have success/error/timeout/teardown
+cleanup. No model-history callbacks are retained.
+
+Offline evidence: 834 Python tests passed, including 113 focused host/capture/
+attached regressions; five new JavaScript behavior/native-double suites and five
+affected existing suites passed. This proves the contracts under doubles, not
+IL2CPP marshaling, live active-view selection, end-frame pixel freshness, complete
+screen UI, native color/orientation, rendered facial deformation, preservation
+after native rebuilds, or visual quality. No VRoid process was launched/attached,
+registry changed, build allowed, or installed service modified. The generated manifests cover the final branch. A supported disposable native lab remains required.
+
+### Task 6 fix round 1
+
+Review `da73010` against parent plan/spec-only HEAD `1cb6b99`: all seven recorded
+findings received focused regression coverage. Successful raw restore now clears
+its snapshot/tracking only after final identity and finite weight readback, so
+animation/rebuild after restoration is ordinary state and the next cycle snapshots
+a fresh baseline. Initial or late NaN/Infinity refuses success; failed writes keep
+an uncertain receipt. A legal 4096-shape batch pins the renderer/mesh/engine/root
+once and uses bounded full-scope discovery plus cheap per-point owner checks.
+
+Camera get and face listing use read-only native aliases. Attached receipts cover
+only mutations, after host validation, and the native attached guard runs only
+after exact mutation preflight. Definite prewrite results carry no invocation and
+leave no pending edit; lost responses/partial or late failures retain uncertainty.
+Public attached and copy tests include an ambiguous name followed by a valid name.
+
+Clean default/review/metadata no longer call destructive `prepare_capture`.
+Native cameras resolve the actual `LayerConstants` values through the owning
+BuildModifier resources: keep the avatar mask and Outline (selected strands may
+live there), omit UI/UI3D/UI3DGizmo/BrushPreview. Fresh fixed/regional/current-editor
+Camera-only clones have no standalone SelectionOutline post-effect, so selected
+hair remains supported. Nonempty bone-material overrides are explicitly refused
+in all clean modes until the user clears them; the existing live photo route also
+refuses selected hair because its post-effect isolation is not proven. No feature
+is left, selection cleared, controller visibility changed or model update queued.
+Named presentation/layer bindings are validated on the actual supported runtime;
+missing bindings report `CAPTURE_GUIDE_ISOLATION_UNAVAILABLE`, without a guessed
+ed65 offset, silent compatibility claim for 793e, or destructive fallback.
+
+Photo rollback uses only a completed backup and only after an actual live-camera
+mutation attempt, with exact model/root/photo/camera ownership checked again.
+An initial partial backup failure never writes settings back to the real camera.
+Material-selection changes do not prevent restoring an otherwise still-owned
+camera; a replaced owner is never blindly updated. Native rollback/cleanup failure
+retains host uncertainty. Source raster extent and optical aspect are separate on
+photo and current-editor routes, including the full-source-RT rule and disagreement
+fixtures with a round source subject.
+
+Fix-round validation uses focused Python capture/attached/review/stability suites
+and 12 affected JavaScript behavior/native-double suites. The full suite's 834-pass
+result above is historical pre-review evidence; it was not replayed unchanged in
+this round. Exact commands/results and file hashes remain in the appended Task 6
+report under project temp. Native and visual acceptance remain unverified.

@@ -29,12 +29,15 @@ def before_call(subject, operation: str, args: dict) -> None:
         return
     if operation == 'open_wear_project' and getattr(subject, 'texture_editor_entered', False):
         raise RuntimeError(WEAR_RESTART_REQUIRED)
-    if operation == 'open_texture_editor' and args.get('expected_model') in getattr(
+    if operation in {'open_texture_editor', 'begin_clothing_edit', 'begin_hair_edit'} and args.get('expected_model') in getattr(
             subject, 'body_edited_tokens', set()):
         raise RuntimeError(REOPEN_REQUIRED)
 
 
 def after_call(subject, operation: str, args: dict, result) -> None:
+    if operation in {'begin_clothing_edit', 'begin_hair_edit'} and isinstance(result, dict):
+        # Conversion creates native editable texture state even without navigation.
+        subject.texture_editor_entered = True
     if (operation == 'open_texture_editor' and isinstance(result, dict)
             and result.get('active_screen') == 'VRoid.Studio.TextureEditorScreen.ViewModel'):
         # Closing the editor or loading another model is not evidence that its

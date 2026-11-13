@@ -27,6 +27,29 @@ Third-party components and data in this repository
 4. frida (PyPI) and mcp (PyPI) are declared dependencies; their licenses are
    their own.
 
+5. mcjo79/vroid-mcp
+   https://github.com/mcjo79/vroid-mcp
+   Reference revision: 0dc7d5eb3cf27f7f943713960cac1b65f479a876.
+   Copyright (c) 2026 mcjo79 and vroid-mcp contributors, MIT.
+   The complete source LICENSE is retained by file-level copy in
+   licenses/mcjo79-0dc7d5e.txt. MIGRATION.md records all 53 source tools,
+   the source files used for each adaptation, destination modules and evidence.
+   Adaptations include native edit and export workflows, image processing,
+   camera control, preset catalog storage and category framing. The target
+   retains its Python/Frida backend; the source BepInEx/Harmony/HTTP control
+   framework is not incorporated. The adopted integration is BunnyBlack
+   feat/mcjo79-capability-migration at c19aeff. The Steam 2.16.0 assembly
+   hash from that fork is not admitted.
+
+6. shamsievartyom/VRoid-Character-MCP
+   https://github.com/shamsievartyom/VRoid-Character-MCP
+   Reference revision: cb71a749f7045176154850a121a0d5081197ec37.
+   Copyright (c) 2026 Shamsiev Artem. MIT, as a fork of this repository.
+   Adapted clothing-template tools, InnerTop and other clothing texture
+   editor modes, compact canvas IDs, capture_review(include_images=false),
+   client_repl.py, vroid_mcp/local_comparison.py and the reference workflow
+   in vroid_mcp/workflow.py.
+
 VRoid Studio, its assemblies and the VRM format are not distributed here.
 Character assets, textures and Blender files produced during development stay
 local and are excluded by .gitignore.

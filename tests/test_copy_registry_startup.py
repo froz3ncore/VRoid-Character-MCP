@@ -21,7 +21,7 @@ def test_copy_resumes_only_after_synchronous_guard_confirmation(tmp_path, monkey
     monkeypatch.setattr(bridge.frida, 'get_local_device', lambda: device)
     monkeypatch.setattr(bridge, '_environment', lambda _: {})
     monkeypatch.setattr(bridge, '_probe_config', lambda _: {})
-    monkeypatch.setattr(bridge, 'script_text', lambda *a: '')
+    monkeypatch.setattr(bridge, 'script_text', lambda *a, **k: '')
     monkeypatch.setattr(bridge, 'close', closed.append)
     monkeypatch.setattr(bridge.closet_guard, 'enforce', lambda *a: pytest.fail('System registry must be preserved'))
     if confirmed:

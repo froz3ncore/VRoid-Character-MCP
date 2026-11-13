@@ -9,7 +9,7 @@
 
     Every stage records its own status; a failing stage never hides the others.
     Python here cannot always write inside the repository, so the report and all
-    scratch files live in the workspace `work/` tree.
+    scratch files live in the repository `temp/` tree.
 
 .PARAMETER Native
     Also run tools/check_native_domains.py against -Lab. That starts VRoid
@@ -37,17 +37,17 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $workspace = Split-Path -Parent $repo
-$workRoot = Join-Path $workspace 'work'
-if (-not (Test-Path $workRoot)) { $workRoot = Join-Path $env:TEMP 'vroid-mcp-checks' }
+$workRoot = Join-Path $repo 'temp'
 $scratch = Join-Path $workRoot 'temp'
 New-Item -ItemType Directory -Force -Path $scratch | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $scratch 'pytest-base') | Out-Null
 
-# Pin TEMP/TMP for every child process. Without this, pytest creates session
+# Pin TEMP/TMP/TMPDIR for every child process. Without this, pytest creates session
 # directories under a TEMP path this account cannot write and every test that
 # needs tmp_path fails during setup rather than in its assertions.
 $env:TEMP = $scratch
 $env:TMP = $scratch
+$env:TMPDIR = $scratch
 
 if (-not $Out) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'

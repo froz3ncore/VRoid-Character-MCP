@@ -1,4 +1,4 @@
-function createAttachedState({main, text, state}) {
+function createAttachedState({main, text, state, sessionTag, observeWork, releaseWork}) {
     let historyRevision = 0;
     let commandRevision = 0;
     if (ATTACHED) bridge.hooks.push(Interceptor.attach(
@@ -38,20 +38,36 @@ function createAttachedState({main, text, state}) {
             unsaved: vm.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke(),
             history_revision: historyRevision, command_revision: commandRevision, pending_edit: receipt()};
     }
-    const readOnly = name => /^(status|native_png_status|task_status|get_|list_|inspect_|search_|custom_item_state|vrm_export_state|vrm_export_status|export_texture_|export_renderer_texture|attached_review)/.test(name);
+    const readOnly = name => /^(status|native_png_status|task_status|get_|list_|inspect_|search_|enter_category|custom_item_validate_poll|custom_item_application_state|preserving_preset_state|preserved_preset_readback|custom_item_state|vrm_export_state|vrm_export_status|export_texture_|export_renderer_texture|attached_review)/.test(name);
     function guard(name) {
-        if (!ATTACHED || readOnly(name) || name === 'attached_edit_finish') return;
-        const s = snapshot();
-        if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked)
-            throw Error('ATTACHED_UI_BLOCKED: close the dialog or finish the manual operation in VRoid first');
-        if (s.active_screen === 'VRoid.Studio.TextureEditorScreen.ViewModel' && !name.startsWith('attached_')
-            && !/^(close_texture_editor|open_texture_editor|import_texture_layer|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|undo|redo|capture_texture_|pick_texture_)/.test(name))
-            throw Error('CLOSE_TEXTURE_EDITOR_FIRST: finish the active canvas before changing model or screen');
-        if (!name.startsWith('attached_')) review = null;
-        const r = receipt();
-        if (r && !name.startsWith('attached_')) {
-            if (r.owner !== ATTACHED_OWNER_PID) throw Error('ATTACHED_EDIT_NEEDS_REVIEW');
-            r.dispatches++; writeReceipt(r);
+        let receiptWriteAttempted=false;
+        try {
+            if (!ATTACHED || readOnly(name) || name === 'attached_edit_finish') return;
+            const s = snapshot();
+            if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked)
+                throw Error('ATTACHED_UI_BLOCKED: close the dialog or finish the manual operation in VRoid first');
+            if (s.active_screen === 'VRoid.Studio.TextureEditorScreen.ViewModel' && !name.startsWith('attached_')
+                && !/^(close_texture_editor|open_texture_editor|import_texture_layer|add_clothing_template|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|undo|redo|capture_texture_|pick_texture_)/.test(name))
+                throw Error('CLOSE_TEXTURE_EDITOR_FIRST: finish the active canvas before changing model or screen');
+            if (!name.startsWith('attached_')) review = null;
+            const r = receipt();
+            if (r && !name.startsWith('attached_')) {
+                if (r.owner !== ATTACHED_OWNER_PID) throw Error('ATTACHED_EDIT_NEEDS_REVIEW');
+                r.dispatches++;
+                if (['open_from_menu','replace_with_file','undo','redo','start_vrm_export','custom_item_validate_begin',
+                    'write_wear_vrm_export','open_wear_project','save_wear_project','import_xwear'].includes(name))
+                    r.native_work_owner=sessionTag;
+                receiptWriteAttempted=true;
+                writeReceipt(r);
+            }
+        } catch(error) {
+            const failure=error instanceof Error?error:Error(String(error));
+            // Only this guard can attest its actual control-flow boundary. A
+            // failed environment write may have committed despite its error.
+            failure.attached_guard_prewrite=!receiptWriteAttempted;
+            failure.attached_guard_bookkeeping_attempted=receiptWriteAttempted;
+            if(receiptWriteAttempted)failure.native_uncertain=true;
+            throw failure;
         }
     }
     function fingerprint() {
@@ -67,6 +83,18 @@ function createAttachedState({main, text, state}) {
     }
     function requireIdle() {
         const f = fingerprint(), s = f.state;
+        const r=s.pending_edit;
+        // Older agents recorded the tool/dispatch count, but no lifetime proof.
+        const legacyOwner=r && !r.work_tracking && r.dispatches>0 &&
+            ['open_from_menu','open_character','undo','redo','export_vrm','apply_custom_item','apply_custom_item_by_key',
+             'export_wear_vrm','open_wear_project','open_current_in_wear','save_wear_project','import_xwear'].includes(r.tool);
+        if (legacyOwner || (r?.native_work_owner && r.native_work_owner!==sessionTag))
+            throw Error('ATTACHED_NATIVE_WORK_OWNER_LOST: close this VRoid process to establish termination');
+        const work=observeWork();
+        if (!work.safe) {
+            review=null;
+            throw Error('ATTACHED_NATIVE_WORK_PENDING: ' + JSON.stringify(work.pending_work));
+        }
         if (!s.active_screen || s.dialog || s.notification || s.progress_locked || s.popup_blocked || f.png_pending || f.png_fatal)
             throw Error('ATTACHED_STATE_NOT_IDLE: finish the active operation before review');
         if (!main().field('_mainModel').value.field('currentFile').value.handle.isNull()) {
@@ -78,18 +106,40 @@ function createAttachedState({main, text, state}) {
         }
         return f;
     }
-    return {snapshot, guard, operations: {
+    const hairMutation=name=>['scale_brush_hair','clone_brush_hair','set_procedural_hair'].includes(name);
+    function hairPrewriteCheckpoint(name){return ATTACHED&&hairMutation(name)?fingerprint():null;}
+    function verifyHairPrewrite(name,before,result){
+        if(!ATTACHED||!hairMutation(name)||!before||result.dispatch_state!=='prewrite_rejected'||
+            result.native_invocation_attempted!==false||result.uncertain||result.partial||
+            ['command_count','attempted_commands','setter_count','attempted_setters'].some(k=>result[k]))return false;
+        const after=fingerprint(),prior=before.state.pending_edit,current=after.state.pending_edit;
+        if(!prior||!current||prior.tool!==name||prior.id!==current.id||prior.owner!==ATTACHED_OWNER_PID||current.owner!==prior.owner||
+            ![prior.dispatches,prior.dispatches+1].includes(current.dispatches))return false;
+        if(JSON.stringify({...current,dispatches:prior.dispatches})!==JSON.stringify(prior))return false;
+        after.state.pending_edit=prior;
+        if(JSON.stringify(after)!==JSON.stringify(before))return false;
+        // Only the one synthetic dispatch increment is reverted, after proving
+        // model/screen/history/command identity and all remaining state unchanged.
+        writeReceipt(prior);
+        return true;
+    }
+    function confirmWorkReleased() {
+        const r=receipt();
+        if (r?.native_work_owner===sessionTag) { delete r.native_work_owner; writeReceipt(r); }
+    }
+    return {snapshot, guard, confirmWorkReleased, hairPrewriteCheckpoint, verifyHairPrewrite, operations: {
         attached_edit_begin(args) {
             if (!ATTACHED) throw Error('ATTACHED_ONLY');
             if (receipt()) throw Error('ATTACHED_EDIT_NEEDS_REVIEW: inspect get_attached_state before acknowledgment');
             const r = {id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-                owner: ATTACHED_OWNER_PID, tool: args.tool, started: new Date().toISOString(), dispatches: 0};
+                owner: ATTACHED_OWNER_PID, tool: args.tool, started: new Date().toISOString(), dispatches: 0,
+                work_tracking:1};
             writeReceipt(r); return r;
         },
         attached_edit_finish(args) {
             const r = receipt();
             if (!r || r.owner !== ATTACHED_OWNER_PID || r.id !== args.id) throw Error('ATTACHED_EDIT_RECEIPT_CHANGED');
-            if (args.success || (!r.dispatches && !args.uncertain)) writeReceipt(null);
+            if ((args.success || (!r.dispatches && !args.uncertain)) && observeWork().safe) writeReceipt(null);
             return {needs_review: !!receipt()};
         },
         attached_review() {
@@ -103,6 +153,8 @@ function createAttachedState({main, text, state}) {
             const f = requireIdle();
             if (!review || args.recovery_token !== review.token || JSON.stringify(f) !== review.fingerprint)
                 throw Error('STALE_ATTACHED_REVIEW: inspect get_attached_state again');
+            const released=releaseWork();
+            if (!released.safe) throw Error('ATTACHED_NATIVE_WORK_PENDING');
             const prior = receipt(); writeReceipt(null); review = null;
             return {acknowledged: true, interrupted_edit: prior, replayed: false};
         },

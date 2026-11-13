@@ -8,7 +8,7 @@ from vroid_mcp.vrm_export import export_metadata,validate_vrm
 def document():
     return {'asset':{'version':'2.0'},'buffers':[{'byteLength':4}],
         'bufferViews':[{'buffer':0,'byteLength':4}],
-        'accessors':[{'bufferView':0,'count':3}],
+        'accessors':[{'bufferView':0,'count':3,'type':'SCALAR','componentType':5121}],
         'nodes':[{'mesh':0,'skin':0}], 'skins':[{'joints':[0]}],
         'meshes':[{'primitives':[{'indices':0,'attributes':{'POSITION':0}}]}],
         'extensions':{'VRMC_vrm':{'specVersion':'1.0','meta':{'name':'Test','authors':['Test'],'version':'1.0'},
