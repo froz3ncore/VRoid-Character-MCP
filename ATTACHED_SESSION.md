@@ -5,6 +5,15 @@ snapshot (2026-10-28). Independent external-user acceptance remains pending.
 The [fork's migration matrix](MIGRATION.md) covers subsequent changes, including
 ordinary export options, and identifies the checks still required on a real copy.
 
+The [2026-11-14 completion report](docs/native-evidence/2026-11-14-pr1-completion.md)
+adds signed 2.16 F00/M00 menu and cancellation runs. Cancelling the client does
+not cancel native work: retained imports, item loads/selections and exports must
+finish and become quiet before review can release pins. An interrupted export
+is not automatically published. If the host dies while owning native resources,
+an unproven replacement is refused with `NATIVE_WORK_OWNER_LOST`; inspect and
+save through VRoid, then close that window normally before starting from a
+confirmed file. Idle lease recovery described below has a narrower scope.
+
 The default session is still a dedicated lab copy. `attach_open_vroid(pid=None)`
 explicitly switches to a compatible VRoid Studio process the user opened. It
 validates the `GameAssembly.dll` allowlist and excludes managed MCP labs. If

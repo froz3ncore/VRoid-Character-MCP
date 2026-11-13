@@ -19,7 +19,8 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
             files.push({id:text(f.method('get_TransferableGroupId').invoke()),
                 group_type:text(f.method('get_TransferableGroupTypeId').invoke()),
                 resource_name:optionalString('TransferableGroupResourceName'),revision:optionalString('TransferableGroupRevision'),
-                custom_resource_name:customResource,custom_revision:customRevision,registered,
+                custom_resource_name:customResource,custom_revision:customRevision,
+                registered:true,registration_scope:'native_file_registry',asset_storage_registered:registered,
                 path:text(f.method('get_FilePath').invoke()),name:text(f.method('get_DisplayName').invoke())});
         }} finally {it.method('Dispose').invoke();}
         const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();

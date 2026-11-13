@@ -194,10 +194,12 @@ class GroupTools:
                 while True:
                     await self._settled_for(expected_model, started.get('frame', -1))
                     current = await self._group_read('list_groups', expected_model)
+                    lifetime = await self._group_read('custom_item_application_state', expected_model,
+                                                     request_id=receipt)
+                    if lifetime.get('faulted') or lifetime.get('cancelled'):
+                        raise RuntimeError('CUSTOM_ITEM_NATIVE_APPLICATION_FAILED: ' + str(lifetime))
                     active = [g for g in current['groups'] if g['id'] == row['id'] and g.get('active')]
                     if len(active) == 1 and active[0].get('resource_name') == row['resource_name'] and active[0].get('revision') == row['revision']:
-                        lifetime = await self._group_read('custom_item_application_state', expected_model,
-                                                         request_id=receipt)
                         if lifetime.get('completed'):
                             return dict(model_token=expected_model, applied=True, registered_item=row,
                                 sha256=info['sha256'], input_path=str(path), native_compatibility=result,

@@ -24,6 +24,40 @@ def test_native_required_face_slots_are_retained_with_exact_namespace(level,slot
     with pytest.raises(ValueError,match='UNKNOWN_SLOT_POLICY'):_slot_policy(row)
 
 
+@pytest.mark.parametrize('slot',['InnerTop','InnerBottom'])
+@pytest.mark.parametrize('problem',['none','custom','modified','foreign'])
+def test_only_native_unmodified_mandatory_base_garments_may_remain(slot,problem):
+    from vroid_mcp.runtime_situation import _slot_policy
+    row=group('base',slot,False)
+    row['resource_name']=f"pixiv/VRoid/Clothing/{slot}/N00/Default/{row['type']}.transferablegroup"
+    if problem=='custom':row['resource_name']='user/garment'
+    if problem=='modified':row['updated_since_last_revision']=True
+    if problem=='foreign':row['type']='foreign.'+row['type']
+    if problem=='none':assert _slot_policy(row)=='keep'
+    else:
+        with pytest.raises(ValueError):_slot_policy(row)
+
+
+@pytest.mark.parametrize('content',[None,0,1])
+def test_set_container_requires_zero_native_owned_content(content):
+    from vroid_mcp.runtime_situation import _slot_policy
+    row=group('set','ClothingSet',False)
+    row.update(type='TransferableGroupType.N00.Level0.ClothingSet',active_content_count=content)
+    assert (_slot_policy(row)=='container') is (content==0)
+
+
+def test_native_clear_can_retire_an_empty_set_but_cannot_insert_another():
+    from vroid_mcp.runtime_situation import SituationTools
+    row=group('set','ClothingSet',False)
+    row.update(type='TransferableGroupType.N00.Level0.ClothingSet',active_content_count=0)
+    SituationTools._verify_containers([], [row],set())
+    SituationTools._verify_containers([row],[row],set())
+    with pytest.raises(ValueError,match='CONTAINER_IDENTITY_CHANGED'):
+        SituationTools._verify_containers([dict(row,id='foreign')],[row],set())
+    with pytest.raises(ValueError,match='CONTAINER_CONTENT_CHANGED'):
+        SituationTools._verify_containers([dict(row,active_content_count=1)],[row],set())
+
+
 @pytest.mark.parametrize('at',['remove_group','screenshot'])
 def test_snapshot_generation_is_pinned_before_destructive_work_and_released(tmp_path,at):
     if os.name!='nt':pytest.skip('Windows sharing')

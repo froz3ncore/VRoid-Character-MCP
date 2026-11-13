@@ -1,5 +1,8 @@
 # PR #1: partial local native acceptance, 2026-11-13
 
+Historical checkpoint. The [2026-11-14 completion report](2026-11-14-pr1-completion.md)
+records the subsequent fixes and successful runs for the gates left open here.
+
 Reviewed [PR #1](https://github.com/froz3ncore/VRoid-Character-MCP/pull/1)
 at `7112e9974c2d604b211288c60b84abc0b41835fd`, against main
 `ac777decc76846970d2dd764ec623f0a92b49fd5`. Fixes are on the PR branch.

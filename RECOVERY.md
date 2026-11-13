@@ -163,6 +163,14 @@ MCP-observed edits, not manual edits outside the session.
 
 ## Validation boundaries / 验证边界
 
+2026-11-14 补测了菜单导入、物品加载／应用及普通 VRM 导出取消后的恢复。
+只取消客户端请求不会终止原生任务；任务、源文件保护和临时导出继续保留，直到原生任务
+结束且模型静稳后，才可检查并确认恢复。取消的导出不会自动发布到最终文件。
+若宿主在持有这些原生资源时被强制终止，新宿主无法证明旧资源已释放，将以
+`NATIVE_WORK_OWNER_LOST` 拒绝接管。先在 VRoid 界面检查并另存需要保留的工作，
+正常关闭该窗口，再从确认过的文件开始；不要循环重连或重放未确认写入。
+见[补齐验收记录](docs/native-evidence/2026-11-14-pr1-completion.md)。
+
 For an attached user-opened window, a forcibly killed MCP host does not
 automatically close VRoid. With the current attachment lease, start a new MCP
 host, call `attach_open_vroid` on that same process, relist model state, and

@@ -104,13 +104,16 @@ function createGroupApi(H) {
     const fingerprint = g => JSON.stringify([g.id, g.type, g.resource_name, g.revision]);
     function clearType(entry) {
         if (entry.native_group_type) return entry.native_group_type;
-        for (const owner of [entry.p, optional(entry.p, '_model')]) {
+        const category=optional(entry.p,'_category');
+        for (const owner of [entry.p, optional(entry.p, '_model'),category,optional(category,'_categoryModel')]) {
             const type = optional(owner, 'TransferableGroupType') || optional(owner, '_transferableGroupType');
             if (alive(type)) return str(type);
+            const actual=optional(owner,'transferableGroupType');
+            if(alive(actual))return str(actual);
         }
         return null;
     }
-    function groupInventory(m, removalCapabilities=true) {
+    function groupInventory(m, removalCapabilities=true, contentProof=false) {
         const found = new Map(), errors = [];
         const completeness = {active:false,active_leaf:false,stored:false};let coherent=true;
         function merge(id, object, flags, nativeInfo=false) {
@@ -166,6 +169,19 @@ function createGroupApi(H) {
             }
             completeness.stored = true;
         } catch (error) { errors.push({source: 'stored', error: String(error)}); }
+        if(contentProof){
+            completeness.active_content=false;
+            try{
+                const counts=new Map();
+                for(const pair of sequence(m.context.method('GetActiveLeafTransferables').invoke(),20000)){
+                    const leaf=prop(pair,'Value'),owner=str(prop(leaf,'GroupId'));
+                    if(!owner||!found.get(owner)?.active)throw Error('ACTIVE_CONTENT_OWNER_UNPROVEN');
+                    counts.set(owner,(counts.get(owner)||0)+1);
+                }
+                for(const group of found.values())group.active_content_count=counts.get(group.id)||0;
+                completeness.active_content=true;
+            }catch(error){errors.push({source:'active_content',error:String(error)});}
+        }
         const clears = [];
         for (const area of removalCapabilities ? ['face', 'body', 'hair', 'clothing'] : []) {
             try { clears.push(...presetEntries(m, area).filter(e => e.clear).map(e => ({type: clearType(e), id: e.id}))); }
@@ -644,9 +660,33 @@ function createGroupApi(H) {
             revision:str(prop(item,'TransferableGroupRevision')),custom_resource_name:str(prop(custom,'ResourceName')),
             custom_revision:str(prop(custom,'Revision'))};
         if (Object.entries(actual).some(([k,v]) => expected[k] !== v)) throw Error('CUSTOM_ITEM_REGISTRY_IDENTITY_STALE');
-        if (!registry.method('CheckIfIsRegisteredInAssetStorage').invoke(Il2Cpp.string(actual.resource_name)))
-            throw Error('CUSTOM_ITEM_RESOURCE_STALE');
+        // File observation precedes lazy asset registration. The native
+        // CustomItemOption.OnSelected task owns registration and application;
+        // compatibility and pinned file identity are checked before that task.
         return item;
+    }
+    function validateCustomObject(object,r){
+        const meta=prop(object,'customItemMetaData');
+        for(const [field,key] of [['rootTransferableGroupId','id'],['rootTransferableGroupTypeId','group_type'],
+            ['rootTransferableGroupResourceName','resource_name'],['rootTransferableGroupRevision','revision']]){
+            if(str(prop(meta,field))!==r.item[key]||(Object.hasOwn(r.metadata,field)&&r.metadata[field]!==r.item[key]))
+                throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+        }
+        if(!r.metadata.rootTransferableGroupId||!r.metadata.rootTransferableGroupTypeId)throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+        const roots=sequence(prop(object,'transferableGroups')).filter(g=>str(prop(prop(g,'Header'),'Id'))===r.item.id);
+        if(roots.length!==1)throw Error('NATIVE_CUSTOM_ITEM_ROOT_NOT_UNIQUE');
+        const header=prop(roots[0],'Header');
+        if(str(prop(roots[0],'TypeId'))!==r.item.group_type||str(prop(header,'ResourceName'))!==r.item.resource_name
+                ||str(prop(prop(header,'Custom'),'Revision'))!==r.item.revision)throw Error('NATIVE_CUSTOM_ITEM_TYPE_OR_REVISION_MISMATCH');
+    }
+    function customOption(m,item) {
+        const type=cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemOptionViewModel');
+        const matches=Il2Cpp.gc.choose(type).filter(o=>{
+            const context=o.field('_context').value,source=o.field('_model').value;
+            return alive(context)&&context.handle.equals(m.context.handle)&&alive(source)&&source.handle.equals(item.handle);
+        });
+        if(matches.length!==1)throw Error('CUSTOM_ITEM_OPTION_NOT_READY_OR_AMBIGUOUS');
+        return matches[0];
     }
     function request(args, kind) {
         const m = requireModel(args), r = requests.get(args.request_id);
@@ -657,6 +697,9 @@ function createGroupApi(H) {
         if (!r.task || r.task.method('get_IsCompleted').invoke()!==true)
             return {terminal:false,application_settled:false,reason:'native custom load has no terminal receipt'};
         if (!r.application_dispatched) return {terminal:true,application_settled:true};
+        if (!r.application_task || r.application_task.method('get_IsCompleted').invoke()!==true)
+            return {terminal:false,application_settled:false,reason:'native custom selection task is still pending'};
+        const faulted=r.application_task.method('get_IsFaulted').invoke(),cancelled=r.application_task.method('get_IsCanceled').invoke();
         const s = H.teardownState();
         const ui = s.attached_state;
         const quiet = s.model_ready === true && s.model_token === r.token
@@ -670,7 +713,7 @@ function createGroupApi(H) {
         const inventory = groupInventory(model(r.token));
         const matches = inventory.groups.filter(g=>g.active && g.id===r.item.id
             && g.type===r.item.group_type && g.resource_name===r.item.resource_name && g.revision===r.item.revision);
-        if (!inventory.membership_complete || matches.length!==1) {
+        if (!faulted&&!cancelled&&(!inventory.membership_complete || matches.length!==1)) {
             r.quiet = null;
             return {terminal:true,application_settled:false,reason:'complete applied group identity not confirmed',
                 discovery_errors:inventory.errors,source_completeness:inventory.source_completeness};
@@ -683,7 +726,7 @@ function createGroupApi(H) {
         }
         if (!r.quiet || r.quiet.signature!==signature) r.quiet = {signature,frame:s.frame,count:1};
         else if (s.frame!==r.quiet.frame) { r.quiet.frame=s.frame; r.quiet.count++; }
-        return {terminal:true,application_settled:r.quiet.count>=3,quiet_frames:r.quiet.count,
+        return {terminal:true,application_settled:r.quiet.count>=3,quiet_frames:r.quiet.count,faulted,cancelled,
             reason:r.quiet.count>=3?null:'awaiting consecutive distinct quiet native observations'};
     }
     function pendingWork() {
@@ -746,7 +789,7 @@ function createGroupApi(H) {
     return {pendingWork,releaseWork,helpers:{prop,sequence,pathDescriptor,validate,sectionFor,catalogPage,catalogRows,groupInventory,
         membershipInventory:m=>groupInventory(m,false)},operations:{
         list_groups(args) {
-            const m=requireModel(args),result=groupInventory(m);
+            const m=requireModel(args),result=groupInventory(m,true,args.active_content_counts===true);
             if(args.situation_root)try{result.situation_membership=situationMembership(m,args.situation_root,result);}
             catch(error){result.situation_membership={verified:false,error:String(error),root:args.situation_root};}
             if(args.situation_candidate)try{result.situation_definition=situationCandidate(m,args.situation_candidate);}
@@ -815,32 +858,36 @@ function createGroupApi(H) {
             if (!r.task.method('get_IsCompleted').invoke()) return {model_token:m.token,completed:false};
             r.completed = true;
             try {
+                r.phase='load-result';
                 if (r.task.method('get_IsFaulted').invoke() || r.task.method('get_IsCanceled').invoke()) throw Error('NATIVE_CUSTOM_ITEM_LOAD_FAILED');
                 const contents = r.task.method('get_Result').invoke();
                 r.handles.push(retain(contents));
-                const object = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil')
-                    .method('DeserializeCustomItem').invoke(contents);
+                r.phase='deserialize';
+                const serializer=cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil');
+                const object=invokeManaged({handle:NULL,method:(name,count)=>serializer.method(name,count)},
+                    'DeserializeCustomItem',[contents.handle]);
                 r.handles.push(retain(object));
-                if (object.method('IsNecessarilyMigrateBodySuitsCustomItemV2').invoke()) throw Error('CUSTOM_ITEM_MIGRATION_REQUIRED');
-                const meta = prop(object,'customItemMetaData');
-                for (const [field,key] of [['rootTransferableGroupId','id'],['rootTransferableGroupTypeId','group_type'],
-                    ['rootTransferableGroupResourceName','resource_name'],['rootTransferableGroupRevision','revision']]) {
-                    if (str(prop(meta,field)) !== r.item[key]
-                        || (Object.hasOwn(r.metadata,field) && r.metadata[field] !== r.item[key]))
-                        throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
+                r.phase='raw-identity';
+                validateCustomObject(object,r);
+                r.phase='native-normalization';
+                if(object.tryMethod?.('MigrateCustomItemTransferableObject',0))invokeManaged(object,'MigrateCustomItemTransferableObject');
+                const migration=object.method('IsNecessarilyMigrateBodySuitsCustomItemV2').invoke();
+                if(typeof migration!=='boolean')throw Error('UNVERIFIED_MIGRATION_RESULT');
+                if(migration){
+                    if(!object.tryMethod?.('MigrateBodySuitsCustomItemV2',0))throw Error('CUSTOM_ITEM_MIGRATION_REQUIRED');
+                    invokeManaged(object,'MigrateBodySuitsCustomItemV2');
+                    if(object.method('IsNecessarilyMigrateBodySuitsCustomItemV2').invoke()!==false)throw Error('CUSTOM_ITEM_MIGRATION_UNCONFIRMED');
                 }
-                if (!r.metadata.rootTransferableGroupId || !r.metadata.rootTransferableGroupTypeId)
-                    throw Error('NATIVE_CUSTOM_ITEM_ROOT_MISMATCH');
-                const roots = sequence(prop(object,'transferableGroups')).filter(g=>str(prop(prop(g,'Header'),'Id'))===r.item.id);
-                if (roots.length !== 1) throw Error('NATIVE_CUSTOM_ITEM_ROOT_NOT_UNIQUE');
-                const header = prop(roots[0],'Header');
-                if (str(prop(roots[0],'TypeId')) !== r.item.group_type || str(prop(header,'ResourceName')) !== r.item.resource_name
-                    || str(prop(prop(header,'Custom'),'Revision')) !== r.item.revision) throw Error('NATIVE_CUSTOM_ITEM_TYPE_OR_REVISION_MISMATCH');
+                validateCustomObject(object,r);
                 if (!registryMatch(m,r.item).handle.equals(r.fileModel.handle)) throw Error('CUSTOM_ITEM_REGISTERED_MODEL_STALE');
+                r.phase='option-identity';
+                const option=customOption(m,r.fileModel);
+                r.handles.push(retain(option));r.option=option;
                 r.compatible = true;
                 r.result = {model_token:m.token,completed:true,compatible:true,
-                    evidence:'native LoadCustomItemContents + DeserializeCustomItem, root/type/revision and no required migration'};
-            } catch (error) { r.result = {model_token:m.token,completed:true,compatible:false,error:String(error)}; }
+                    normalization:{native_in_memory:true,body_suits_v2:migration,source_file_modified:false},
+                    evidence:'native load/deserialize/normalization; identical raw and normalized root/type/resource/revision'};
+            } catch (error) { r.result = {model_token:m.token,completed:true,compatible:false,error:r.phase+': '+String(error),native_stack:error.stack}; }
             return r.result;
         },
         apply_registered_custom_item(args) {
@@ -850,17 +897,15 @@ function createGroupApi(H) {
             if (!registered.handle.equals(r.fileModel.handle)) throw Error('CUSTOM_ITEM_REGISTERED_MODEL_STALE');
             // Exact registered option, including file/resource/revision identity.
             // This route preserves the target's native custom-selection behavior.
-            const c = cls('VRoid.Studio','VRoid.Studio.ModelPresetsSelector.CustomItemOptionViewModel');
-            const options = Il2Cpp.gc.choose(c).filter(o=> {
-                const context = o.field('_context').value, item = o.field('_model').value;
-                return alive(context) && context.handle.equals(m.context.handle) && alive(item)
-                    && item.handle.equals(registered.handle);
-            });
-            if (options.length !== 1) throw Error('CUSTOM_ITEM_OPTION_NOT_READY_OR_AMBIGUOUS');
-            const enabled = Memory.alloc(1); enabled.writeU8(1);
+            const option=customOption(m,registered);
+            if(!option.handle.equals(r.option.handle))throw Error('CUSTOM_ITEM_OPTION_CHANGED');
             r.application_dispatched = true;
             r.application_frame = state.frame;
-            invokeManaged(options[0],'set_IsSelected',[enabled]);
+            // Keep the real native async pipeline alive through lazy asset
+            // registration and selection. A fire-and-forget setter loses that
+            // lifetime and cannot safely support cancellation or detachment.
+            r.application_task=invokeManaged(option,'OnSelected');
+            r.handles.push(retain(r.application_task));
             return {model_token:m.token,frame:state.frame};
         },
         custom_item_validate_release(args) {

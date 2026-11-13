@@ -51,8 +51,18 @@ let receipt=ops.preset_catalog_begin({expected_model:'token'});
 let result=ops.preset_catalog_poll({expected_model:'token',...receipt});
 assert.equal(result.completed,true);assert.equal(result.custom_complete,true);assert.equal(result.rows[0].resource,'user/resource');
 assert.equal(result.base_path,'E:/registered');
+assert.equal(result.rows[0].registered,true);
+assert.equal(result.rows[0].registration_scope,'native_file_registry');
+assert.equal(result.rows[0].asset_storage_registered,true);
 assert.equal(hooks.size,0);assert.equal(frees,1);assert.equal(queues,1);
 ops.preset_catalog_release({expected_model:'token',...receipt});
+// Lazy asset loading does not erase an observed file registration.
+registry.calls.CheckIfIsRegisteredInAssetStorage=()=>false;
+receipt=ops.preset_catalog_begin({expected_model:'token'});
+result=ops.preset_catalog_poll({expected_model:'token',...receipt});
+assert.equal(result.rows[0].registered,true);assert.equal(result.rows[0].asset_storage_registered,false);
+ops.preset_catalog_release({expected_model:'token',...receipt});
+registry.calls.CheckIfIsRegisteredInAssetStorage=()=>true;
 // Actual signed failure dictionary: one good row and one failed observation.
 registry.fields._pathToObservationFailureItems=dictionary([failure]);
 receipt=ops.preset_catalog_begin({expected_model:'token'});
@@ -70,7 +80,7 @@ ops.preset_catalog_release({expected_model:'token',...receipt});
 observed=false;
 receipt=ops.preset_catalog_begin({expected_model:'token'});
 assert.equal(hooks.size,2);assert.equal(ops.preset_catalog_poll({expected_model:'token',...receipt}).completed,false);
-api.dispose();assert.equal(hooks.size,0);assert.equal(frees,4);
+api.dispose();assert.equal(hooks.size,0);assert.equal(frees,5);
 // A replacement registry in the same root/token invalidates the observation.
 api=ctx.createNativePresetCatalog(H);ops=api.operations;
 receipt=ops.preset_catalog_begin({expected_model:'token'});

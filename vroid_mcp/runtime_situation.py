@@ -44,6 +44,19 @@ def _slot_policy(group):
     # full native types require an explicit reviewed policy before publication.
     match=re.fullmatch(r'TransferableGroupType\.N00\.Level[0-9]+\.([A-Za-z0-9]+)',group['type'])
     slot=match[1] if match else None
+    if (group['type']=='TransferableGroupType.N00.Level0.ClothingSet'
+            and group.get('active_content_count')==0):
+        return 'container'
+    if slot in ('InnerTop','InnerBottom') and group.get('removable') is False:
+        # These native base garments have no clear option. Only an unmodified
+        # builtin default may remain; custom or modified clothing is refused.
+        expected=f"pixiv/VRoid/Clothing/{slot}/N00/"
+        resource=group.get('resource_name','')
+        if (group['type']==f'TransferableGroupType.N00.Level1.{slot}'
+                and group.get('active_leaf') is True and group.get('updated_since_last_revision') is False
+                and resource in {expected+name+'/'+group['type']+'.transferablegroup' for name in ('Default','Preset_F','Preset_M')}):
+            return 'keep'
+        raise ValueError('SITUATION_MANDATORY_GARMENT_UNPROVEN: '+str(_identity(group)))
     if slot in _KEEP:return 'keep'
     if slot in _STRIP:return 'strip'
     raise ValueError('SITUATION_UNKNOWN_SLOT_POLICY: '+str(_identity(group)))
@@ -82,7 +95,7 @@ class SituationTools:
 
     async def _situation_inventory(self, expected):
         await self._settled_for(expected)
-        result=await self._group_read('list_groups',expected)
+        result=await self._group_read('list_groups',expected,active_content_counts=True)
         if result.get('membership_complete') is not True:
             raise ValueError('SITUATION_GROUP_MEMBERSHIP_INCOMPLETE')
         groups=[g for g in result['groups'] if g.get('active')]
@@ -91,7 +104,20 @@ class SituationTools:
             raise ValueError('SITUATION_GROUP_IDENTITY_UNAVAILABLE')
         return groups
 
-    async def _strip_situation(self, expected, frozen_keep, tested_types, evidence, persist):
+    @staticmethod
+    def _verify_containers(groups, frozen_containers, tested_types):
+        key=lambda g:(g['id'],g['type'],g['resource_name'])
+        for group in groups:
+            if (group['type']=='TransferableGroupType.N00.Level0.ClothingSet' and group['type'] not in tested_types
+                    and _slot_policy(group)!='container'):
+                raise ValueError('SITUATION_CONTAINER_CONTENT_CHANGED')
+        expected={key(g) for g in frozen_containers if g['type'] not in tested_types}
+        actual={key(g) for g in groups if _slot_policy(g)=='container' and g['type'] not in tested_types}
+        # Native child removal may retire an empty set index. It cannot insert
+        # a different index, and every retained index has proven zero content.
+        if not actual.issubset(expected):raise ValueError('SITUATION_CONTAINER_IDENTITY_CHANGED')
+
+    async def _strip_situation(self, expected, frozen_keep, tested_types, evidence, persist, frozen_containers=()):
         groups=await self._situation_inventory(expected)
         keep=[g for g in groups if _slot_policy(g)=='keep']
         if ({_identity(g) for g in keep if g['type'] not in tested_types}
@@ -104,6 +130,7 @@ class SituationTools:
         attempted=set()
         for _ in range(512):
             groups=await self._situation_inventory(expected)
+            self._verify_containers(groups,frozen_containers,tested_types)
             if {_identity(g) for g in groups if _slot_policy(g)=='keep'}!=expected_keep:
                 raise ValueError('SITUATION_STRIP_CHANGED_REQUIRED_ANATOMY')
             forbidden=[g for g in groups if _slot_policy(g)=='strip' and g['type'] not in tested_types]
@@ -295,6 +322,7 @@ class SituationTools:
             try:
                 original_groups=await self._situation_inventory(expected_model)
                 frozen_keep=[deepcopy(g) for g in original_groups if _slot_policy(g)=='keep']
+                frozen_containers=[deepcopy(g) for g in original_groups if _slot_policy(g)=='container']
                 result['original_owner']=owner;result['original_groups']=original_groups;persist()
                 saved=await self._save_as_unlocked('situation-'+uuid.uuid4().hex+'.vroid',expected_model)
                 result['snapshot']=saved;persist()
@@ -316,7 +344,7 @@ class SituationTools:
                         try:prior_definition=definition(candidate)
                         except ValueError:prior_definition=None
                         tested_types={g['type'] for g in candidate['members']} if prior_definition else {prebound['type']}
-                        baseline,removed=await self._strip_situation(expected_model,frozen_keep,tested_types,evidence,persist)
+                        baseline,removed=await self._strip_situation(expected_model,frozen_keep,tested_types,evidence,persist,frozen_containers)
                         evidence['baseline_slots']=baseline;persist()
                         operation={'phase':'apply','state':'dispatching','id':row['id']}
                         evidence['operations'].append(operation);persist()
@@ -336,7 +364,10 @@ class SituationTools:
                                 or prior_definition and prior_definition!=current_definition):
                             raise ValueError('SITUATION_MEMBER_VERSION_CHANGED')
                         members=current_definition['members'];types={g['type'] for g in members}
-                        allowed={_identity(g) for g in frozen_keep if g['type'] not in types}|{_identity(g) for g in members}
+                        self._verify_containers(active,frozen_containers,types)
+                        containers=[g for g in active if _slot_policy(g)=='container' and g['type'] not in types]
+                        allowed=({_identity(g) for g in frozen_keep if g['type'] not in types}
+                                 |{_identity(g) for g in members}|{_identity(g) for g in containers})
                         if {_identity(g) for g in active}!=allowed:raise ValueError('SITUATION_WRONG_REMAINING_SLOTS')
                         evidence['retained_slots']=active;persist()
                         capture=await self._native_capture({'expected_model':expected_model,'view':'front',
@@ -353,6 +384,7 @@ class SituationTools:
                         effective=capture.get('framing');_capture_proof(effective,framing)
                         raster=raster_evidence(data)
                         after=await self._situation_inventory(expected_model)
+                        self._verify_containers(after,frozen_containers,types)
                         if {_identity(g) for g in after}!=allowed:raise ValueError('SITUATION_GROUPS_CHANGED_DURING_CAPTURE')
                         metadata={'kind':'situation','source':'clean_fixed_camera_render','verified':True,
                             'tested':{**{k:row.get(k) for k in ('resource','kind','custom_revision','sha256')},
@@ -362,7 +394,8 @@ class SituationTools:
                             'requested_framing':framing,'framing':effective,'orientation_yaw_degrees':framing['yaw'],
                             'quality':capture['quality'],'model_token':expected_model,'build':summary['source']['build'],
                             'captured_at':datetime.now(timezone.utc).isoformat(),'retained_slots':active,'removed_slots':removed,
-                            'mannequin':'current anatomy with verified removable slots stripped'}
+                            'mannequin':'current anatomy with verified removable slots stripped',
+                            'mandatory_base_garments':[g for g in active if g['type'].split('.')[-1] in ('InnerTop','InnerBottom') and _slot_policy(g)=='keep']}
                         evidence['image']=store.publish_image(row['key'],data,metadata,row['fingerprint'],
                             expected_situation={'scan_id':observed['scan_id'],'identity':capture_identity(row),'framing':framing})
                         evidence['published']=True;result['processed']+=1;persist()

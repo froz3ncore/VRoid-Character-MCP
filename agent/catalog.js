@@ -138,7 +138,8 @@ function createNativePresetCatalog({model,presetEntries,helpers,text,build,retai
                 rows.push({kind:'custom',id:str(prop(f,'TransferableGroupId')),resource,path,revision,
                     custom_revision:customRevision,group_type:type,name:str(prop(f,'DisplayName')),
                     resource_name:str(prop(f,'TransferableGroupResourceName')),category:'Custom/'+slot,
-                    registered:r.method('CheckIfIsRegisteredInAssetStorage').invoke(prop(f,'TransferableGroupResourceName')),
+                    registered:true,registration_scope:'native_file_registry',
+                    asset_storage_registered:r.method('CheckIfIsRegisteredInAssetStorage').invoke(prop(f,'TransferableGroupResourceName')),
                     owned:true,usable:true,selectable:true});
             }catch(error){errors.push(String(error));}
         }

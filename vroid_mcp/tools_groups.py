@@ -65,7 +65,8 @@ def register(ready_tool, runtime, lab, read, edit):
         Copy paths stay in the lab input policy; attached paths may be absolute.
         A project copy needs exact byte/metadata identity with the registered file.
         No registry entries or profile files are created. Native load/deserialization
-        and migration checks precede selection; unsupported migrations are refused.
+        and identity checks precede selection. Native in-memory normalization
+        must preserve root/type/resource/revision; source bytes are never rewritten.
         """
         return await runtime.apply_custom_item(expected_model, filename)
 

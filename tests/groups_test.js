@@ -108,7 +108,11 @@ function customFixture(f) {
         _pathToFileCustomItemModels:new Native('Dictionary',{}, {get_Values:()=>[nativeItem]})},
         {CheckIfIsRegisteredInAssetStorage:resource=>resource.content==='resource'});
     f.classFor('VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil').method=()=>({invoke:()=>deserialized});
-    return {item,native,nativeItem,deserialized};
+    const application=new Native('Task',{}, {get_IsCompleted:()=>native.applicationTerminal===true,get_IsCanceled:()=>native.applicationCancelled===true,get_IsFaulted:()=>native.applicationFaulted===true});
+    const option=new Native('CustomOption',{_context:f.m.context,_model:nativeItem},
+        {OnSelected:()=>{f.nativeState.presets_loading=true;return application;}});
+    context.Il2Cpp.gc.choose=()=>[option];
+    return {item,native,nativeItem,deserialized,option};
 }
 const args={expected_model:'live',group_id:'g'};
 const verifiedGarmentBuilds=[
@@ -203,6 +207,17 @@ for(const scenario of ['duplicate','paired','partial','conflict','failed']){
     assert.throws(()=>g.set(row,8),/BINDING_UNSUPPORTED/);assert.deepEqual(g.f.calls,[]);
 }
 assert.equal(garment(undefined).listed()[0].editable,false);
+{
+    const f=setup();f.presets.length=0;
+    f.presets.push({id:'clothing/Tops/none',clear:true,p:new Native('Clear',{
+        _category:new Native('PresetCategoryViewModel',{_categoryModel:new Native('PresetCategoryModel',{transferableGroupType:s(f.type)})})})});
+    assert.equal(f.api.list_groups(args).groups[0].removable,true,'native clear category model owns its full type');
+    f.m.context.calls.GetActiveLeafTransferables=()=>dict([['content',new Native('Leaf',{GroupId:s('g')})]]);
+    const proven=f.api.list_groups({...args,active_content_counts:true});
+    assert.equal(proven.membership_complete,true);assert.equal(proven.groups[0].active_content_count,1);
+    f.m.context.calls.GetActiveLeafTransferables=()=>dict([['content',new Native('Leaf',{GroupId:s('unrecognized')})]]);
+    assert.equal(f.api.list_groups({...args,active_content_counts:true}).membership_complete,false);
+}
 for (const mode of ['ambiguous-vm','sibling-vm','wrong-resolver']) {
     const g=garment(verifiedGarmentBuilds[0],mode);
     const rows=g.f.api.list_group_parameters(args).parameters;
@@ -241,8 +256,7 @@ for (const mode of ['ambiguous-vm','sibling-vm','wrong-resolver']) {
     const started=f.api.custom_item_validate_begin({...args,registered_item:custom.item,
         metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
     assert.equal(f.api.custom_item_validate_poll({...args,request_id:started.request_id}).compatible,true);
-    const option=new Native('CustomOption',{_context:f.m.context,_model:custom.nativeItem},
-        {set_IsSelected:()=>{f.nativeState.presets_loading=true;}});
+    const option=custom.option;
     const stale=new Native('FileCustomItemModel',{...custom.nativeItem.fields,TransferableGroupId:s('alien')});
     const staleOption=new Native('Option',{_context:f.m.context,_model:stale},{set_IsSelected:()=>{throw Error('WRONG_FILE_MODEL');}});
     context.Il2Cpp.gc.choose=()=>[staleOption];
@@ -262,6 +276,8 @@ for (const mode of ['ambiguous-vm','sibling-vm','wrong-resolver']) {
     assert.equal(f.teardown().safe,false,'Task completion alone does not complete application');
     assert.equal(freed,before);
     f.nativeState.presets_loading=false;
+    assert.equal(f.teardown().safe,false,'selection task retains its source after the validation task completed');
+    custom.native.applicationTerminal=true;
     f.nativeState.frame++;
     assert.equal(f.teardown().safe,false);
     assert.equal(f.teardown().safe,false,'repeating the same frame is not settled evidence');
@@ -269,7 +285,7 @@ for (const mode of ['ambiguous-vm','sibling-vm','wrong-resolver']) {
     assert.equal(f.teardown().safe,false);
     f.nativeState.frame++;
     assert.equal(f.teardown().safe,true);
-    assert.equal(freed-before,4);
+    assert.equal(freed-before,6);
     context.Il2Cpp.gc.choose=()=>[];
 }
 for (const change of ['duplicate','header-id','type','resource','revision','meta-type','meta-resource','meta-revision']) {
@@ -288,6 +304,22 @@ for (const change of ['duplicate','header-id','type','resource','revision','meta
     custom.native.terminal=true;
     assert.equal(f.api.custom_item_validate_poll({...args,request_id:result.request_id}).compatible,false,change);
     f.api.custom_item_validate_release({...args,request_id:result.request_id});
+}
+for(const change of ['none','changed-root','still-required']){
+    const f=setup(),c=customFixture(f);c.native.terminal=true;
+    let needed=true,count=0;
+    c.deserialized.calls.MigrateCustomItemTransferableObject=()=>{};
+    c.deserialized.calls.IsNecessarilyMigrateBodySuitsCustomItemV2=()=>needed;
+    c.deserialized.calls.MigrateBodySuitsCustomItemV2=()=>{
+        count++;needed=change==='still-required';
+        if(change==='changed-root')c.deserialized.fields.customItemMetaData.fields.rootTransferableGroupId=s('foreign');
+    };
+    const started=f.api.custom_item_validate_begin({...args,registered_item:c.item,metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
+    const result=f.api.custom_item_validate_poll({...args,request_id:started.request_id});
+    assert.equal(count,1);assert.equal(result.compatible,change==='none',change);
+    if(result.compatible)assert.equal(result.normalization.body_suits_v2,true);
+    f.api.custom_item_validate_release({...args,request_id:started.request_id});
+    assert.deepEqual(f.calls,[],'in-memory validation cannot dispatch a model edit');
 }
 {
     const f=setup();
@@ -450,6 +482,7 @@ for (const change of ['duplicate','header-id','type','resource','revision','meta
     f.m.root.fields._customItemRegistry=new Native('Registry',{_pathToFileCustomItemModels:values},
         {CheckIfIsRegisteredInAssetStorage:resource=>resource.content==='resource'});
     f.classFor('VRoid.Studio.ModelPresetsSelector.CustomItemSerializationUtil').method=()=>({invoke:()=>deserialized});
+    context.Il2Cpp.gc.choose=()=>[new Native('Option',{_context:f.m.context,_model:nativeItem})];
     const started=f.api.custom_item_validate_begin({...args,registered_item:item,
         metadata:{rootTransferableGroupId:'g',rootTransferableGroupTypeId:f.type}});
     assert.equal(started.completed,false);
@@ -458,7 +491,7 @@ for (const change of ['duplicate','header-id','type','resource','revision','meta
     assert.throws(()=>f.api.apply_registered_custom_item({...args,request_id:started.request_id,registered_item:item}),/STALE/);
     const before=freed;
     f.api.custom_item_validate_release({...args,request_id:started.request_id});
-    assert.equal(freed-before,4,'native task/item/contents/object handles must be released only after terminal validation');
+    assert.equal(freed-before,5,'native task/item/contents/object/option handles must be released only after terminal validation');
     nativeItem.fields.TransferableGroupRevision=s('r');
     deserialized.calls.IsNecessarilyMigrateBodySuitsCustomItemV2=()=>true;
     const migration=f.api.custom_item_validate_begin({...args,registered_item:item,

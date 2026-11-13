@@ -1,8 +1,8 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Native binaries, model assets and generated renders stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 498,
- "total_bytes": 3528366,
+ "file_count": 500,
+ "total_bytes": 3576367,
  "tool_count": 145,
  "toolset_hash": "sha256:a20221b7ac83b6a2895d913ae3f5e9def862c4ecf4ad1ffc70c181db52485f94",
  "files": [
@@ -13,8 +13,8 @@
   },
   {
    "path": "ATTACHED_SESSION.md",
-   "bytes": 13263,
-   "sha256": "0ca0f4ea6a6adac122c96831933c17ff29add3419b817d726dacf7dc209c9c67"
+   "bytes": 13896,
+   "sha256": "37d8e03b1edc05deb39ae4fda8e188071c65bdb08a1f7e4ea4b0364b6e31d873"
   },
   {
    "path": "BETA_TESTING.md",
@@ -28,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 20752,
-   "sha256": "725efa85b498a5035b520fc6f9e0f1ba3d3adcf9d0040c7d51ebc651dca9ad11"
+   "bytes": 21264,
+   "sha256": "f93aa0f0e609b554f1f54ddec9b232cb778edd3382a8d52a32d07d0ea58f80c3"
   },
   {
    "path": "LICENSE",
@@ -43,8 +43,8 @@
   },
   {
    "path": "MIGRATION.md",
-   "bytes": 61567,
-   "sha256": "297f1d8e8981c5106713655565146ae858f681bb393d03a9b1b267395bca8ff3"
+   "bytes": 61649,
+   "sha256": "f9d7305c0557b49c005a9570a002737575797dd11b198762da0523a81f444fa7"
   },
   {
    "path": "NOTICE",
@@ -73,8 +73,8 @@
   },
   {
    "path": "RECOVERY.md",
-   "bytes": 13823,
-   "sha256": "753c4fc0a575345242915e2088ec01ae8df61a6d7a0aadaed865d36c64752e02"
+   "bytes": 14541,
+   "sha256": "518ae8aa1db09bd88ffb5eb86bbcd7705c43284f20753cd35eb5861e41b76317"
   },
   {
    "path": "REGRESSION.md",
@@ -88,8 +88,8 @@
   },
   {
    "path": "SCOPE.md",
-   "bytes": 8644,
-   "sha256": "f4ab267b9a59f1b25b38797585c7a8ae4da0b613cb9b88957980e1d2969cfe6d"
+   "bytes": 8722,
+   "sha256": "6bbdbc86bea3c9b6b2112ac7c9b8ebb4d525fc2aa0cff46a5c504b0fac79fe66"
   },
   {
    "path": "TEXTURE_LAYERS.md",
@@ -153,8 +153,8 @@
   },
   {
    "path": "agent/catalog.js",
-   "bytes": 14571,
-   "sha256": "1f251bdab70e7ba9ecdf657a4d84ebc6f8219c7dbf00d3c0b88d9e145e546737"
+   "bytes": 14664,
+   "sha256": "848dadac61779597215f120b7f027482d1d4422f94edea66b16fa04dfbbcce75"
   },
   {
    "path": "agent/color_state.js",
@@ -173,8 +173,8 @@
   },
   {
    "path": "agent/groups.js",
-   "bytes": 61161,
-   "sha256": "565a8a16720a1e4fd27e4a7686f615379983e5163edec08e9befff43f5e094fa"
+   "bytes": 64184,
+   "sha256": "33b0f71c66057e98b0ebc98696b59aa63b86c82b091bb431a675e2f942ef17cb"
   },
   {
    "path": "agent/hair_groups.js",
@@ -213,8 +213,8 @@
   },
   {
    "path": "agent/ordinary_extensions.js",
-   "bytes": 14012,
-   "sha256": "e9ea8a151839de09346a3ffb878bc8b82b9e60c9f138b2cce757980b50064ca5"
+   "bytes": 14112,
+   "sha256": "4e8bbbb2ca46677d843c94591d83b21b50b28c65a70b00adf304fd38de4a38dd"
   },
   {
    "path": "agent/parameter_semantics.js",
@@ -303,13 +303,18 @@
   },
   {
    "path": "docs/native-evidence/2026-11-13-pr1-acceptance.md",
-   "bytes": 10315,
-   "sha256": "22d3073fdba90bbe67a15c48678a4cf667afd1a9a93d465bb51c270fc3d5ad98"
+   "bytes": 10483,
+   "sha256": "fcfef13e209dbc64756bb05d3b260d01e1a3d28cd167dfdbcc98b92afe04b9eb"
+  },
+  {
+   "path": "docs/native-evidence/2026-11-14-pr1-completion.md",
+   "bytes": 8335,
+   "sha256": "6eb8a345c44f800348afde5ba7b51d0480115a2072ae236eacb9a176850f40f4"
   },
   {
    "path": "docs/superpowers/native-migration-acceptance.md",
-   "bytes": 13484,
-   "sha256": "1469278ec51ad1aeb31a31451777e3d603631d85cdd642de16375cec4fd526ec"
+   "bytes": 13672,
+   "sha256": "a3ccc33f072e38df50fc9c7f8be17564538092bc4cff853c832e7ffc0f4f270c"
   },
   {
    "path": "docs/superpowers/plans/2026-11-06-mcjo79-migration.md",
@@ -1223,8 +1228,8 @@
   },
   {
    "path": "tests/catalog_native_test.js",
-   "bytes": 9921,
-   "sha256": "8c51f0785e45275dfdb0abffdc9b1c7d013761d8ebbfd243764c63bacec9666f"
+   "bytes": 10586,
+   "sha256": "7a5ddbfb895b3bfaa18c109295206f19d277ed7519e2767113a792f2c7af1ba3"
   },
   {
    "path": "tests/catalog_test.js",
@@ -1278,8 +1283,8 @@
   },
   {
    "path": "tests/groups_test.js",
-   "bytes": 36937,
-   "sha256": "8c8e115c70a2ef57f964476b501c3ab204b50f3712cff21afdc28dbb3b6ef70d"
+   "bytes": 39517,
+   "sha256": "e8818f1b16880ef0881f3346924ce404f56e66b1640becb8955d3e344478725d"
   },
   {
    "path": "tests/hair_authoring_acceptance.py",
@@ -1638,8 +1643,8 @@
   },
   {
    "path": "tests/test_situation_fix.py",
-   "bytes": 26103,
-   "sha256": "3dc0111ae6ed22b10550c65823f59449cbc52e386f64a5c5e889e852c0e20e1e"
+   "bytes": 27887,
+   "sha256": "d0293d5664b0458f78eaa9d4ef08204389608839bd92f468d392947e00e009b7"
   },
   {
    "path": "tests/test_situation_gallery.py",
@@ -1800,6 +1805,11 @@
    "path": "tools/check_attached_sessions.py",
    "bytes": 16188,
    "sha256": "1b4fda40513c365b77fd717da5d6b803b6faa9a9164cc7db69d842110612f366"
+  },
+  {
+   "path": "tools/check_community_workflows.py",
+   "bytes": 26254,
+   "sha256": "58e2fb87600011357e5bd1ac7aa168447378e286684958ce6728facceeaa2467"
   },
   {
    "path": "tools/check_continuous_editing.py",
@@ -2293,8 +2303,8 @@
   },
   {
    "path": "vroid_mcp/runtime_groups.py",
-   "bytes": 15958,
-   "sha256": "aa4785cc4ae30a24c20f30bafe6dd1ff59ca3e1b47f9b48f1643f40e7776c26d"
+   "bytes": 16129,
+   "sha256": "99651704436223893e88e2ac53c9b8d31ce811b8f76485a2f6a39b47bb5ca6a2"
   },
   {
    "path": "vroid_mcp/runtime_hair.py",
@@ -2323,8 +2333,8 @@
   },
   {
    "path": "vroid_mcp/runtime_situation.py",
-   "bytes": 25910,
-   "sha256": "a096cfb7e716d13ba46c09f0a02f9ca922e14a746907cdd089c3ed07031b414b"
+   "bytes": 28448,
+   "sha256": "13a0b1653156ec8bacaa19a10a743ec1c84ef8910d5865c31e4a6f7f3c4f14b5"
   },
   {
    "path": "vroid_mcp/runtime_textures.py",
@@ -2418,8 +2428,8 @@
   },
   {
    "path": "vroid_mcp/tools_groups.py",
-   "bytes": 4836,
-   "sha256": "1eb66e399f28dc0d7398ad0fe80e7639be34db44e1e577886e5db864ad653ab1"
+   "bytes": 4915,
+   "sha256": "bb541b175250959217b37f345218a3383ae62be4af3d6170c38c8742f7a440f8"
   },
   {
    "path": "vroid_mcp/tools_hair.py",

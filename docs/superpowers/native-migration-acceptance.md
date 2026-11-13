@@ -1,6 +1,6 @@
 # Native acceptance for the mcjo79 migration
 
-**Result: partial local acceptance.** See the [2026-11-13 PR review](../native-evidence/2026-11-13-pr1-acceptance.md) for the tested builds, cases, fixes and remaining gates. This checklist is for the changes listed in [MIGRATION.md](../../MIGRATION.md). Keep the offline test report separate. A static match in an allowlisted assembly establishes a signature or implementation detail on that build; it does not establish that an operation completes, survives Undo or produces the intended picture.
+**Result: bounded local native acceptance.** See the [2026-11-14 completion report](../native-evidence/2026-11-14-pr1-completion.md) for the subsequent fixes, successful custom/situation/menu/cancellation cases and remaining visual/consumer boundaries. The [2026-11-13 PR review](../native-evidence/2026-11-13-pr1-acceptance.md) preserves the initial checkpoint. This checklist is for the changes listed in [MIGRATION.md](../../MIGRATION.md). Keep the offline test report separate. A static match in an allowlisted assembly establishes a signature or implementation detail on that build; it does not establish that an operation completes, survives Undo or produces the intended picture.
 
 ## Prepare a disposable run
 
