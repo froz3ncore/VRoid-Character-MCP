@@ -21,6 +21,17 @@ globalThis.createTextureApi=H=>{
  const {model,cls,core,text,invokeManaged}=H;
  const guideTasks=new Map();
  const detailQuality=createCaptureQuality({core,cls,invokeManaged});
+ const textureModes={
+  BodySkin:'Body',
+  FaceSkin:'Face',Cheek:'Face',Lip:'Face',Eyelid:'Face',Eyeline:'Face',Eyelash:'Face',
+  Eyebrow:'Face',Iris:'Face',EyeWhite:'Face',EyeHighlight:'Face',Mouth:'Face',
+  MouthLine:'Face',NoseLighting:'Face',
+  Tops:'Clothing',InnerTop:'Clothing',Bottoms:'Clothing',ArmAccessory:'Clothing',Shoes:'Clothing',
+ };
+ function textureMode(type){
+  const part=String(type||'').split('.').pop();
+  return Object.hasOwn(textureModes,part)?textureModes[part]:null;
+ }
  function readableTexture(source){
   const width=source.method('get_width').invoke(),height=source.method('get_height').invoke();
   if(width*height>4194304)throw Error('GUIDE_SIZE_EXCEEDS_LIMIT');
@@ -68,13 +79,62 @@ globalThis.createTextureApi=H=>{
  }
  function scalar(type,value){const p=Memory.alloc(4);type==='float'?p.writeFloat(value):p.writeS32(value);return p;}
  function groups(m){return pairs(m.context.method('get_ActiveModel').invoke().method('get_TransferableGroups').invoke());}
- function region(m,id){const r=groups(m).find(r=>r.key===id);if(!r)throw Error('UNKNOWN_TEXTURE_REGION');return r;}
- function imagePaths(m,r){
+ function region(m,id){
+  if(typeof id==='string'&&id.startsWith('["hair_material",')){materialApi.imagePaths(m,id);return {key:id,shared_material:true};}
+  const r=groups(m).find(r=>r.key===id);if(!r)throw Error('UNKNOWN_TEXTURE_REGION');return r;
+ }
+ function transferableIds(m,r){
+  if(r.shared_material)throw Error('CLOTHING_TEMPLATE_REGION_REQUIRED');
   const active=m.context.method('get_ActiveModel').invoke();
-  const ids=[...new Set(seq(active.method('GetAllTransferableIdsInTransferableGroup').invoke(Il2Cpp.string(r.key))).map(s=>new Il2Cpp.String(s.handle).content))],images=[];
+  const members=active.method('GetAllTransferableIdsInTransferableGroup').invoke(Il2Cpp.string(r.key));
+  return [...new Set(seq(members).map(s=>new Il2Cpp.String(s.handle).content))];
+ }
+ function imagePaths(m,r){
+  if(r.shared_material)return materialApi.imagePaths(m,r.key);
+  const ids=transferableIds(m,r),images=[];
   for(const id of ids)for(const p of seq(q(m,'GetEditableImagePathsForTransferableQuery',[Il2Cpp.string(id).handle])))
    if(!images.some(i=>pathKey(i)===pathKey(p)))images.push(p);
   return images;
+ }
+ function templateSnapshot(m,r){
+  return {transferable_ids:transferableIds(m,r),
+   images:imagePaths(m,r).map(p=>({image_id:pathKey(p),image:pathData(p)}))};
+ }
+ function withClothingTemplateDialog(m,r,visit){
+  if(r.shared_material)throw Error('CLOTHING_TEMPLATE_REGION_REQUIRED');
+  const type=stringProp(r.value,'TypeId');
+  if(textureMode(type)!=='Clothing')throw Error('CLOTHING_TEMPLATE_REGION_REQUIRED');
+  const bus=m.main.method('get_GlobalBus').invoke();
+  const screen=bus.method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
+  if(screen.class.type.name!=='VRoid.Studio.TextureEditorScreen.ViewModel')throw Error('OPEN_MATCHING_TEXTURE_EDITOR_FIRST');
+  const editor=screen.method('get_TextureEditor').invoke();
+  if(stringProp(editor,'CurrentTransferableGroupType')!==type)throw Error('TEXTURE_EDITOR_REGION_MISMATCH');
+  if(groups(m).filter(g=>stringProp(g.value,'TypeId')===type).length!==1)throw Error('AMBIGUOUS_CLOTHING_TEMPLATE_REGION');
+  if(editor.method('get_ShowTemplateLimitExceededMessage').invoke())throw Error('CLOTHING_TEMPLATE_LIMIT_REACHED');
+  if(!editor.method('get_ShowTemplateButton').invoke())throw Error('ADD_CLOTHING_TEMPLATE_UNAVAILABLE');
+  const provider=bus.method('get_DialogProvider').invoke();
+  const current=()=>provider.method('get_Dialog').invoke();
+  if(!current().handle.isNull())throw Error('CLOSE_ACTIVE_DIALOG_FIRST');
+  const handler=nativeFieldOfType(editor,'VRoid.Studio.TextureEditor.ActionHandler');
+  invokeManaged(handler,'AddTemplate',[Il2Cpp.string(type).handle]);
+  const dialog=current();
+  if(dialog.handle.isNull()||dialog.class.type.name!=='VRoid.Studio.TextureEditor.AddTemplateDialog.ViewModel.AddTemplateDialogViewModel'){
+   throw Error('CLOTHING_TEMPLATE_DIALOG_NOT_OPEN');
+  }
+  try{
+   const categories=seq(dialog.method('get_AllCategories').invoke()).map(category=>{
+    const id=stringProp(category,'TransferableGroupType').split('.').pop();
+    const rows=seq(category.method('get_PresetRows').invoke()).flatMap(seq);
+    return {id,label:stringProp(category,'TranslatedDisplayName'),templates:rows.map(row=>({
+     row,data:{template_id:text(row.field('_transferableGroupResourceName').value),category:id,
+      name:stringProp(row,'TranslatedDisplayName'),base_template:stringProp(row,'TranslatedTemplateName')}
+    }))};
+   });
+   return visit(categories);
+  }finally{
+   const active=current();
+   if(!active.handle.isNull()&&active.handle.equals(dialog.handle))invokeManaged(provider,'Dismiss');
+  }
  }
  function layerRows(m,r){
   const rows=[];
@@ -88,8 +148,37 @@ globalThis.createTextureApi=H=>{
   }return rows;
  }
  const management=createLayerManagementApi({identity,region,imagePaths,layerRows,pathKey,nativeFieldOfType,stringProp,cls,invokeManaged,seq});
+ const {materialApi,rasterApi,rasterSnapshot}=createNativeTextureExtensions({...H,identity,region,layerRows,pathData,invokeStatic,scalar,seq});
  return {operations:{
   ...management.operations,
+  list_clothing_templates(args){
+   const m=identity(args),r=region(m,args.region_id);
+   return withClothingTemplateDialog(m,r,categories=>{
+    if(args.category&&!categories.some(c=>c.id===args.category))throw Error('UNKNOWN_CLOTHING_TEMPLATE_CATEGORY');
+    return {model_token:m.token,region_id:r.key,
+     categories:categories.map(c=>({id:c.id,label:c.label,count:c.templates.length})),
+     templates:categories.filter(c=>!args.category||c.id===args.category).flatMap(c=>c.templates.map(t=>t.data))};
+   });
+  },
+  add_clothing_template(args){
+   const m=identity(args),r=region(m,args.region_id),before=templateSnapshot(m,r);
+   const template=withClothingTemplateDialog(m,r,categories=>{
+    const matches=categories.flatMap(c=>c.templates).filter(t=>t.data.template_id===args.template_id);
+    if(matches.length!==1)throw Error('UNKNOWN_OR_AMBIGUOUS_CLOTHING_TEMPLATE');
+    invokeManaged(matches[0].row,'Select');
+    return matches[0].data;
+   });
+   return {model_token:m.token,region_id:r.key,template,before,frame:state.frame};
+  },
+  clothing_template_state(args){
+   const m=identity(args),r=region(m,args.region_id);
+   return {model_token:m.token,...templateSnapshot(m,r)};
+  },
+  inspect_hair_materials:materialApi.inspect,
+  begin_clothing_edit:materialApi.beginClothing,
+  begin_hair_edit:materialApi.beginHair,
+  set_hair_material_color:materialApi.setColor,
+  replace_texture_layer:rasterApi.replace,
   export_renderer_texture(args){const m=identity(args),name=args.mesh_name,slot=args.material_slot;
    if(!['Face','Body','Hand','Foot'].includes(name)||!Number.isInteger(slot)||slot<0||slot>15)throw Error('INVALID_NATIVE_TEXTURE_TARGET');
    const origin=m.face.method('GetFaceSMR').invoke().method('get_transform').invoke().method('get_parent').invoke(),found=[];
@@ -252,45 +341,64 @@ globalThis.createTextureApi=H=>{
    const yes=Memory.alloc(1);yes.writeU8(1);invokeManaged(screen,'Exit',[yes,NULL]);return {model_token:m.token,frame:state.frame};
   },
   open_texture_editor(args){const m=identity(args),r=region(m,args.region_id),type=stringProp(r.value,'TypeId');
-   if(!/\.(FaceSkin|BodySkin|Cheek|Lip|Eyelid|Eyeline|Eyelash|Eyebrow|Iris|EyeWhite|EyeHighlight|Mouth|MouthLine|NoseLighting)$/.test(type))throw Error('UNSUPPORTED_TEXTURE_REGION');
-   const modeClass=cls('VRoid.Studio','VRoid.Studio.EditRootScreen.EditMode'),modeName=type.endsWith('.BodySkin')?'Body':'Face';
+   const modeName=textureMode(type);
+   if(!modeName)throw Error('UNSUPPORTED_TEXTURE_REGION: '+type);
+   if(modeName==='Clothing'&&args.bake_colors)throw Error('CLOTHING_TEXTURE_COLOR_BAKE_UNSUPPORTED');
+   const modeClass=cls('VRoid.Studio','VRoid.Studio.EditRootScreen.EditMode');
    const modes=modeClass.fields.filter(f=>f.isStatic),matches=modes.filter(f=>f.name.toLowerCase().startsWith(modeName.toLowerCase()));
    const mode=modes.find(f=>f.name===modeName)||(matches.length===1?matches[0]:null);if(!mode)throw Error('UNSUPPORTED_NATIVE_EDIT_MODE: '+modes.map(f=>f.name).join(','));
    const rawMode=mode.value;invokeManaged(m.root,'set_EditMode',[scalar('int',typeof rawMode==='number'?rawMode:rawMode.field('value__').value)]);
    const bake=Memory.alloc(1);bake.writeU8(args.bake_colors?1:0);const optional=Memory.alloc(2);optional.writeByteArray(args.bake_colors?[1,1]:[0,0]);
    invokeManaged(m.root,'MoveToTextureEditorScreen',[bake,NULL,Il2Cpp.string(type).handle,optional,NULL]);
    const screen=m.main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
+   if(screen.class.type.name!=='VRoid.Studio.TextureEditorScreen.ViewModel')throw Error('TEXTURE_EDITOR_NOT_ACTIVE');
+   const activeType=stringProp(screen.method('get_TextureEditor').invoke(),'CurrentTransferableGroupType');
+   if(activeType!==type)throw Error('TEXTURE_EDITOR_REGION_MISMATCH: '+activeType+' (expected '+type+')');
    return {model_token:m.token,region_id:r.key,native_type:type,active_screen:screen.class.type.name,frame:state.frame};
   },
   inspect_texture_canvas(args){const m=identity(args),screen=m.main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
    if(screen.class.type.name!=='VRoid.Studio.TextureEditorScreen.ViewModel')throw Error('TEXTURE_EDITOR_NOT_ACTIVE');
    const editor=screen.method('get_TextureEditor').invoke(),images=[];
-   function sections(rows){for(const section of seq(rows)){
-    if(section.tryMethod('get_Path')&&section.class.name==='TextureViewModel')images.push({label:stringProp(section,'TranslatedDisplayName'),image:pathData(section.method('get_Path').invoke()),referring_texture_paths:seq(section.method('get_ReferringTexturePaths').invoke()).map(p=>({native_class:p.class.type.name,value:stringProp(p,'TransferableId'),path:text(p.method('ToString').invoke())}))});
-    if(section.tryMethod('get_ChildSections'))sections(section.method('get_ChildSections').invoke());
+   function sections(rows,parentTemplate=null){for(const section of seq(rows)){
+    const template=section.class.name==='TemplateViewModel'&&section.tryMethod('get_TranslatedDisplayName')
+     ? stringProp(section,'TranslatedDisplayName') : parentTemplate;
+    if(section.tryMethod('get_Path')&&section.class.name==='TextureViewModel'){
+     const path=section.method('get_Path').invoke();
+     const image={label:stringProp(section,'TranslatedDisplayName'),image:pathData(path)};
+     if(args.compact){
+      image.image_id=pathKey(path);
+      image.template=template;
+     }else{
+      image.referring_texture_paths=seq(section.method('get_ReferringTexturePaths').invoke())
+       .map(p=>({native_class:p.class.type.name,value:stringProp(p,'TransferableId'),path:text(p.method('ToString').invoke())}));
+     }
+     images.push(image);
+    }
+    if(section.tryMethod('get_ChildSections'))sections(section.method('get_ChildSections').invoke(),template);
    }}
    for(const sub of seq(editor.field('_subCategories').value))sections(sub.method('get_Sections').invoke());
+   const currentType=stringProp(editor,'CurrentTransferableGroupType');
+   if(args.compact){
+    const matching=groups(m).filter(r=>stringProp(r.value,'TypeId')===currentType);
+    return {model_token:m.token,current_group_type:currentType,region_id:matching.length===1?matching[0].key:null,images,frame:state.frame};
+   }
    const guide=editor.method('get_GuideTextureSource').invoke();
    const selected=editor.method('get_SelectedLayer').invoke();
    const overlays=seq(editor.field('_meshOverlays').value).map(o=>{const mesh=o.method('get_Mesh').invoke(),hierarchy=[];let c=mesh.class;
     for(let i=0;c&&i<4;i++,c=c.parent)hierarchy.push({type:c.type.name,fields:c.fields.map(f=>({name:f.name,type:f.type.name})),methods:c.methods.filter(m=>!m.name.startsWith('<')).map(m=>({name:m.name,return:m.returnType.name,params:m.parameters.map(p=>({name:p.name,type:p.type.name}))}))});
     return {image:pathData(o.method('get_EditableImagePath').invoke()),native_mesh_type:mesh.class.type.name,hierarchy};});
-   return {model_token:m.token,current_group_type:stringProp(editor,'CurrentTransferableGroupType'),images,overlays,selected_layer:selected.handle.isNull()?null:{image:pathData(selected.method('get_Path').invoke().method('get_EditableImagePath').invoke()),node_id:stringProp(selected.method('get_Path').invoke(),'NodeId')},guide:guide.handle.isNull()?null:{native_type:guide.class.type.name,methods:guide.class.methods.map(m=>({name:m.name,return:m.returnType.name,params:m.parameters.map(p=>({name:p.name,type:p.type.name}))}))},frame:state.frame};
+   return {model_token:m.token,current_group_type:currentType,images,overlays,selected_layer:selected.handle.isNull()?null:{image:pathData(selected.method('get_Path').invoke().method('get_EditableImagePath').invoke()),node_id:stringProp(selected.method('get_Path').invoke(),'NodeId')},guide:guide.handle.isNull()?null:{native_type:guide.class.type.name,methods:guide.class.methods.map(m=>({name:m.name,return:m.returnType.name,params:m.parameters.map(p=>({name:p.name,type:p.type.name}))}))},frame:state.frame};
   },
   list_texture_regions(args){const m=identity(args);return {model_token:m.token,regions:groups(m).map(r=>{
    const type=stringProp(r.value,'TypeId');const bindings=[];
    for(const e of pairs(r.value.method('get_EditableElements').invoke()))
     if(e.value.tryMethod('get_ImageId'))bindings.push({native_key:e.key,image_id:stringProp(e.value,'ImageId'),native_type:e.value.class.type.name});
-   return {region_id:r.key,native_type:type,part:type.split('.').pop(),image_bindings:bindings,editable_images:imagePaths(m,r).map(pathData),uv_mapping_status:'not_yet_exported'};
+   return {region_id:r.key,native_type:type,part:type.split('.').pop(),editor_mode:textureMode(type),image_bindings:bindings,editable_images:imagePaths(m,r).map(pathData),uv_mapping_status:'not_yet_exported'};
   })};},
   list_texture_layers(args){const m=identity(args),r=region(m,args.region_id);return {model_token:m.token,region_id:r.key,layers:layerRows(m,r).map(x=>x.data),composition_modes:management.describeModes(),folder_editing_supported:false};},
   export_texture_layer(args){const m=identity(args),r=region(m,args.region_id),row=layerRows(m,r).find(l=>l.data.layer_id===args.layer_id);if(!row)throw Error('UNKNOWN_TEXTURE_LAYER');
-   const texture=row.raw.method('CreateTexture2D').invoke();
-   try{const width=texture.method('get_width').invoke(),height=texture.method('get_height').invoke(),rgba=row.raw.method('ComposeTiles',0).invoke(),yes=Memory.alloc(1);yes.writeU8(1);
-    if(rgba.length!==width*height*4||width*height>4194304)throw Error('LAYER_PIXEL_COUNT_MISMATCH');
-    const bytes=invokeStatic(cls('VRoidCore','VRoidCore.Common.PNGUtil'),'SavePNGFromRGBABytes',[rgba.handle,yes,scalar('int',width),scalar('int',height)]);
-    return {model_token:m.token,region_id:r.key,layer:row.data,width,height,base64:Il2Cpp.corlib.class('System.Convert').method('ToBase64String').overload('System.Byte[]').invoke(bytes).content};
-   }finally{core('Object').method('DestroyImmediate',1).invoke(texture);}
+   const {rgba,...snapshot}=rasterSnapshot(m,row);
+   return {model_token:m.token,region_id:r.key,layer:row.data,...snapshot};
   }
  }};
 };

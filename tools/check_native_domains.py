@@ -19,6 +19,7 @@ import json
 import os
 import pathlib
 import sys
+import tempfile
 import time
 
 PROJECT = pathlib.Path(__file__).resolve().parents[1]
@@ -113,13 +114,14 @@ async def run(lab: pathlib.Path, domains: list[str], report_path: pathlib.Path |
         report.update(status='blocked', reason=f'lab is owned by another MCP process (pid {current})')
         return _finish(report, report_path, 2)
 
-    env = dict(os.environ)
-    scratch = PROJECT.parent / 'work' / 'temp'
+    scratch = lab / 'temp'
     scratch.mkdir(parents=True, exist_ok=True)
-    env.update(TEMP=str(scratch), TMP=str(scratch))
+    os.environ.update(TEMP=str(scratch), TMP=str(scratch), TMPDIR=str(scratch))
+    tempfile.tempdir = None
+    env = dict(os.environ)
     params = StdioServerParameters(command=sys.executable, args=['-m', 'vroid_mcp.server', '--lab', str(lab)],
                                    cwd=str(PROJECT), env=env)
-    log_path = (report_path.parent if report_path else PROJECT.parent / 'work') / 'native-domains-server.log'
+    log_path = (report_path.parent if report_path else scratch) / 'native-domains-server.log'
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open('w', encoding='utf-8') as log:
         async with stdio_client(params, errlog=log) as (read, write):

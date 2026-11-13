@@ -32,6 +32,8 @@ def register(ready_tool, runtime, lab, read, edit):
 
         Hair needs a category and a node scope, accessories an instance scope, and
         expressions may take an expression id as scope. Colors are RGBA in 0..1.
+        Clothing accepts a native category such as Tops, Bottoms, InnerTop or Shoes
+        to filter shape sliders before pagination. Omit category to list the whole outfit.
         Read every next_offset page before concluding a control is missing. The
         general domain covers outline, rim light, shading, gaze limits and spring
         amplitude. Shape controls add semantic_key/group/bindings and a
@@ -71,9 +73,15 @@ def register(ready_tool, runtime, lab, read, edit):
     @ready_tool(annotations=read)
     async def list_presets(area: AREAS, category: str | None = None,
                            offset: int = Field(default=0, ge=0),
-                           limit: int = Field(default=100, ge=1, le=200)) -> dict:
-        """List owned presets with stable ids, native labels and English names where known."""
-        return await runtime.list_presets(area, category, offset, limit)
+                           limit: int = Field(default=100, ge=1, le=200),
+                           search: str | None = None, owned_only: bool = True) -> dict:
+        """Search native preset IDs/resources; owned-only by default, locked metadata is read-only.
+
+        The separate catalog field pages the all-category PlayFab metadata using
+        offset/limit and its own total/next_offset/complete flags. Catalog-only IDs
+        are nonselectable; resource-derived categories are annotations, not UI IDs.
+        """
+        return await runtime.list_presets(area, category, offset, limit, search, owned_only)
 
     @ready_tool(annotations=read)
     async def preview_presets(expected_model: str, area: AREAS,
@@ -97,9 +105,14 @@ def register(ready_tool, runtime, lab, read, edit):
         return content
 
     @ready_tool(annotations=edit)
-    async def apply_preset(expected_model: str, area: AREAS, preset_id: str) -> dict:
-        """Apply an owned native preset; relist parameters after a structural change."""
-        return await runtime.apply_preset(area, expected_model, preset_id)
+    async def apply_preset(expected_model: str, area: AREAS, preset_id: str,
+                           preserve_material: bool = False) -> dict:
+        """Apply owned presets; optional native preservation verifies exact compatible color paths.
+
+        Preservation supports simple built-in replacements only, refuses clear/custom/set
+        options, and reports incompatible/unverified material coverage explicitly.
+        """
+        return await runtime.apply_preset(area, expected_model, preset_id, preserve_material)
 
     @ready_tool(annotations=read)
     async def list_face_params() -> dict:

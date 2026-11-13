@@ -6,7 +6,7 @@ failed edits never publish a saved candidate. Explicit --apply --bake-colors
 No native writes or uncertain saves are automatically retried.
 """
 from __future__ import annotations
-import argparse,asyncio,hashlib,json,os,re,sys
+import argparse,asyncio,hashlib,json,os,re,sys,tempfile
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -50,8 +50,10 @@ def read_recipe(path):
 
 @asynccontextmanager
 async def client_for(lab,model,out,label):
-    env=dict(os.environ,TEMP=str(out/'temp'),TMP=str(out/'temp'),VROID_MCP_CLEAR_CLOSET_KEY='0')
     (out/'temp').mkdir(exist_ok=True)
+    os.environ.update(TEMP=str(out/'temp'),TMP=str(out/'temp'),TMPDIR=str(out/'temp'))
+    tempfile.tempdir=None
+    env=dict(os.environ,VROID_MCP_CLEAR_CLOSET_KEY='0')
     params=StdioServerParameters(command=sys.executable,args=['-m','vroid_mcp.server','--lab',str(lab),'--model',str(model)],cwd=str(PROJECT),env=env)
     with (out/(label+'.log')).open('w',encoding='utf8') as log:
         async with stdio_client(params,errlog=log) as (read,write):

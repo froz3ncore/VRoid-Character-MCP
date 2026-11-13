@@ -9,6 +9,7 @@ images are evidence for a human, never an automatic verdict.
 from __future__ import annotations
 
 import base64
+import asyncio
 import hashlib
 import json
 import time
@@ -30,6 +31,15 @@ CHECKLIST = [
 
 
 class CaptureTools:
+    async def _native_capture(self, args):
+        try:
+            return await self._call('screenshot', args)
+        except BaseException as error:
+            if (isinstance(error, asyncio.CancelledError)
+                or any(code in str(error) for code in ('CAPTURE_CLEANUP_FAILED', 'PHOTO_CAMERA_OWNER_CHANGED'))):
+                self.uncertain = True
+            raise
+
     async def capture_body_reference(self, expected_model: str, label: str = '') -> dict:
         """Save the current body and face geometry as one validated JSON artifact."""
         from .body_reference import validate_body_reference
@@ -57,9 +67,11 @@ class CaptureTools:
     async def _capture(self, view: str, expected_model: str, size: int, quality: str = 'balanced',
                        metadata: dict | None = None, framing_metadata: dict | None = None,
                        framing_reference: dict | None = None) -> bytes:
-        result = await self._call('screenshot', {'view': view, 'expected_model': expected_model,
+        result = await self._native_capture({'view': view, 'expected_model': expected_model,
                                                  'size': size, 'quality': quality,
                                                  'framing_reference': framing_reference})
+        if result.get('model_token') != expected_model:
+            raise ValueError('MODEL_CHANGED_DURING_CAPTURE')
         if metadata is not None:
             metadata.update(result['quality'])
         if framing_metadata is not None and 'framing' in result:
@@ -67,18 +79,71 @@ class CaptureTools:
         return decode_capture(result, size, quality)
 
     async def screenshot(self, view: str, expected_model: str, size: int = 512,
-                         quality: str = 'balanced') -> bytes:
+                         quality: str = 'balanced', *, width=None, height=None, msaa=None, ssaa=None,
+                         clean=True) -> bytes:
+        data, _ = await self.screenshot_with_metadata(view, expected_model, size, quality,
+            width=width, height=height, msaa=msaa, ssaa=ssaa, clean=clean)
+        return data
+
+    async def screenshot_with_metadata(self, view: str, expected_model: str, size: int = 512,
+                         quality: str = 'balanced', *, width=None, height=None, msaa=None, ssaa=None,
+                         clean=True) -> tuple[bytes, dict]:
         if not isinstance(expected_model, str) or not expected_model:
             raise ValueError('EXPECTED_MODEL_REQUIRED: pass a fresh model_token')
-        validate_capture([view], size)
-        quality_plan(size, quality)
+        if type(clean) is not bool:
+            raise ValueError('Capture clean must be boolean')
+        if not clean and (view not in ('front', 'current_editor') or size != 512 or quality != 'balanced'
+            or any(v is not None for v in (width, height, msaa, ssaa))):
+            raise ValueError('APP_FRAME_OVERRIDES: use default view or current_editor and default clean-render arguments')
+        if view != 'current_editor':
+            validate_capture([view], size)
+        overrides = dict(width=width, height=height, msaa=msaa, ssaa=ssaa)
+        quality_plan(size, quality, **overrides)
         async with self.lock:
             state = await self._settle()
             if state.get('model_token') != expected_model:
                 raise ValueError('STALE_MODEL: list parameters again')
-            prepared = await self._call('prepare_capture', {'expected_model': expected_model})
-            await self._settle(prepared['frame'])
-            return await self._capture(view, expected_model, size, quality)
+            # Guide isolation belongs to the native render scope. No host-side
+            # selection/controller mutation may survive settle or PNG failures.
+            args = dict(view=view, expected_model=expected_model, size=size, quality=quality, clean=clean, **overrides)
+            if clean:
+                result = await self._native_capture(args)
+                data = decode_capture(result, size, quality, **overrides)
+            else:
+                try:
+                    ticket = await self._call('start_app_frame', {'expected_model': expected_model})
+                    deadline = time.monotonic() + 12
+                    while True:
+                        done = await self._call('poll_app_frame', ticket)
+                        if done.get('completed'):
+                            if done.get('error'):
+                                raise RuntimeError(done['error'])
+                            result = done['result']
+                            break
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError('APP_FRAME_TIMEOUT: do not retry')
+                        await asyncio.sleep(.05)
+                    data = self._decode_app_frame(result, expected_model)
+                except BaseException:
+                    self.uncertain = True
+                    raise
+            if result.get('model_token') != expected_model:
+                raise ValueError('MODEL_CHANGED_DURING_CAPTURE')
+            return data, {key: value for key, value in result.items() if key != 'base64'}
+
+    @staticmethod
+    def _decode_app_frame(result, expected_model):
+        width, height = result.get('width'), result.get('height')
+        if (result.get('model_token') != expected_model or result.get('provenance') != 'unity_application_frame'
+            or result.get('phase') != 'UnityEngine.Awaitable.OnEndOfFrame.onLeave'
+            or type(width) is not int or type(height) is not int or min(width, height) < 1
+            or width * height > 8_000_000):
+            raise ValueError('Invalid native application frame metadata')
+        data = base64.b64decode(result['base64'], validate=True)
+        if (len(data) < 24 or data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR'
+            or int.from_bytes(data[16:20], 'big') != width or int.from_bytes(data[20:24], 'big') != height):
+            raise ValueError('Unexpected application PNG dimensions')
+        return data
 
     # ------------------------------------------------------------------ review
     def _load_baseline(self, baseline_id: str, views: list[str], size: int, quality: str,
@@ -148,8 +213,6 @@ class CaptureTools:
                 raise ValueError('MODEL_CHANGED')
             if status.get('photo_active'):
                 raise ValueError('Leave photo preview before capture_review')
-            prepared = await self._call('prepare_capture', {'expected_model': expected_model})
-            await self._settle(prepared['frame'])
             framing_reference = framing_mode = None
             if any(is_regional(view) for view in views):
                 fresh = await self._call('capture_framing_reference', {'expected_model': expected_model})

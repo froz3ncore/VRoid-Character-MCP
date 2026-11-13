@@ -13,6 +13,29 @@
 // `dispatch` is the only export; the sub-APIs (parameters, wear, textures,
 // body reference, preset previews) register themselves into its table.
 
+function createPendingNativeWork(tasks, vrm, groups) {
+    function observe() {
+        const pending = [];
+        for (const [id, holder] of tasks) {
+            try {
+                if (!holder.task || holder.task.method('get_IsCompleted').invoke()!==true)
+                    pending.push({kind:'managed_task',task_id:id});
+            } catch (error) { pending.push({kind:'managed_task',task_id:id,error:String(error)}); }
+        }
+        pending.push(...vrm.pendingWork(), ...groups.pendingWork());
+        return {safe:pending.length===0, pending_work:pending};
+    }
+    function release() {
+        const result=observe();
+        if (!result.safe) return result;
+        for (const [id,holder] of tasks) { holder.handle.free(); tasks.delete(id); }
+        vrm.releaseWork();
+        const count=groups.releaseWork();
+        return {...result,custom_requests_released:count};
+    }
+    return {observe,release};
+}
+
 globalThis.vroid = (() => {
     // A model token is session-scoped and generation-scoped: opening another
     // file in the same copy invalidates every id issued before it.
@@ -33,8 +56,20 @@ globalThis.vroid = (() => {
     const text = value => (value && !value.handle.isNull() ? value.content : null);
     const parameterMetadata = createParameterSemantics({ text });
     const captureQuality = createCaptureQuality({ core, cls, invokeManaged });
-    const captureFraming = createCaptureFraming({ core, text });
-    const attachedState = createAttachedState({main: mainViewModel, text, state});
+    const captureFraming = createCaptureFraming({ core, text, cls });
+    const attachedState = createAttachedState({main: mainViewModel, text, state, sessionTag,
+        observeWork:()=>nativeWork.observe(), releaseWork:()=>nativeWork.release()});
+    const session = createSessionWorkflows({main:mainViewModel, model:modelContext, ui:attachedState.snapshot,
+        retain, sessionTag, invalidateModel:() => { boundEngine = ''; }, guard:attachedState.guard,
+        nativeProfile:() => nativeBuildProfile(VROID_ASSEMBLY_SHA256), invoke:invokeManaged, newModel,
+        openFile:args => importFile(args.path, false), windowIdentity:sessionWindowIdentity,
+        png:() => state.pngDecoder, navigationRevision:() => bridge.navigationRevision});
+    const editorPreview = createEditorPreview({adapter:createEditorPreviewNative({model:modelContext,core,cls,text,retain}),
+        beforeMutation:name=>attachedState.guard(name)});
+    const cleanCaptureScope=createCleanCaptureScope({model:modelContext});
+    const appFrame = createNativeAppFrame({core,cls,preview:editorPreview,mainThread:()=>state.mainThread,frame:()=>state.frame});
+    const editorCapture = createEditorCapture({core,preview:editorPreview,quality:captureQuality,cleanScope:cleanCaptureScope});
+    const photoCapture=createPhotoCapture({core,quality:captureQuality,invokeManaged,model:modelContext,cleanScope:cleanCaptureScope});
 
     function assignManagedReference(object, field, value) {
         // Raw .field().value writes omit Unity's incremental GC write barrier.
@@ -56,6 +91,10 @@ globalThis.vroid = (() => {
         const main = mainViewModel();
         const file = main.field('_mainModel').value.field('currentFile').value;
         if (file.handle.isNull()) throw Error('NO_MODEL: initialize a disposable model first');
+        const screen = main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke()
+            .method('get_ActiveScreen').invoke();
+        if (!screen.handle.isNull() && screen.class.type.name === 'VRoid.Studio.StartScreen.ViewModel')
+            throw Error('MODEL_MENU_ACTIVE: no editable character');
         const engine = file.field('engine').value;
         if (engine.handle.isNull() || engine.method('get_Disposed').invoke()) throw Error('MODEL_DISPOSED');
         const rootReference = state.refs['VRoid.Studio.EditRootScreen.ViewModel'];
@@ -76,6 +115,7 @@ globalThis.vroid = (() => {
         const base = {
             pid: Process.id,
             unity: Il2Cpp.unityVersion,
+            vroid_version: bridge.productVersion, vroid_version_source: bridge.productVersionSource,
             main_thread: state.mainThread,
             callback_thread: Process.getCurrentThreadId(),
             frame: state.frame || 0,
@@ -85,6 +125,11 @@ globalThis.vroid = (() => {
             png_decoder: state.pngDecoder,
             ...(ATTACHED ? {attached_state: attachedState.snapshot()} : {}),
         };
+        try {
+            Object.assign(base, session.view());
+        } catch (error) {
+            base.session_observation_error = String(error);
+        }
         try {
             const m = modelContext();
             const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
@@ -102,7 +147,8 @@ globalThis.vroid = (() => {
             }
             const areas = ['face', 'body', 'hair', 'clothing'];
             return {
-                ...base, model_ready: true, model_token: m.token,
+                ...base, model_ready: true, model_token: m.token,...captureModelOwnership(m,text),
+                ...sessionModelFields(m.context, text, nativeBuildProfile(VROID_ASSEMBLY_SHA256)),
                 photo_active: photoActive, photo_updating: photoUpdating,
                 presets_loading: areas.some(area => selector(m, area).method('get_IsLoading').invoke()),
                 command_busy: !m.context.method('get_IsCommandExecutable').invoke(),
@@ -114,8 +160,9 @@ globalThis.vroid = (() => {
     }
 
     // ---------------------------------------------------------------- reading
-    function toArray(immutable) {
+    function toArray(immutable, limit=Infinity) {
         const data = immutable.field('array').value;
+        if(!data.handle.isNull()&&data.length>limit)throw Error('NATIVE_ARRAY_LIMIT');
         return data.handle.isNull() ? [] : [...data];
     }
 
@@ -138,6 +185,18 @@ globalThis.vroid = (() => {
         return parts.join('|');
     }
 
+    function clothingIdentity(parameter) {
+        // Template paths stringify to their class name. Use their actual
+        // template and editable-element keys to distinguish clothing sliders.
+        const metadata = parameterMetadata(parameter);
+        if (metadata.semantic_status === 'complete' && metadata.semantic_bindings.every(
+            binding => binding.template && Object.keys(binding.template.fields).length
+        )) {
+            return JSON.stringify([parameter.class.name, metadata.semantic_group, metadata.semantic_bindings]);
+        }
+        return identityKey(parameter);
+    }
+
     const EDITOR_NAMES = { face: 'Face', body: 'Body', hair: 'Hair', clothing: 'Clothing' };
 
     function selector(m, area) {
@@ -146,15 +205,16 @@ globalThis.vroid = (() => {
             .method('get_PresetsSelector').invoke();
     }
 
-    function categories(m, area) {
+    function categories(m, area, limit=Infinity) {
         const found = [];
         const seen = new Set();
         function visit(category) {
             const address = category.handle.toString();
             if (seen.has(address)) return;
+            if(found.length>=limit)throw Error('CATALOG_CATEGORY_LIMIT');
             seen.add(address);
             found.push(category);
-            for (const child of toArray(category.method('get_Children').invoke())) visit(child);
+            for (const child of toArray(category.method('get_Children').invoke(),limit)) visit(child);
         }
         visit(selector(m, area).method('get_Categories').invoke());
         return found;
@@ -175,7 +235,7 @@ globalThis.vroid = (() => {
                     throw Error('CONTEXT_MISMATCH');
                 }
                 found.push({
-                    p: parameter, canonical: identityKey(parameter),
+                    p: parameter, canonical: clothingIdentity(parameter),
                     id: 'clothing/' + group + '/' + String(index).padStart(3, '0'),
                     category: type.split('.').pop(), category_key: type,
                 });
@@ -302,7 +362,9 @@ globalThis.vroid = (() => {
         if (!['face', 'body', 'hair', 'clothing'].includes(area)) throw Error('UNSUPPORTED_PRESET_AREA');
         const entries = [];
         const clears = [];
-        for (const category of categories(m, area)) {
+        const allCategories=categories(m,area,256);
+        if(allCategories.length>256)throw Error('CATALOG_CATEGORY_LIMIT');
+        for (const category of allCategories) {
             const withModel = category.tryMethod('get_PresetCategoryViewModel');
             const container = withModel ? withModel.invoke()
                 : category.tryMethod('get_PresetOptions') ? category : null;
@@ -311,6 +373,7 @@ globalThis.vroid = (() => {
             const name = text(category.method('get_Name').invoke());
             const options = container.method('get_PresetOptions').invoke();
             const count = options.method('get_Count').invoke();
+            if(!Number.isInteger(count)||count<0||count+entries.length+clears.length>20000)throw Error('CATALOG_OPTION_LIMIT');
             for (let index = 0; index < count; index += 1) {
                 const option = options.method('get_Item').invoke(index);
                 if (option.class.name === 'ClearOptionViewModel') {
@@ -325,12 +388,17 @@ globalThis.vroid = (() => {
                 const presetModel = option.field('_model').value;
                 const presetId = text(option.method('get_TransferableGroupId').invoke());
                 const resource = text(presetModel.field('resourceName').value);
+                const catalogField = name => { try { return presetModel.field(name).value; } catch (_) { return null; } };
+                const owned = option.method('get_IsOwned').invoke();
                 entries.push({
                     p: option, id: area + '/' + key + '/' + presetId,
+                    transferable_id: presetId,
                     category: key, category_name: name,
                     label: name + ' / ' + resource.split('/').slice(0, -1).pop(),
                     resource_name: resource,
-                    owned: option.method('get_IsOwned').invoke(),
+                    owned, locked: !owned,
+                    price_in_coin: catalogField('priceInCoin'), is_set_item: catalogField('isSetItem'),
+                    catalog_only: false,
                     selected: option.method('get_IsSelected').invoke(),
                 });
             }
@@ -349,8 +417,12 @@ globalThis.vroid = (() => {
             counts.set(preset.category, bucket);
         }
         if (args.category && !counts.has(args.category)) throw Error('UNKNOWN_PRESET_CATEGORY');
+        if (args.search != null && typeof args.search !== 'string') throw Error('INVALID_SEARCH');
+        if (args.owned_only != null && typeof args.owned_only !== 'boolean') throw Error('INVALID_OWNED_FILTER');
+        const search = (args.search || '').toLowerCase();
         const matching = all.filter(preset => (!args.category || preset.category === args.category)
-            && (!args.owned_only || preset.owned));
+            && (args.owned_only === false || preset.owned)
+            && (!search || preset.id.toLowerCase().includes(search) || (preset.resource_name || '').toLowerCase().includes(search)));
         const offset = args.offset ?? 0;
         const limit = args.limit ?? 100;
         if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 200) {
@@ -360,6 +432,7 @@ globalThis.vroid = (() => {
             model_token: m.token, area, categories: [...counts.values()], total: matching.length, offset,
             next_offset: offset + limit < matching.length ? offset + limit : null,
             presets: matching.slice(offset, offset + limit).map(({ p, ...data }) => data),
+            catalog: groups.helpers.catalogPage(m,args,all),
         };
     }
 
@@ -481,9 +554,15 @@ globalThis.vroid = (() => {
     }
 
     // ------------------------------------------------------------------ tasks
-    function rememberTask(task) {
+    function rememberTask(invoke) {
         const id = String(++nextTaskId);
-        tasks.set(id, { task, handle: retain(task) });
+        // A thrown invocation can have dispatched native work without returning
+        // its Task. Retain the unknown owner until the user process exits.
+        const holder = {task:null, handle:null};
+        tasks.set(id, holder);
+        const task = invoke();
+        holder.handle = retain(task);
+        holder.task = task;
         return { task_id: id };
     }
 
@@ -527,8 +606,24 @@ globalThis.vroid = (() => {
 
     // ------------------------------------------------------- model operations
     function history(args, method) {
-        if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
-        return { ...rememberTask(invokeManaged(modelContext(args.expected_model).engine, method)),
+        const name = method === 'UndoAsync' ? 'undo' : 'redo';
+        const rejected = error => ({dispatched:false, reason:'HISTORY_PREWRITE_REJECTED', error:String(error)});
+        let m;
+        try {
+            if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
+            m = modelContext(args.expected_model);
+            requireOrdinaryEditing(name, args);
+            const available = m.context.tryMethod(method === 'UndoAsync' ? 'get_CanUndo' : 'get_CanRedo')?.invoke();
+            if (available !== true) return {dispatched:false, available:available ?? null};
+        } catch (error) {
+            return rejected(error);
+        }
+        try { attachedState.guard(name); }
+        catch (error) {
+            if (error.attached_guard_prewrite) return rejected(error);
+            throw error;
+        }
+        return { ...rememberTask(()=>invokeManaged(m.engine, method)),
                  frame: state.frame || 0 };
     }
 
@@ -573,23 +668,24 @@ globalThis.vroid = (() => {
     }
 
     function openModel(args) {
-        const path = Il2Cpp.string(args.path);
-        const keepPath = Memory.alloc(1);
+        return importFile(args.path, true);
+    }
+
+    function importFile(filename, withoutAssociation) {
+        const path = Il2Cpp.string(filename);
+        const dontSetPath = Memory.alloc(1);
         const fromXRoid = Memory.alloc(1);
-        keepPath.writeU8(1);
+        dontSetPath.writeU8(withoutAssociation ? 1 : 0);
         fromXRoid.writeU8(0);
-        return rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
-            [path.handle, keepPath, fromXRoid]));
+        return rememberTask(()=>invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
+            [path.handle, dontSetPath, fromXRoid]));
     }
 
     function replaceWithFile(args) {
         if (args.discard_unsaved !== true) throw Error('EXPLICIT_DISCARD_REQUIRED');
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         modelContext(args.expected_model);
-        const dontSetPath = Memory.alloc(1), fromXRoid = Memory.alloc(1);
-        dontSetPath.writeU8(0); fromXRoid.writeU8(0);
-        const task = rememberTask(invokeManaged(mainViewModel(), 'ImportFileAndMoveToEditRoot',
-            [Il2Cpp.string(args.path).handle, dontSetPath, fromXRoid]));
+        const task = importFile(args.path, false);
         boundEngine = '';
         return task;
     }
@@ -639,42 +735,8 @@ globalThis.vroid = (() => {
         return value;
     }
 
-    function photoScreenshot(m, size, quality) {
-        const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
-        if (!photo.method('get_IsActive').invoke()) throw Error('PHOTO_MODE_REQUIRED');
-        const camera = photo.method('get_PhotoBoothCamera').invoke();
-        const renderTexture = core('RenderTexture');
-        const previousTarget = camera.method('get_targetTexture').invoke();
-        const previousActive = renderTexture.method('get_active').invoke();
-        const wasEnabled = camera.method('get_enabled').invoke();
-        let capture = null;
-        let backupObject = null;
-        let backupCamera = null;
-        try {
-            // allowMSAA has no getter in this binary, so CopyFrom snapshots the
-            // whole camera configuration and restores it in the finally block.
-            backupObject = core('GameObject').alloc();
-            backupObject.method('.ctor', 1).invoke(Il2Cpp.string('MCP photo capture settings backup'));
-            backupCamera = backupObject.method('AddComponent', 1).invoke(core('Camera').type.object);
-            backupCamera.method('CopyFrom').invoke(camera);
-            backupCamera.method('set_enabled').invoke(false);
-            capture = captureQuality.begin(size, quality);
-            camera.method('set_allowMSAA').invoke(true);
-            invokeManaged(camera, 'set_targetTexture', [capture.target.handle]);
-            invokeManaged(camera, 'Render');
-            const base64 = capture.encode();
-            return { model_token: m.token, view: 'photo', width: size, height: size,
-                     mime_type: 'image/png', quality: capture.metadata, base64 };
-        } finally {
-            if (backupCamera) {
-                camera.method('CopyFrom').invoke(backupCamera);
-                camera.method('set_enabled').invoke(wasEnabled);
-            }
-            invokeManaged(camera, 'set_targetTexture', [previousTarget.handle]);
-            renderTexture.method('set_active').invoke(previousActive);
-            if (backupObject) core('Object').method('DestroyImmediate', 1).invoke(backupObject);
-            if (capture) capture.dispose();
-        }
+    function photoScreenshot(m, size, quality, options={}) {
+        return photoCapture(m,size,quality,options);
     }
 
     function screenshot(args) {
@@ -684,14 +746,18 @@ globalThis.vroid = (() => {
         if (!Number.isInteger(size) || size < 256 || size > 2048) {
             throw Error('CAPTURE_SIZE_RANGE: 256..2048');
         }
-        captureQualityPlan(size, args.quality);
-        if (view === 'photo') return photoScreenshot(m, size, args.quality);
+        if(args.clean===false)throw Error('APP_FRAME_REQUIRES_START_AND_POLL');
+        const qualityPlan=captureQualityPlan(size, args.quality,args),aspect=qualityPlan.output_width/qualityPlan.output_height;
+        if (view === 'photo') return photoScreenshot(m, size, args.quality,args);
+        if(view==='current_editor')return editorCapture(args);
+        const guideScope=cleanCaptureScope.inspect(m,{clonedCamera:true});
         const parsed = parseCaptureView(view);
-        if (parsed.regional
+        if ((parsed.regional || args.situation_framing)
             && m.root.field('obsoleteLegacyPhotoBoothViewModel').value.method('get_IsActive').invoke()) {
             throw Error('RETURN_TO_EDIT_MODE_FIRST');
         }
-        const plan = parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference) : null;
+        const plan = args.situation_framing ? captureFraming.situationPlan(m,args.situation_framing,aspect)
+            : parsed.regional ? captureFraming.modelPlan(m, parsed, args.framing_reference,aspect) : null;
         const renderTexture = core('RenderTexture');
         const unityObject = core('Object');
         const previousActive = renderTexture.method('get_active').invoke();
@@ -706,11 +772,23 @@ globalThis.vroid = (() => {
             const camera = holder.method('AddComponent', 1).invoke(core('Camera').type.object);
             camera.method('CopyFrom').invoke(source);
             camera.method('set_enabled').invoke(false);
-            capture = captureQuality.begin(size, args.quality);
+            capture = captureQuality.begin(size, args.quality,args);
             camera.method('set_allowMSAA').invoke(true);
             camera.method('set_targetTexture').invoke(capture.target);
-            camera.method('set_orthographic').invoke(false);
-            camera.method('set_fieldOfView').invoke(30);
+            cleanCaptureScope.apply(camera,guideScope);
+            camera.method('set_orthographic').invoke(false);camera.method('set_fieldOfView').invoke(30);
+            if(args.situation_framing){
+                camera.method('set_nearClipPlane').invoke(plan.near_clip);camera.method('set_farClipPlane').invoke(plan.far_clip);
+                if(Math.abs(camera.method('get_nearClipPlane').invoke()-plan.near_clip)>1e-5
+                    ||Math.abs(camera.method('get_farClipPlane').invoke()-plan.far_clip)>1e-3*Math.max(1,plan.far_clip))
+                    throw Error('SITUATION_CLIP_READBACK_MISMATCH');
+            }
+            camera.method('ResetProjectionMatrix').invoke();
+            const projection=captureProjectionValues(camera),nativeAspect=camera.method('get_aspect').invoke();
+            if(!Number.isFinite(nativeAspect)||nativeAspect<=0)throw Error('INVALID_CAPTURE_NATIVE_ASPECT');
+            // set_aspect is stripped in ed65. Its supported matrix setter gives
+            // the same vertical-FOV framing at the final rectangular pixel aspect.
+            writeCaptureProjection(core,camera,args.situation_framing?situationProjection(plan):projection.map((v,i)=>i<4?v*nativeAspect/aspect:v));
 
             const faceBounds = m.face.method('GetFaceSMR').invoke().method('get_bounds').invoke();
             const center = faceBounds.method('get_center').invoke();
@@ -726,7 +804,7 @@ globalThis.vroid = (() => {
                 y = top / 2;
                 radius = top * .68;
             }
-            const distance = radius / Math.tan(Math.PI / 12);
+            const distance = radius / Math.min(1,aspect) / Math.tan(Math.PI / 12);
             const transform = camera.method('get_transform').invoke();
             const diagonal = distance / Math.sqrt(2);
             if (plan) {
@@ -741,15 +819,26 @@ globalThis.vroid = (() => {
             }
             transform.method('LookAt').overload('UnityEngine.Vector3', 'UnityEngine.Vector3')
                 .invoke(vector(x, y, z), vector(0, 1, 0));
+            const actualPosition=transform.method('get_position').invoke();
+            const framing=plan||{schema:'vroid-fixed-framing-v1',view,target:[x,y,z],distance,
+                position:['x','y','z'].map(k=>actualPosition.field(k).value),aspect,fov_degrees:30};
+            if(args.situation_framing)captureFraming.readback(camera,framing);
+            // Existing raw previews are verified immediately before the render;
+            // do not silently render a rebuilt or animation-overwritten face.
+            editorPreview.verifyIfTracked(args.expected_model);
             camera.method('Render').invoke();
+            cleanCaptureScope.verify(m,guideScope);
+            editorPreview.verifyIfTracked(args.expected_model);
             const base64 = capture.encode();
-            return { model_token: m.token, view, width: size, height: size, mime_type: 'image/png',
-                     quality: capture.metadata,
-                     ...(plan ? { framing: captureFraming.readback(camera, plan) } : {}), base64 };
+            return { model_token: m.token, view, width: qualityPlan.output_width, height: qualityPlan.output_height, mime_type: 'image/png',
+                     quality: capture.metadata, provenance:'clean_fixed_camera_render',
+                     projection:camera.method('get_orthographic').invoke()?'orthographic':'perspective',
+                     framing:{...captureFraming.readback(camera,framing),projection_matrix:captureProjectionValues(camera),guide_scope:guideScope,
+                         render_viewport:[0,0,qualityPlan.render_width,qualityPlan.render_height],projection_policy:'fixed_vertical_fov_at_output_aspect'},base64 };
         } finally {
-            renderTexture.method('set_active').invoke(previousActive);
-            if (holder) unityObject.method('DestroyImmediate', 1).invoke(holder);
-            if (capture) capture.dispose();
+            captureCleanup([()=>renderTexture.method('set_active').invoke(previousActive),
+                ()=>{if(holder)unityObject.method('DestroyImmediate',1).invoke(holder);},
+                ()=>{if(capture)capture.dispose();}]);
         }
     }
 
@@ -764,30 +853,32 @@ globalThis.vroid = (() => {
     const bodyReference = createBodyReferenceApi({ model: modelContext, cls, core, text, invokeManaged });
     const presetPreviews = createPresetPreviewApi({ model: modelContext, main: mainViewModel,
                                                      presetEntries: collectPresets, core, text });
-    const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged });
+    const textureApi = createTextureApi({ model: modelContext, cls, core, text, invokeManaged, groupApi:()=>groups });
     const ordinary = createOrdinaryExtensions({model: modelContext, cls, core, text, invokeManaged, retain, state});
+    const groups = createGroupApi({model:modelContext,cls,text,invokeManaged,entries:parameterEntries,
+        details:describeParameter,state,ordinary,presetEntries:collectPresets,teardownState:status,
+        buildProfile:nativeBuildProfile(VROID_ASSEMBLY_SHA256)});
+    const presetCatalog=createNativePresetCatalog({model:modelContext,presetEntries:collectPresets,
+        helpers:groups.helpers,text,build:VROID_ASSEMBLY_SHA256,retain});
+    const nativeWork=createPendingNativeWork(tasks,ordinary.nativeVrm,groups);
+    const hairGroups = createHairGroupApi({adapter:createHairGroupNative({model:modelContext,cls,text,
+        invokeManaged,retain,state,assemblySha256:VROID_ASSEMBLY_SHA256,
+        helpers:extended.hairGroupHelpers,groupHelpers:groups.helpers,
+        inventory:groups.helpers.membershipInventory})});
 
     function prepareCapture(args) {
         if (!args.expected_model) throw Error('EXPECTED_MODEL_REQUIRED');
         const m = modelContext(args.expected_model);
-        const hair = m.root.method('get_HairEditor').invoke();
-        const bone = hair.method('get_BoneEditor').invoke();
-        const design = hair.method('get_DesignEditor').invoke();
-        if (!bone.handle.isNull()) {
-            invokeManaged(bone, 'ClearSelection');
-            invokeManaged(bone, 'OnLeaveFeature');
-        }
-        if (!design.handle.isNull()) invokeManaged(design, 'ClearSelectHairOutLine');
-        const photo = m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
-        if (photo.method('get_IsActive').invoke()) {
-            const hidden = Memory.alloc(1);
-            hidden.writeU8(0);
-            invokeManaged(photo.method('get_PosesViewModel').invoke(), 'set_IsVisibleController', [hidden]);
-        }
-        return { model_token: m.token, frame: state.frame };
+        return { model_token: m.token, frame: state.frame,guide_scope:cleanCaptureScope.inspect(m,{clonedCamera:true}),ui_changed:false };
     }
 
     const operations = {
+        ...editorPreview.operations,
+        start_app_frame(args){return appFrame.start(args.expected_model);},
+        poll_app_frame(args){return appFrame.poll(args);},
+        ...hairGroups.operations,
+        ...groups.operations,
+        ...presetCatalog.operations,
         ...textureApi.operations,
         ...ordinary.operations,
         ...attachedState.operations,
@@ -796,6 +887,17 @@ globalThis.vroid = (() => {
         ...bodyReference.operations,
         ...wear.operations,
         ...extended.operations,
+        list_hair_materials(args) {
+            const existing=extended.operations.list_hair_materials(args);
+            const exact=textureApi.operations.inspect_hair_materials(args);
+            const materials=existing.materials.map(row=>({...row,
+                ...exact.materials.find(material=>material.id===row.id)}));
+            for(const material of exact.materials)if(!materials.some(row=>row.id===material.id))materials.push(material);
+            return {...existing,count:materials.length,materials,
+                active_material_bindings:exact.materials,global_base_colors:exact.global_base_colors,
+                exact_scope:exact.scope};
+        },
+        ...session.operations,
         status,
         list_face_params: listParameters,
         set_face_params: applyChanges,
@@ -840,13 +942,14 @@ globalThis.vroid = (() => {
     };
 
     // ---------------------------------------------------------------- dispatch
-    const EDIT_OPERATION = new RegExp('^(set_(face|body|clothing)_params|apply_.*preset|add_shoe_template|'
+    const EDIT_OPERATION = new RegExp('^(set_(face|body|clothing)_params|apply_.*preset|add_shoe_template|add_clothing_template|'
         + 'edit_hair_structure|edit_accessories|generate_hair_bones|move_hair_strand_point|'
-        + 'duplicate_hair_strand|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
-        + 'open_texture_editor|close_texture_editor|import_texture_layer|save_as|undo|redo|'
-        + 'preview_expression|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
+        + 'duplicate_hair_strand|scale_brush_hair|clone_brush_hair|set_procedural_hair|set_hair_material|set_hair_color|set_texture_layer_state|rename_texture_layer|delete_texture_layer|reorder_texture_layers|set_texture_layer_blend|'
+        + 'open_texture_editor|close_texture_editor|import_texture_layer|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|save_as|undo|redo|'
+        + 'preview_expression|set_group_parameters|remove_group|apply_registered_custom_item|apply_preserving_preset|restore_preset_materials|replace_part|replace_with_file|replace_with_new_character|save_character|associate_character_file|save_custom_item|preserve_attached_unsaved|enter_vrm_export)$');
     const TEXTURE_OPERATION = new RegExp('^(list_texture_|export_texture_|export_renderer_texture|'
-        + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_)');
+        + 'inspect_texture_|capture_texture_|open_texture_|close_texture_|import_texture_|begin_clothing_edit|begin_hair_edit|replace_texture_layer|set_hair_material_color|inspect_hair_materials|'
+        + 'list_clothing_templates|add_clothing_template|clothing_template_state)');
 
     function dressUpActive() {
         return wear.operations.get_wear_status().active;
@@ -859,13 +962,16 @@ globalThis.vroid = (() => {
         if (name === 'list_shoe_templates' && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: restart into ordinary editing');
         }
-        const edits = EDIT_OPERATION.test(name)
+        const hairGroupOperation = ['list_hair_groups','get_hair_group_state','get_procedural_hair_controls','scale_brush_hair',
+            'clone_brush_hair','set_procedural_hair'].includes(name);
+        const previewOperation=['editor_camera','face_preview','get_editor_camera','list_face_preview','start_app_frame','poll_app_frame'].includes(name);
+        const edits = EDIT_OPERATION.test(name) || hairGroupOperation || previewOperation
             || (name === 'set_parameters' && args.domain !== 'photo');
         if (edits && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: use wear tools or restart into ordinary editing');
         }
         const captureInAssembly = ['capture_body_reference', 'capture_framing_reference'].includes(name)
-            || (name === 'screenshot' && parseCaptureView(args.view || 'front').regional);
+            || (name === 'screenshot' && (args.view==='current_editor'||parseCaptureView(args.view || 'front').regional));
         if (captureInAssembly && dressUpActive()) {
             throw Error('DRESS_UP_ACTIVE: use wear capture/reference tools for assemblies');
         }
@@ -876,18 +982,46 @@ globalThis.vroid = (() => {
     }
 
     return {
+        prepareTeardown(){
+            const evidence=nativeWork.release();
+            if (!evidence.safe) return evidence;
+            attachedState.confirmWorkReleased();
+            session.clearMenu();appFrame.dispose();presetCatalog.dispose();
+            return evidence;
+        },
         dispatch(name, args = {}) {
             if (!Object.hasOwn(operations, name)) throw Error('UNKNOWN_OPERATION');
             if (state.pngDecoder.fatal && !['status', 'native_png_status'].includes(name))
                 throw Error('NATIVE_PNG_DECODER_FAILED: ' + state.pngDecoder.fatal);
-            attachedState.guard(name);
-            requireOrdinaryEditing(name, args);
-            if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
-                modelContext(args.expected_model);
-                if (attachedState.snapshot().history_revision !== args.expected_history_revision)
-                    throw Error('CHARACTER_CHANGED_AFTER_SNAPSHOT: inspect and save again');
+            // History carries its own pre-invocation proof, including mode,
+            // identity and the exact boundary of attached receipt bookkeeping.
+            if (name === 'undo' || name === 'redo') return operations[name](args);
+            const hairMutation=['scale_brush_hair','clone_brush_hair','set_procedural_hair'].includes(name);
+            const checkpoint=hairMutation?attachedState.hairPrewriteCheckpoint(name):null;
+            let entered=false,result;
+            try{
+                if(!Object.hasOwn(session.operations,name) && !['editor_camera','face_preview'].includes(name))
+                    attachedState.guard(name);
+                requireOrdinaryEditing(name, args);
+                if (ATTACHED && name === 'open_wear_project' && args.expected_model) {
+                    modelContext(args.expected_model);
+                    if (attachedState.snapshot().history_revision !== args.expected_history_revision)
+                        throw Error('CHARACTER_CHANGED_AFTER_SNAPSHOT: inspect and save again');
+                }
+                entered=true;result=operations[name](args);
+            }catch(error){
+                if(['editor_camera','face_preview'].includes(name)&&!entered)return {model_token:args.expected_model,
+                    ok:false,uncertain:false,native_invocation_attempted:false,dispatch_state:'prewrite_rejected',error:String(error)};
+                if(!hairMutation||entered)throw error;
+                result={model_token:args.expected_model,ok:false,uncertain:false,partial:false,
+                    dispatch_state:'prewrite_rejected',native_invocation_attempted:false,
+                    attempted_commands:0,command_count:0,error:String(error)};
             }
-            return operations[name](args);
+            if(hairMutation&&ATTACHED&&result.dispatch_state==='prewrite_rejected'){
+                result.attached_prewrite_verified=attachedState.verifyHairPrewrite(name,checkpoint,result);
+                if(!result.attached_prewrite_verified)result.uncertain=true;
+            }
+            return result;
         },
     };
 })();

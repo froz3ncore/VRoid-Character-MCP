@@ -10,20 +10,17 @@ prove it is still the same build.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import os
 import pathlib
 import shutil
+import stat
 import sys
 
-from vroid_mcp.supported_builds import validate_assembly
+from vroid_mcp.supported_builds import file_sha256, validate_assembly
 
 APP = 'app'
 MANIFEST = 'source-manifest.json'
-
-
-def digest(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def check_directories(source: pathlib.Path, lab: pathlib.Path) -> None:
@@ -41,22 +38,57 @@ def check_install(source: pathlib.Path) -> str:
     return validate_assembly(assembly)
 
 
+def physical_mode(path: pathlib.Path) -> int:
+    info = path.lstat()
+    if path.resolve() != path or getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        raise ValueError(f'Installation contains a link or reparse point: {path}')
+    return info.st_mode
+
+
+def physical_layout(source: pathlib.Path) -> tuple[list[pathlib.Path], list[pathlib.Path]]:
+    directories, files = [], []
+    def fail(error):
+        raise error
+    for directory, children, names in os.walk(source, onerror=fail, followlinks=False):
+        parent = pathlib.Path(directory)
+        physical_mode(parent)
+        for name in children:
+            child = parent / name
+            if not stat.S_ISDIR(physical_mode(child)):
+                raise ValueError(f'Installation directory changed: {child}')
+            directories.append(child)
+        for name in names:
+            path = parent / name
+            if not stat.S_ISREG(physical_mode(path)):
+                raise ValueError(f'Installation file is not regular: {path}')
+            files.append(path)
+    return directories, sorted(files)
+
+
 def inventory(source: pathlib.Path) -> list[dict]:
-    files = sorted(path for path in source.rglob('*') if path.is_file())
-    for path in source.rglob('*'):
-        if path.resolve() != path:
-            raise ValueError(f'The source contains a link or junction, inspect it first: {path}')
-    return [{'path': str(path.relative_to(source)), 'size': path.stat().st_size, 'sha256': digest(path)}
+    _, files = physical_layout(source)
+    return [{'path': str(path.relative_to(source)), 'size': path.stat().st_size, 'sha256': file_sha256(path)}
             for path in files]
 
 
-def copy_and_verify(source: pathlib.Path, lab: pathlib.Path, manifest: list[dict]) -> None:
+def copy_and_verify(source: pathlib.Path, lab: pathlib.Path, manifest: list[dict], build: str) -> None:
+    directories, files = physical_layout(source)
+    if [str(path.relative_to(source)) for path in files] != [entry['path'] for entry in manifest]:
+        raise ValueError('Source file inventory changed during preparation; use a new lab')
     lab.mkdir(parents=True, exist_ok=False)
-    shutil.copytree(source, lab / APP, copy_function=shutil.copy2)
-    for entry in manifest:
-        copied = lab / APP / entry['path']
-        if digest(copied) != entry['sha256']:
-            raise RuntimeError(f'Copy hash mismatch: {entry["path"]}')
+    app = lab / APP
+    app.mkdir()
+    for directory in directories:
+        (app / directory.relative_to(source)).mkdir()
+    # Copy only enumerated members. New plugins cannot enter via a second
+    # recursive traversal. A file replaced with a link fails validation.
+    for path in files:
+        physical_mode(path)
+        shutil.copy2(path, app / path.relative_to(source), follow_symlinks=False)
+    if inventory(app) != manifest:
+        raise RuntimeError('Copy file inventory, size or hash mismatch; use a new lab')
+    if check_install(lab / APP) != build:
+        raise ValueError('VRoid build changed during preparation; use a new lab')
     (lab / MANIFEST).write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
@@ -73,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     check_directories(source, lab)
     build = check_install(source)
     manifest = inventory(source)
-    copy_and_verify(source, lab, manifest)
+    copy_and_verify(source, lab, manifest, build)
     print(f'Copied and verified {len(manifest)} files into {lab} ({build})')
     return 0
 

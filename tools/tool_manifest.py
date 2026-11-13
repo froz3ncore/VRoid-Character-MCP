@@ -68,7 +68,7 @@ def main() -> int:
     if args.write:
         target = pathlib.Path(args.out)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(actual, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+        target.write_text(json.dumps(actual, indent=1, ensure_ascii=False) + '\n', encoding='utf-8', newline='\r\n')
         print(f'wrote {target} ({actual["tool_count"]} tools, {actual["toolset_hash"]})')
         return 0
     if not BASELINE.is_file():
@@ -77,7 +77,7 @@ def main() -> int:
     expected = json.loads(BASELINE.read_text(encoding='utf-8'))
     problems = diff(expected, actual)
     if args.json_out:
-        pathlib.Path(args.json_out).write_text(json.dumps(actual, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+        pathlib.Path(args.json_out).write_text(json.dumps(actual, indent=1, ensure_ascii=False) + '\n', encoding='utf-8', newline='\r\n')
     if problems:
         print('tool set drifted from the baseline:', file=sys.stderr)
         for line in problems:

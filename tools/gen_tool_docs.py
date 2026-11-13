@@ -31,7 +31,8 @@ from vroid_mcp.server import create_server  # noqa: E402
 
 DOMAINS = [
     ('Session and status', ['restart_session', 'get_status', 'attach_open_vroid', 'detach_open_vroid',
-                            'get_attached_state', 'acknowledge_attached_state']),
+                            'get_attached_state', 'acknowledge_attached_state', 'return_to_main_menu',
+                            'create_from_menu', 'open_from_menu', 'exit_vroid', 'get_help', 'run_batch']),
     ('Parameters, presets and saving', ['list_parameters', 'set_parameters', 'list_presets', 'preview_presets',
                                         'apply_preset', 'list_face_params', 'set_face_params', 'list_body_params',
                                         'set_body_params', 'list_clothing_params', 'set_clothing_params',
@@ -39,22 +40,33 @@ DOMAINS = [
                                         'apply_clothing_preset', 'list_shoe_templates', 'add_shoe_template',
                                         'get_height', 'set_height', 'undo', 'redo', 'save_as', 'open_character',
                                         'save_character', 'save_character_as', 'new_character',
-                                        'list_parts', 'replace_part', 'save_custom_items', 'export_vrm']),
+                                        'list_parts', 'replace_part', 'save_custom_items', 'export_vrm',
+                                        'get_vrm_export_options', 'set_body_size', 'vroid_measure']),
+    ('Group discovery and registered items', ['list_groups', 'list_group_parameters', 'set_group_parameters',
+                                               'list_sections', 'list_categories', 'enter_category', 'remove_items',
+                                               'apply_custom_item', 'apply_custom_item_by_key']),
+    ('Preset catalog and framing', ['sync_preset_cache', 'search_preset_cache', 'annotate_preset_cache',
+                                    'build_preset_thumbnails', 'preset_thumbnail', 'get_preset_framing',
+                                    'set_preset_framing', 'reset_preset_framing']),
     ('Hair authoring', ['list_hair_nodes', 'list_hair_bone_groups', 'generate_hair_bones', 'edit_hair_structure',
                         'list_hair_strand_points', 'move_hair_strand_point', 'duplicate_hair_strand',
-                        'list_hair_color_elements', 'set_hair_color', 'list_hair_materials', 'set_hair_material']),
+                        'list_hair_color_elements', 'set_hair_color', 'list_hair_materials', 'set_hair_material',
+                        'list_hair_groups', 'set_procedural_hair', 'scale_brush_hair', 'clone_brush_hair',
+                        'inspect_hair_materials', 'set_hair_material_color', 'begin_hair_edit']),
     ('Accessories, expressions and preview', ['list_accessory_templates', 'list_accessories', 'edit_accessories',
                                               'list_expressions', 'set_preview_mode', 'set_photo_camera',
-                                              'preview_expression']),
-    ('Capture and review', ['screenshot', 'capture_review', 'capture_body_reference']),
+                                              'preview_expression', 'face_preview', 'editor_camera']),
+    ('Capture and review', ['screenshot', 'screenshot_metadata', 'capture_review', 'capture_body_reference']),
     ('Texture and makeup', ['inspect_texture_renderers', 'list_texture_regions', 'list_texture_layers',
+                            'list_clothing_templates', 'add_clothing_template',
                             'open_texture_editor', 'inspect_texture_canvas', 'close_texture_editor',
                             'export_texture_layer', 'export_texture_guide', 'export_texture_surface',
                             'import_texture_layer', 'set_texture_layer_state', 'rename_texture_layer',
                             'delete_texture_layer', 'reorder_texture_layers', 'set_texture_layer_blend',
                             'export_renderer_texture', 'pick_texture_uv',
                             'export_nail_uv_map', 'capture_texture_detail', 'export_makeup_region_mask',
-                            'preview_makeup_marks', 'paint_makeup_marks']),
+                            'preview_makeup_marks', 'paint_makeup_marks', 'recolor_texture_layer', 'replace_texture_layer',
+                            'colorize', 'begin_clothing_edit']),
     ('Dress-up (wear) assembly', ['get_wear_status', 'open_wear_project', 'open_current_in_wear', 'import_xwear', 'get_wear_snapshot',
                                   'set_wear_fit', 'inspect_wear_body_occlusion', 'set_wear_body_occlusion',
                                   'inspect_wear_native_shoes', 'set_wear_native_shoes_visible',
@@ -165,14 +177,22 @@ def render(tools: list) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description='Generate the tool reference')
     parser.add_argument('--out', default=str(PROJECT / 'tools' / 'TOOLS.md'))
+    parser.add_argument('--check', action='store_true', help='verify the existing reference without writing it')
     args = parser.parse_args()
     server = create_server(PROJECT / 'lab', 'F00', None)
     tools = asyncio.run(server.list_tools())
     text = render(tools)
     target = pathlib.Path(args.out)
+    data = text.replace('\n', '\r\n').encode('utf-8')
+    if args.check:
+        if not target.is_file() or target.read_text(encoding='utf-8') != text:
+            print(f'tool reference differs: {target}', file=sys.stderr)
+            return 1
+        print(f'tool reference matches: {len(tools)} tools')
+        return 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding='utf-8')
-    print(f'wrote {target} ({len(tools)} tools, {len(text)} bytes)')
+    target.write_bytes(data)
+    print(f'wrote {target} ({len(tools)} tools, {len(data)} bytes)')
     return 0
 
 

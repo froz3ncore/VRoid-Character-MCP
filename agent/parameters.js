@@ -416,7 +416,10 @@ globalThis.createParameterApi = H => {
 
     function listDomain(args) {
         const m = model(args.expected_model);
-        const all = domainEntries(m, args);
+        let all = domainEntries(m, args);
+        if (args.domain === 'clothing' && args.category) {
+            all = all.filter(entry => entry.data.category === args.category);
+        }
         const offset = args.offset ?? 0;
         const limit = args.limit ?? 200;
         if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 500) {
@@ -442,7 +445,7 @@ globalThis.createParameterApi = H => {
             const entry = index.get(change.id);
             if (!entry) throw Error('UNKNOWN_PARAMETER: ' + change.id);
             const identity = entry.alias || change.id;
-            if (seen.has(identity)) throw Error('DUPLICATE_PARAMETER');
+            if (seen.has(identity)) throw Error('DUPLICATE_PARAMETER_OR_ALIAS: ' + change.id);
             seen.add(identity);
             validateValue(entry, change.value);
             return { entry, next: change.value };
@@ -484,9 +487,9 @@ globalThis.createParameterApi = H => {
         const selected = selectHairPart(m, category);
         const hair = m.root.method('get_HairEditor').invoke();
         const hairModel = hair.method('get_Model').invoke();
-        const types = [...selected.field('_categoryModel').value.field('transferableTypes').value];
-        if (types.length !== 1) throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
-        invokeManaged(hairModel, 'SetTransferableType', [types[0].handle]);
+        const types = hairCategoryBindings(m).find(binding => binding.category === category)?.types || [];
+        const nativeType=hairCategoryNativeType(hair,selected,category,types);
+        invokeManaged(hairModel, 'SetTransferableType', [Il2Cpp.string(nativeType).handle]);
         let design = hair.method('get_DesignEditor').invoke();
         if (design.handle.isNull()) {
             design = cached(m, 'hair-design', () => {
@@ -505,6 +508,19 @@ globalThis.createParameterApi = H => {
         }
         invokeManaged(design, 'UpdateLists');
         return design;
+    }
+
+    function hairCategoryNativeType(hair,selected,category,activeTypes) {
+        if(activeTypes.length===1)return activeTypes[0];
+        if(activeTypes.length>1)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        // Empty parts have no active leaf. Resolve their type from the native
+        // editor's own static part inventory, while checking the selected group.
+        const group=text(selected.field('_categoryModel').value.field('transferableGroupType').value);
+        if(group!=='TransferableGroupType.N00.Level1.'+category)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        const known=[...hair.class.field('s_allHairTransferableTypesExceptBaseHair').value].map(text);
+        const matches=known.filter(type=>type==='TransferableType.N00.'+category);
+        if(matches.length!==1)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        return matches[0];
     }
 
     function hairNodeId(node) {
@@ -882,6 +898,52 @@ globalThis.createParameterApi = H => {
         return node.n.method(getter).invoke();
     }
 
+    function existingHairGroupProperty(m, path) {
+        const missing=()=>Error('PROCEDURAL_EXISTING_PROPERTY_REQUIRED: select this exact group in the native Hair Design editor; no property was created and no write was attempted');
+        const hair=m.root.method('get_HairEditor').invoke();
+        const design=hair.method('get_DesignEditor').invoke();
+        if(!design||design.handle.isNull())throw missing();
+        if(design.class.type.name!=='VRoid.Studio.HairEditor.DesignEditor.ViewModel')throw missing();
+        const hairModel=hair.method('get_Model').invoke(),file=m.main.method('get_CurrentFile').invoke();
+        const action=m.main.method('get_ActionHandler').invoke();
+        const engineVM=design.field('_engineViewModel').value;
+        const same=(a,b)=>a&&b&&!a.handle.isNull()&&a.handle.equals(b.handle);
+        if(!same(design.field('_engine').value,m.engine)||!same(hairModel.field('_engine').value,m.engine)||
+            !same(engineVM.field('_model').value,m.engine)||!same(design.field('_model').value,hairModel)||
+            !same(design.field('_currentFileViewModel').value,file)||!same(design.field('_mainActionHandler').value,action)||
+            !same(design.method('get_Resources').invoke(),m.root.method('get_Resources').invoke()))throw missing();
+        const property=design.method('get_Property').invoke();
+        if(!property||property.handle.isNull()||property.class.type.name!==
+            'VRoid.Studio.HairEditor.DesignEditor.HairGroup.ViewModel.ProceduralHairGroupPropertyViewModel')throw missing();
+        if(!same(property.field('_engine').value,m.engine))throw missing();
+        const actual=property.field('_proceduralHairGroupPath').value;
+        for(const key of ['TransferableId','HairGroupId'])
+            if(text(actual.method('get_'+key).invoke())!==text(path.method('get_'+key).invoke()))throw missing();
+        // This property and its subscriptions belong to the native UI. Reuse it
+        // without CreateProperty, constructor calls, selection or subscription edits.
+        return property;
+    }
+
+    function hairCategoryBindings(m) {
+        const ownerTypes = new Map(), leafTypes = new Map();
+        const leaves = m.context.method('GetActiveLeafTransferables').invoke().method('get_Values').invoke();
+        for (const leaf of seq(leaves)) {
+            const owner = leaf.method('get_GroupId').invoke(), ownerId = text(owner);
+            if (!ownerTypes.has(ownerId)) {
+                const info = m.context.method('GetActiveTransferableGroupInfo').invoke(owner);
+                if (info.handle.isNull()) throw Error('HAIR_CATEGORY_OWNER_UNAVAILABLE');
+                ownerTypes.set(ownerId, text(info.method('get_Type').invoke()));
+            }
+            const groupType = ownerTypes.get(ownerId);
+            if (!leafTypes.has(groupType)) leafTypes.set(groupType, new Set());
+            leafTypes.get(groupType).add(text(leaf.method('get_Type').invoke()));
+        }
+        return categories(m, 'hair').map(category => ({
+            category: lastSegment(text(category.method('get_TranslationKey').invoke())),
+            types: [...(leafTypes.get(text(category.field('_categoryModel').value.field('transferableGroupType').value)) || [])],
+        })).filter(binding => HAIR_PARTS.includes(binding.category));
+    }
+
     const activeModelOf = m => m.context.method('get_ActiveModel').invoke();
 
     function runQuery(m, queryClass, constructorArgs) {
@@ -902,6 +964,14 @@ globalThis.createParameterApi = H => {
             normal: vector('<Normal>k__BackingField'),
             uv: ['x', 'y'].map(channel => uv.field(channel).value),
         };
+    }
+
+    function copyPoint(boxed) {
+        const value=boxed.unbox(),size=value.type.class.valueTypeSize;
+        if(!Number.isInteger(size)||size<32||size>256)throw Error('UNVERIFIED_CONTROL_POINT_LAYOUT');
+        const memory=Memory.alloc(size);
+        Memory.copy(memory,value.handle,size);
+        return new Il2Cpp.ValueType(memory,value.type);
     }
 
     function buildPoint(point, normal, uv) {
@@ -1033,6 +1103,7 @@ globalThis.createParameterApi = H => {
     }
 
     return {
+        hairGroupHelpers: {hairDesignEditor, hairNodeList, existingHairGroupProperty, hairCategoryBindings, hairCategoryNativeType, seq, boxArgument, readPoint, copyPoint},
         operations: {
             list_parameters: listDomain,
             set_parameters: writeDomain,

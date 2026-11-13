@@ -29,4 +29,13 @@ for(const angle of ['front','back','left','right','three_quarter_left','three_qu
 for(const name of ['face:left','FACE_left','face','feet_diagonal','../front','face_left.png'])assert.throws(()=>parseCaptureView(name));
 for(const b of [null,{min:[0,0,0],max:[1,1,NaN]},{min:[0,0,0],max:[1,.01,1]},{min:[0,0,0],max:[0,1,1]}])assert.throws(()=>regionalCameraPlan(b,parseCaptureView('face_left')));
 assert.equal(parseCaptureView('side').regional,false);assert.throws(()=>parseCaptureView('full_front',true));
+for(const aspect of [640/1024,1024/640])for(const angle of ['front','back','left','right']){
+    const p=regionalCameraPlan(box,parseCaptureView(`body_${angle}`),aspect);
+    const dx=(p.position[0]-p.target[0])/p.distance,dz=(p.position[2]-p.target[2])/p.distance;
+    for(const x of [box.min[0],box.max[0]])for(const y of [box.min[1],box.max[1]])for(const z of [box.min[2],box.max[2]]){
+        const r=[x-p.target[0],y-p.target[1],z-p.target[2]],depth=p.distance-r[0]*dx-r[2]*dz;
+        assert(Math.abs(r[0]*dz-r[2]*dx)<depth*Math.tan(Math.PI/12)*aspect);
+        assert(Math.abs(r[1])<depth*Math.tan(Math.PI/12));
+    }
+}
 console.log('36 views, mirror equality, scaling/translation, body projection and invalid inputs passed');

@@ -8,13 +8,24 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         const files=[],it=registry.field('_pathToFileCustomItemModels').value.method('get_Values').invoke().method('GetEnumerator').invoke();
         try { while(it.method('MoveNext').invoke()) {
             const f=it.method('get_Current').invoke();
+            const optionalString=name=>{try{return text(f.method('get_'+name).invoke());}catch(_){return null;}};
+            let customResource=null,customRevision=null,registered=null;
+            try {
+                const custom=f.method('get_CustomItemId').invoke();
+                customResource=text(custom.method('get_ResourceName').invoke());
+                customRevision=text(custom.method('get_Revision').invoke());
+                registered=registry.method('CheckIfIsRegisteredInAssetStorage').invoke(f.method('get_TransferableGroupResourceName').invoke());
+            } catch(_) { /* explicit unavailable identity; never infer it from filename */ }
             files.push({id:text(f.method('get_TransferableGroupId').invoke()),
                 group_type:text(f.method('get_TransferableGroupTypeId').invoke()),
+                resource_name:optionalString('TransferableGroupResourceName'),revision:optionalString('TransferableGroupRevision'),
+                custom_resource_name:customResource,custom_revision:customRevision,
+                registered:true,registration_scope:'native_file_registry',asset_storage_registered:registered,
                 path:text(f.method('get_FilePath').invoke()),name:text(f.method('get_DisplayName').invoke())});
         }} finally {it.method('Dispose').invoke();}
         const allowed=registry.method('get_CustomizableTransferableGroupTypes').invoke();
         const parts=listParts(args).parts.filter(p=>allowed.method('Contains').invoke(Il2Cpp.string(p.group_type)));
-        return {model_token:m.token,base_path:text(registry.field('_basePath').value),parts,files,
+        return {model_token:m.token,build:VROID_ASSEMBLY_SHA256,base_path:text(registry.field('_basePath').value),parts,files,
             source_file_path:text(m.file.field('path').value),
             unsaved:m.main.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke()};
     }
@@ -95,7 +106,6 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         return {requested:true,part_id:args.part_id,frame:state.frame};
     }
     // VRM export through VRoid's own photo-booth exporter, given a path instead of the save dialog.
-    let vrmJob=null;
     const findClass=name=>{for(const a of Il2Cpp.domain.assemblies){const c=a.image.tryClass(name);if(c)return c;}throw Error('CLASS_NOT_FOUND: '+name);};
     const flag=v=>{const b=Memory.alloc(1);b.writeU8(v?1:0);return b;};
     const booth=m=>m.root.field('obsoleteLegacyPhotoBoothViewModel').value;
@@ -103,16 +113,16 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
     const EXPORT_SCREEN='VRoid.Studio.VRMExportScreen.ViewModel';
     function vrmExportState(args) {
         const m=model(args.expected_model),b=booth(m),screen=screenNav(m).method('get_ActiveScreen').invoke().class.type.name;
-        const settings=b.method('get_IsActive').invoke()?b.method('get_ExportSettings').invoke():null;
-        return {model_token:m.token,export_screen:screen===EXPORT_SCREEN,busy:!!vrmJob,frame:state.frame,
-            ready:!!settings&&!settings.handle.isNull()&&!b.field('_isBlockingUpdateExportPreview').value};
+        return {...nativeVrm.operations.vrm_export_preview(args),export_screen:screen===EXPORT_SCREEN,frame:state.frame};
     }
     function enterVrmExport(args) {
+        if(nativeVrm.isPending())throw Error('VRM_EXPORT_BUSY');
         if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
         const m=model(args.expected_model);invokeManaged(m.root,'EnterToVRMExport');
         return {model_token:m.token,frame:state.frame};
     }
     function leaveVrmExport(args) {
+        if(nativeVrm.isPending())throw Error('VRM_EXPORT_BUSY');
         const m=model(args.expected_model),nav=screenNav(m),screen=nav.method('get_ActiveScreen').invoke();
         if(screen.class.type.name===EXPORT_SCREEN)invokeManaged(nav,'Pop',[screen.handle,flag(false)]);
         return {model_token:m.token,frame:state.frame};
@@ -135,6 +145,7 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
                 ['commercialUssageName','CommercialUssageName'],['licenseName','LicenseName']])meta.field(k).value=Il2Cpp.string(get(n).toString());
             if(args.title)meta.field('title').value=Il2Cpp.string(args.title);
             if(args.author)meta.field('author').value=Il2Cpp.string(args.author);
+            if(args.model_version)meta.field('version').value=Il2Cpp.string(args.model_version);
             meta.field('texture').value=dialogMeta.handle.isNull()?-1:dialogMeta.field('texture').value;
             if(!text(meta.field('title').value))throw Error('VRM_META_TITLE_REQUIRED: set the model\'s VRM title in VRoid first');
             return meta;
@@ -144,54 +155,15 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         meta.field('Authors').value=stringList(text(get('Authors')));meta.field('References').value=stringList(text(get('References')));
         if(args.title)meta.field('Name').value=Il2Cpp.string(args.title);
         if(args.author)meta.field('Authors').value=stringList(args.author);
+        if(args.model_version)meta.field('Version').value=Il2Cpp.string(args.model_version);
         for(const n of ['AvatarPermission','ViolentUsage','SexualUsage','CommercialUsage','PoliticalOrReligiousUsage','AntisocialOrHateUsage',
             'CreditNotation','Redistribution','Modification'])meta.field(n).value=get(n);
         if(!dialogMeta.handle.isNull()&&!dialogMeta.field('Thumbnail').value.handle.isNull())meta.field('Thumbnail').value=dialogMeta.field('Thumbnail').value;
         if(!text(meta.field('Name').value))throw Error('VRM_META_NAME_REQUIRED: set the model\'s VRM name in VRoid first');
         return meta;
     }
-    function managedSignal() {
-        // Action bound to ManualResetEventSlim.Set: a real managed delegate whose firing can be polled.
-        const c=Il2Cpp.corlib.class('System.Threading.ManualResetEventSlim'),event=c.new();
-        const set=c.type.object.method('GetMethod').overload('System.String','System.Type[]').invoke(Il2Cpp.string('Set'),Il2Cpp.array(Il2Cpp.corlib.class('System.Type'),0));
-        const action=Il2Cpp.corlib.class('System.Delegate').method('CreateDelegate').overload('System.Type','System.Object','System.Reflection.MethodInfo')
-            .invoke(Il2Cpp.corlib.class('System.Action').type.object,event,set);
-        return {event,action,handles:[retain(event),retain(action)]};
-    }
-    function progressLog() {
-        const dbl=Il2Cpp.corlib.class('System.Double'),listClass=Il2Cpp.corlib.class('System.Collections.Generic.List`1').inflate(dbl),list=listClass.new();
-        const add=listClass.type.object.method('GetMethod').overload('System.String').invoke(Il2Cpp.string('Add'));
-        const action=Il2Cpp.corlib.class('System.Delegate').method('CreateDelegate').overload('System.Type','System.Object','System.Reflection.MethodInfo')
-            .invoke(Il2Cpp.corlib.class('System.Action`1').inflate(dbl).type.object,list,add);
-        return {list,action,handles:[retain(list),retain(action)]};
-    }
-    function startVrmExport(args) {
-        if(!args.expected_model)throw Error('EXPECTED_MODEL_REQUIRED');
-        if(vrmJob)throw Error('VRM_EXPORT_BUSY');
-        if(![0,1].includes(args.version)||typeof args.path!=='string'||!/\.vrm$/i.test(args.path))throw Error('VRM_EXPORT_ARGS: version 0|1 and a .vrm path');
-        const m=model(args.expected_model),b=booth(m),settings=b.method('get_ExportSettings').invoke();
-        if(settings.handle.isNull())throw Error('VRM_EXPORT_NOT_READY: enter the export screen first');
-        const meta=vrmMeta(m,args.version,settings.method(args.version===0?'get_VRM0MetaData':'get_VRM10MetaData').invoke(),args);
-        const ok=managedSignal(),fail=managedSignal(),progress=progressLog();
-        const hair=args.hair_combination??settings.field('isEnableHairCombination').value;
-        const reduction=findClass('VRoidStudio.PhotoBooth.MaterialReductionMode').field('None').value;
-        const routine=b.method(args.version===0?'ExportVRM0':'ExportVRM1').invoke(Il2Cpp.string(args.path),meta,!!hair,false,reduction,false,ok.action,fail.action,progress.action);
-        // The view model's coroutines need a MonoBehaviour host; a temporary GameObject keeps VRoid's UI untouched.
-        const go=core('GameObject').alloc();go.method('.ctor',1).invoke(Il2Cpp.string('VRoid MCP VRM export'));
-        go.method('AddComponent',1).invoke(findClass('UnityEngine.UI.LayoutElement').type.object).method('StartCoroutine').overload('System.Collections.IEnumerator').invoke(routine);
-        vrmJob={ok,fail,progress,go,handles:[retain(go),retain(meta),retain(routine)]};
-        return {started:true,version:args.version,path:args.path,hair_combination:!!hair};
-    }
-    function vrmExportStatus() {
-        if(!vrmJob)return {running:false};
-        const done=vrmJob.ok.event.method('get_IsSet').invoke(),failed=vrmJob.fail.event.method('get_IsSet').invoke();
-        const n=vrmJob.progress.list.method('get_Count').invoke(),progress=n?vrmJob.progress.list.method('get_Item').invoke(n-1):0;
-        if(!done&&!failed)return {running:true,progress};
-        core('Object').method('Destroy',1).invoke(vrmJob.go);
-        [...vrmJob.ok.handles,...vrmJob.fail.handles,...vrmJob.progress.handles,...vrmJob.handles].forEach(h=>h.free());vrmJob=null;
-        return {running:false,done,failed,progress};
-    }
-    return {operations:{list_parts:listParts, replace_part:replacePart,
+    const nativeVrm=createVrmExportApi({model,text,invokeManaged,retain,metadata:vrmMeta});
+    return {managedCallbacks, nativeVrm, operations:{list_parts:listParts, replace_part:replacePart,
         custom_item_state:customItemState, save_custom_item:saveCustomItem,
         preserve_attached_unsaved(args) {
             if(!ATTACHED)throw Error('ATTACHED_ONLY');
@@ -204,5 +176,5 @@ function createOrdinaryExtensions({model, cls, core, text, invokeManaged, retain
         },
         vrm_export_state:vrmExportState,
         enter_vrm_export:enterVrmExport, leave_vrm_export:leaveVrmExport,
-        start_vrm_export:startVrmExport, vrm_export_status:vrmExportStatus}};
+        ...nativeVrm.operations}};
 }

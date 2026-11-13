@@ -77,3 +77,14 @@ pipeline/lab-codex/
 *.html
 docs/
 文檔/
+
+# Local development scratch and versioned migration designs
+temp/
+!/docs/
+!/docs/superpowers/
+!/docs/superpowers/**/
+!/docs/superpowers/**/*.md
+!/docs/native-evidence/
+!/docs/native-evidence/*.md
+# Keep the capability matrix beside its versioned design and provenance.
+!/MIGRATION.md

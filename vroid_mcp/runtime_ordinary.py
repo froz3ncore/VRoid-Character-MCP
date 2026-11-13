@@ -5,33 +5,22 @@ import asyncio
 import hashlib
 import json
 import os
-import struct
 import time
 import uuid
 import pathlib
 import zipfile
 
 from .wear_paths import wear_destination
+from .vrm_options import validate_options
+from .vrm_export import validate_vrm
 
 
 def check_vrm_container(path, version):
-    """Check the GLB envelope and requested VRM extension; not a full VRM validator."""
-    raw = path.read_bytes()
-    if len(raw) < 28:
-        raise ValueError('Truncated VRM export')
-    magic, gltf_version, total = struct.unpack_from('<4sII', raw)
-    if magic != b'glTF' or gltf_version != 2 or total != len(raw):
-        raise ValueError('Invalid GLB header or length')
-    length, chunk_type = struct.unpack_from('<I4s', raw, 12)
-    if chunk_type != b'JSON' or length % 4 or 20 + length > len(raw):
-        raise ValueError('Invalid GLB JSON chunk')
-    doc = json.loads(raw[20:20 + length])
-    extension = 'VRM' if version == 0 else 'VRMC_vrm'
-    if extension not in doc.get('extensions', {}):
-        raise ValueError('Expected VRM extension missing: ' + extension)
-    return {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(),
-            'format': 'VRM 0.x' if version == 0 else 'VRM 1.0',
-            'validation_scope': 'GLB envelope and VRM extension only; visual and runtime acceptance separate'}
+    """Validate complete embedded resources; visual/engine acceptance is separate."""
+    result = validate_vrm(path, version)
+    result['format'] = 'VRM 0.x' if version == 0 else 'VRM 1.0'
+    result['validation_scope'] = result['scope']
+    return result
 
 
 class OrdinaryTools:
@@ -150,10 +139,92 @@ class OrdinaryTools:
                     'profile_scope': 'attached VRoid profile' if attached else 'lab profile',
                     'verified': 'ZIP integrity, metadata and native closet registration; cold reopen is separate'}
 
-    async def export_vrm(self, expected_model, filename, version=1, title=None, author=None):
+    async def _vrm_preview(self, args, timeout=120):
+        try:
+            deadline = time.monotonic() + timeout
+            quiet = 0
+            while True:
+                state = await self._call('vrm_export_state', args)
+                if state.get('model_token') != args['expected_model']:
+                    raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
+                quiet = quiet + 1 if state.get('ready') else 0
+                if quiet >= 4:
+                    return state
+                if time.monotonic() >= deadline:
+                    raise TimeoutError('VRM preview did not become quiet; do not retry or navigate')
+                await asyncio.sleep(.25)
+        except BaseException:
+            # A failed getter or caller cancellation is no proof that the
+            # preceding entry/setter's native preview work has completed.
+            self.uncertain = True
+            raise
+
+    async def _vrm_screen(self, args, *, fresh=False):
+        try:
+            state = await self._call('vrm_export_state', args)
+            if state.get('model_token') != args['expected_model'] or state.get('busy'):
+                raise RuntimeError('VRM_EXPORT_STATE_INVALID')
+            if fresh and state['export_screen']:
+                # An existing screen may still own queued reduction/preview
+                # work even when this adapter has no active export job.
+                await self._vrm_preview(args)
+                await self._vrm_leave(args)
+                state = {'export_screen': False}
+            if not state['export_screen']:
+                await self._call('enter_vrm_export', args)
+            return await self._vrm_preview(args)
+        except BaseException:
+            self.uncertain = True
+            raise
+
+    async def _vrm_leave(self, args):
+        try:
+            await self._call('leave_vrm_export', args)
+            deadline = time.monotonic() + 30
+            while True:
+                state = await self._call('vrm_export_state', args)
+                if state.get('model_token') != args['expected_model']:
+                    raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
+                if not state['export_screen']:
+                    return
+                if time.monotonic() >= deadline:
+                    raise TimeoutError('VRM export screen did not close; state uncertain')
+                await asyncio.sleep(.25)
+        except BaseException:
+            self.uncertain = True
+            raise
+
+    async def _vrm_apply(self, args, target):
+        for stage in ('mesh', 'material', 'texture'):
+            await self._require_live_model(args['expected_model'])
+            try:
+                await self._call('apply_vrm_export_options', {**args, 'stage': stage, 'options': target})
+            except BaseException:
+                self.uncertain = True
+                raise
+            await self._vrm_preview(args)
+
+    async def get_vrm_export_options(self, expected_model, leave=True):
+        if type(leave) is not bool:
+            raise ValueError('leave must be a boolean')
+        async with self.lock:
+            await self._require_live_model(expected_model)
+            await self._settle()
+            args = {'expected_model': expected_model}
+            await self._vrm_screen(args)
+            result = await self._call('vrm_export_options', args)
+            if leave:
+                await self._vrm_leave(args)
+            return {'model_token': expected_model, **result, 'left_export_screen': leave}
+
+    async def export_vrm(self, expected_model, filename, version=1, title=None, author=None,
+                         model_version=None, options=None, leave=None):
         if type(version) is not int or version not in (0, 1):
             raise ValueError('version must be 0 or 1')
-        for name, value in (('title', title), ('author', author)):
+        requested = validate_options(options)
+        if leave is not None and type(leave) is not bool:
+            raise ValueError('leave must be a boolean or None')
+        for name, value in (('title', title), ('author', author), ('model_version', model_version)):
             if value is not None and (not isinstance(value, str) or not value.strip() or len(value) > 160 or any(ord(c) < 32 or ord(c) == 127 for c in value)):
                 raise ValueError('Invalid VRM metadata: ' + name)
         async with self.lock:
@@ -166,44 +237,73 @@ class OrdinaryTools:
             if state.get('model_token') != expected_model or state.get('busy'):
                 raise RuntimeError('VRM_EXPORT_STATE_INVALID')
             entered = not state['export_screen']
-            completed = False
-            started = False
+            dispatched = False
+            safe = False
+            effective = None
+            warnings = []
+            should_leave = entered if leave is None else leave
             try:
-                if entered:
-                    await self._call('enter_vrm_export', args)
-                deadline = time.monotonic() + 60
-                while True:
-                    state = await self._call('vrm_export_state', args)
-                    if state.get('model_token') != expected_model:
-                        raise RuntimeError('MODEL_CHANGED_DURING_OPERATION')
-                    if state['ready']:
-                        break
-                    if time.monotonic() > deadline:
-                        self.uncertain = True
-                        raise TimeoutError('VRM export preparation timed out; state uncertain')
-                    await asyncio.sleep(.3)
+                # Every export uses fresh reduction meshes, including repeated no-options calls.
+                await self._vrm_screen(args, fresh=True)
+                observed = await self._call('vrm_export_options', args)
+                effective = observed['settings']
+                if requested is not None:
+                    validate_options(requested, observed['choices'])
+                    target = {**{k: v for k, v in effective.items() if v is not None}, **requested}
+                    await self._vrm_apply(args, target)
+                    await self._vrm_screen(args, fresh=True)
+                    effective = (await self._call('vrm_export_options', args))['settings']
+                    if any(effective.get(k) != v for k, v in target.items()):
+                        await self._vrm_apply(args, target)
+                        effective = (await self._call('vrm_export_options', args))['settings']
+                    warnings = [f'{k}: wanted {v}, VRoid kept {effective.get(k)}'
+                                for k, v in target.items() if effective.get(k) != v]
+                await self._require_live_model(expected_model)
+                # Mark before the call: an exception may arrive after native dispatch.
+                dispatched = True
                 await self._call('start_vrm_export', {**args, 'version': version, 'path': str(staging),
-                                                      'title': title, 'author': author})
-                started = True
+                                                      'title': title, 'author': author, 'model_version': model_version})
                 deadline = time.monotonic() + 900
                 while True:
-                    status = await self._call('vrm_export_status')
+                    status = await self._call('vrm_export_status', args)
                     if not status['running']:
-                        completed = True
                         break
                     if time.monotonic() > deadline:
                         self.uncertain = True
                         raise TimeoutError('VRM export timed out; do not retry')
                     await asyncio.sleep(1)
-                if not status.get('done') or not staging.is_file():
+                if not status.get('done') or status.get('result') is not True or status.get('faulted') or status.get('canceled'):
                     raise RuntimeError('VRM_EXPORT_FAILED: inspect Player.log')
+                deadline = time.monotonic() + 30
+                last = None
+                stable = 0
+                while True:
+                    stat = staging.stat() if staging.is_file() else None
+                    sample = (stat.st_size, stat.st_mtime_ns) if stat and stat.st_size else None
+                    stable = stable + 1 if sample and sample == last else 0
+                    last = sample
+                    if stable >= 5:
+                        break
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError('VRM export output did not stabilize; do not retry')
+                    await asyncio.sleep(.25)
+                await self._vrm_preview(args)
+                # Completion alone does not permit releasing objects or leaving the screen.
+                # The file and preview must also have become quiet.
+                await self._call('finish_vrm_export', {**args, 'output_stable': True})
+                safe = True
                 checked = check_vrm_container(staging, version)
             except BaseException:
-                if started and not completed:
+                if dispatched and not safe:
                     self.uncertain = True
                 raise
             finally:
-                if entered and not self.uncertain and not self.dead:
-                    await self._call('leave_vrm_export', args)
+                if should_leave and not self.uncertain and not self.dead:
+                    await self._vrm_leave(args)
+            # Windows rename refuses an existing destination; retain that no-overwrite boundary.
+            if destination.exists():
+                raise FileExistsError(destination)
             os.rename(staging, destination)
-            return {'exported': True, 'model_token': expected_model, 'path': str(destination), **checked}
+            return {'exported': True, 'model_token': expected_model, 'path': str(destination),
+                    'requested': requested, 'effective': effective, 'warnings': warnings,
+                    'left_export_screen': should_leave, **checked}

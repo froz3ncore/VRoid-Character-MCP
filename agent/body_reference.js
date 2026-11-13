@@ -56,7 +56,8 @@ function createBodyReferenceApi({model,cls,core,text,invokeManaged}) {
             for(let i=id;i!==null;i=nodes[i].parent)keep.add(i);
         }
         return {schema:'vroid-body-reference-v1',model_token:m.token,frame:state.frame,
-            unity:Il2Cpp.unityVersion,vroid_version:'2.14.0',coordinate_system:'Unity left-handed, +Y up, +Z character front; row-major matrices',
+            unity:Il2Cpp.unityVersion,vroid_version:bridge.productVersion,vroid_version_source:bridge.productVersionSource,
+            coordinate_system:'Unity left-handed, +Y up, +Z character front; row-major matrices',
             height_cm:m.root.method('get_BodyEditor').invoke().method('get_BodyHeight').invoke().method('GetBodyHeight').invoke()*100,
             nodes:nodes.filter(n=>keep.has(n.id)),meshes,scope:'Body/face geometry and skin reference; no textures, expressions, clothing, hair or VRM metadata; not a playable avatar'};
     }}};

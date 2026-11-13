@@ -1,6 +1,8 @@
 # External beta acceptance / 外部试用验收
 
-Source: **0.5.0.dev0 development snapshot** (npm `0.5.0-dev.0`), **103 tools**.
+This procedure originated with the 103-tool upstream **0.5.0.dev0** snapshot.
+For the fork, record the actual toolset hash and also run the applicable cases
+in the [migration acceptance checklist](docs/superpowers/native-migration-acceptance.md).
 
 Status: **ready for independent testing; external acceptance pending**. A local
 clean checkout, CI, or another process on the developer's machine is not an
@@ -11,8 +13,7 @@ independent user's reproduction. No stable release is certified by this page.
 
 ## Tester task / 试用者任务
 
-Use a clean checkout or source archive, Windows x64, your own supported VRoid
-2.14.0 installation and Blender. Follow the README without copying the
+Use a clean checkout or source archive, Windows x64, Blender and a physical lab copy prepared from a recognized VRoid Studio 2.14.0 or 2.16.0 installation. Record the distribution and both file hashes using the [build list](docs/native-evidence/2026-11-07-vroid-216.md). Follow the README without copying the
 developer's environment or using private demonstration assets:
 
 1. Install Python/npm dependencies; record interpreter, OS and Blender versions.
@@ -66,13 +67,13 @@ boundaries explicit. Functional acceptance and character-art adoption are separa
 产物。发型影响身高测量、M00 范围、逐束可见发色、裙摆碰撞和引擎物理边界继续保留。工具验收
 与角色最终美术采用分别记录。
 
-## Current local evidence / 当前本机证据
+## Upstream baseline evidence / 上游基线证据
 
-Current source: **0.5.0.dev0** (npm `0.5.0-dev.0`), **103 tools**. Current offline
-regression on Python 3.10 and 3.12 reports **564 passed / 1 skipped**, ten JS
+The **0.5.0.dev0** upstream snapshot (npm `0.5.0-dev.0`) had **103 tools**. Offline
+regression on Python 3.10 and 3.12 reported **564 passed / 1 skipped**, ten JS
 behavior suites and a 340-file source manifest. Four raster-layer tools
-were added without changing the earlier 99 input schemas. The current hash
-is `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
+were added without changing the earlier 99 input schemas. The baseline hash
+was `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
 
 Dedicated raster-layer checks passed 11 cases each for F00/M00 through real MCP
 stdio: native Undo/Redo, 26 blend-mode writes/readback, actual composition changes

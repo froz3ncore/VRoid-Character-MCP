@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — community fork capabilities
+
+- Adopted the mcjo79 capability migration from BunnyBlack `feat/mcjo79-capability-migration` (`c19aeff`). [MIGRATION.md](MIGRATION.md) maps the 53 source operations. New areas include group and garment controls, native texture and hair edits, camera capture, VRM export options, a lab-local preset catalog, guarded session transitions and `run_batch`. The Python/Frida architecture is unchanged; the source BepInEx/Harmony/HTTP runtime is not included.
+- Kept this repository's guarded VRoid Studio 2.16 compatibility: the pixiv-signed standalone assembly, per-process registry isolation, the managed-reference write barrier, the shoe-catalog fallback, and the 120-second startup retry. The Steam 2.16.0 assembly hash identified by that fork is not admitted. Admitted packages with a published metadata pin must match it.
+- From shamsievartyom `main` (`cb71a749`): clothing template list/overlay, InnerTop and other clothing texture-editor modes, compact canvas IDs, `capture_review(include_images=false)`, a local comparison client, and initialize-time guidance for reference reconstruction and layered clothing.
+- Local signed-standalone 2.14/2.16 tests corrected startup timing, hair ownership/empty-part addressing, VRM option ABI, raster row orientation/path lifetime, paired sizing roles and agreements-screen return state. The [initial checkpoint](docs/native-evidence/2026-11-13-pr1-acceptance.md) preserves the original failures.
+- Completed registered-item application using the native file registry, identity-preserving in-memory normalization and the retained native selection task. Lazy asset-storage membership no longer rejects valid files. Corrected native clear-category lookup and proved empty clothing containers, allowing situation thumbnails to publish and restore while explicitly retaining verified mandatory base garments. [Completion evidence](docs/native-evidence/2026-11-14-pr1-completion.md) also covers menu workflows, cancelled imports/custom operations/exports, file pins and cold reopen. No stable release or new build admission is implied.
+
 ## 0.5.0.dev0 — 2026-11-13 (development snapshot)
 
 Python package/runtime: `0.5.0.dev0`; npm agent/lockfile: `0.5.0-dev.0`.

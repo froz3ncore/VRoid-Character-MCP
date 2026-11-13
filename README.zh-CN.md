@@ -4,19 +4,23 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 / 2.16.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 / 已签名独立版 2.16.0 · 0.5.0.dev0 开发版 · stdio · MIT
 
 2026-11-13 已验证签名独立安装版 2.16.0：男女角色连接专项各 27 项通过，包含
 有限 GC 压力；各 20 次连续编辑入口及换装／导出／冷重开通过。副本会隔离协议
-注册表访问，保留已安装 VRoid 的系统关联。诊断失败与验收边界见 [兼容记录](REGRESSION.md)。
+注册表访问，保留已安装 VRoid 的系统关联。Steam 2.16.0 哈希不在准入名单。诊断失败与验收边界见 [兼容记录](REGRESSION.md)。当前工具数量以 [工具参考](tools/TOOLS.md) 为准。
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
-连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。新建／打开人物须 `discard_unsaved=true`；`new_character` 按原生退出流程完成新建替换。当前人物转换装须 `switch_to_wear=true`。人物、XWear、XRoid 文件流程支持明确的绝对路径，普通文件名使用 lab 的 saves 目录。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
+连接已打开的 VRoid 后，编辑直接作用于真实会话和未保存角色；副本隔离守卫不会加载。`save_as` 可另存新副本并保留原文件关联和未保存标记；`save_character` 原位保存前会保留字节核对通过的备份；`save_character_as` 可另存并关联新文件。兼容窗口可打开指定人物、把当前人物先保存为副本再进入换装，并导入 XWear、保存新的 XRoid。替换当前人物须 `discard_unsaved=true`；`new_character` 按原生退出流程完成新建替换。当前人物转换装须 `switch_to_wear=true`。人物、XWear、XRoid 文件流程支持明确的绝对路径，普通文件名使用 lab 的 saves 目录。断开连接不会关闭窗口。弹窗会阻止写入，服务中断后先检查实际状态再恢复编辑。
 
 连接与断开、部件 ID、导出参数和限制见 [现有会话与普通模型导出](ATTACHED_SESSION.md)。
 
-当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未创建新的稳定版或发布标签。本机代码和受控原生验收通过，独立外测仍待进行。工具功能与角色美术分别验收：可以完成操作、保存重开和导出，不代表服装已无穿插或已完成游戏引擎物理验证。
+当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未发布新的稳定版。此 fork 的 [mcjo79 迁移对照表](MIGRATION.md)逐项列出 53 个源工具的去向、已验证的行为和限制。下文的原生测试是上游基线的历史记录；迁移功能的实机操作、保存重开、导出和画面效果须在兼容的独立副本中按[实机验收清单](docs/superpowers/native-migration-acceptance.md)分别验证。
+
+当前提供 [145 个工具](tools/TOOLS.md)，保留迁移前的 103 个接口，并增加服装模板列表与叠加。`get_help` 接收 `{"topic":"migration","language":"zh"}`，可离线查阅对照表。`return_to_main_menu` 返回的 `menu_token` 可作为 `expected_menu` 传给 `create_from_menu` 或 `open_from_menu`，在同一进程继续操作。
+
+连接 MCP 后，可以先用 `get_preset_framing` 传入 `{"category":"Clothing/Tops"}` 查看上衣的默认取景，无需启动 VRoid。`search_preset_cache` 查的是本地目录，第一次在兼容副本中执行 `sync_preset_cache` 前查不到条目是正常的。同槽服装可用 `list_clothing_templates` 和 `add_clothing_template` 从内向外叠层；`capture_review` 的 `include_images=false` 只返回本地路径。
 
 ## 效果展示
 
@@ -68,12 +72,12 @@ Windows · VRoid Studio 2.14.0 / 2.16.0 · 0.5.0.dev0 开发版 · 103 个 MCP �
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 
-完整工具名称、参数、前置条件和错误处理见 [103 个工具参考](tools/TOOLS.md)。
+工具名称、参数、前置条件和错误处理见[工具参考](tools/TOOLS.md)。
 
 ## 环境要求
 
 - Windows x64。
-- VRoid Studio **2.14.0 或 2.16.0 / Unity 6000.0.62f1**。启动时校验 `supported_builds.py` 中的精确 `GameAssembly.dll` 哈希，未经验证的构建仍会被拒绝。
+- VRoid Studio **2.14.0 或已签名独立版 2.16.0 / Unity 6000.0.62f1**。启动时校验 `supported_builds.py` 中的精确 `GameAssembly.dll` 哈希；已公布元数据指纹的构建还必须匹配该指纹。未经验证的构建（含 Steam 2.16.0 哈希）仍会被拒绝。[构建说明](docs/native-evidence/2026-11-07-vroid-216.md)
 - Python **3.10 或更高版本**、Git、Node.js 与 npm。
 - 一个支持本地 **stdio MCP** 的客户端，以及足够复制一份 VRoid 安装的磁盘空间。
 
@@ -86,7 +90,7 @@ Windows · VRoid Studio 2.14.0 / 2.16.0 · 0.5.0.dev0 开发版 · 103 个 MCP �
 在 PowerShell 中执行。以下统一把仓库放在 `D:\VRoid-Character-MCP`，你可以换成其他目录。
 
 ```powershell
-git clone https://github.com/froz3ncore/VRoid-Character-MCP.git D:\VRoid-Character-MCP
+git clone --branch feat/mcjo79-capability-migration https://github.com/BunnyBlack/VRoid-Character-MCP.git D:\VRoid-Character-MCP
 Set-Location D:\VRoid-Character-MCP
 
 py -3.10 -m venv .venv
@@ -146,7 +150,7 @@ npm ci
 }
 ```
 
-连接后应能发现 **103 个工具**。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
+连接后可通过 MCP `tools/list` 查看当前服务实际提供的工具和参数。VRoid 副本在首次需要模型的调用时启动；首次初始化可能比后续调用慢。
 
 ## Blender、VRM 与 XWear 插件
 
@@ -212,7 +216,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-当前代码验收在 Python 3.10／3.12 均为 **571 个测试通过、1 个跳过**；**12 组 JavaScript 行为检查、103 工具合同与 347 文件源码清单通过**。原有 99 工具输入 schema 保持，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
+采纳社区分支前的代码验收在 Python 3.10／3.12 均为 **571 个测试通过、1 个跳过**；**12 组 JavaScript 行为检查、103 工具合同与 347 文件源码清单通过**。原有 99 工具输入 schema 保持，其后新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。当前工具数量以 [工具参考](tools/TOOLS.md) 为准。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 
@@ -242,7 +246,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 本项目非 pixiv／VRoid 官方产品。代码采用 [MIT](LICENSE)，重写说明与第三方来源见 [LICENSING.md](LICENSING.md)、[NOTICE](NOTICE)、[UPSTREAM.json](UPSTREAM.json) 和 [REWRITE.md](REWRITE.md)。示范截图不授予角色模型、服装素材或 VRoid Studio 的使用权，见 [截图说明](assets/showcase/README.md)。
 
-- [工具参考](tools/TOOLS.md)：完整的 103 个工具与参数。
+- [工具参考](tools/TOOLS.md)：工具名称、参数和调用说明。
 - [功能范围](SCOPE.md)：当前验收边界与未完成事项。
 - [版本记录](CHANGELOG.md)：重构与验证情况。
 - [重写记录](REWRITE.md)：替换过程与检查方法。

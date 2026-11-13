@@ -188,3 +188,97 @@ def test_public_edit_receipt_covers_entire_verified_tool_and_preserves_original_
         asyncio.run(tool(expected_model='live',part_id='part'))
     assert [e[0] for e in events]==['attached_edit_begin','native_and_verification','attached_edit_finish']
     assert events[-1][1]['success'] is (outcome in ('success','finish_failure'))
+
+
+def test_public_hair_prewrite_verified_receipt_finishes_without_poisoning_attachment(tmp_path, monkeypatch):
+    from vroid_mcp import server
+    instances, events = [], []
+    class FakeRuntime:
+        def __init__(self, lab):
+            self.mode = 'attached'; self.uncertain = False; instances.append(self)
+        def start(self): pass
+        async def initialize(self, *a): pass
+        async def _call(self, name, args):
+            events.append((name, args))
+            return {'id': 'receipt'} if name == 'attached_edit_begin' else {'needs_review': False}
+        async def scale_brush_hair(self, *a):
+            return {'ok': False, 'uncertain': False, 'native_invocation_attempted': False,
+                    'dispatch_state': 'prewrite_rejected', 'attached_prewrite_verified': True}
+    monkeypatch.setattr(server, 'Runtime', FakeRuntime)
+    mcp = server.create_server(tmp_path, 'F00')
+    result = asyncio.run(mcp._tool_manager.get_tool('scale_brush_hair').fn(
+        expected_model='live', category='HairFront', scope='missing', factor=2))
+    assert result['ok'] is False and not instances[0].uncertain
+    assert events[-1][1]['success'] is True
+
+
+@pytest.mark.parametrize('mode', ['copy', 'attached'])
+@pytest.mark.parametrize('uncertain_outcome', ['response_lost', 'response_lost_before_dispatch', 'receipt_write_lost'])
+def test_public_preview_dynamic_receipts_allow_reads_and_corrected_names(tmp_path, monkeypatch, mode, uncertain_outcome):
+    from vroid_mcp import server
+    from vroid_mcp.runtime_preview import PreviewTools
+    events, instances = [], []
+    class FakeRuntime(PreviewTools):
+        def __init__(self, lab):
+            self.mode = mode; self.uncertain = False; self.lock = asyncio.Lock(); self.pending = None
+            self.blocked = False; self.weight = 10; self.setters = 0
+            instances.append(self)
+        def start(self): pass
+        async def initialize(self, *a): pass
+        async def _settle(self, *a): return {'model_token': 'live'}
+        async def _call(self, name, args):
+            events.append((name, args))
+            if name == 'attached_edit_begin':
+                assert self.pending is None
+                self.pending = {'id': 'receipt', 'dispatches': 0}
+                return self.pending
+            if name == 'attached_edit_finish':
+                if args['success'] or not self.pending['dispatches'] and not args['uncertain']:
+                    self.pending = None
+                return {'needs_review': self.pending is not None}
+            if name in ('get_editor_camera', 'list_face_preview'):
+                return {'model_token': 'live', 'rotating': False}
+            if args.get('name') == 'ile':
+                return {'model_token': 'live', 'ok': False, 'uncertain': False,
+                        'native_invocation_attempted': False, 'dispatch_state': 'prewrite_rejected'}
+            if self.blocked:
+                return {'model_token': 'live', 'ok': False, 'uncertain': False,
+                        'native_invocation_attempted': False, 'guard_state': 'prewrite_rejected',
+                        'dispatch_state': 'prewrite_rejected', 'error': 'ATTACHED_UI_BLOCKED'}
+            if args.get('name') == 'late' and uncertain_outcome == 'response_lost_before_dispatch':
+                raise RuntimeError('NATIVE_RESPONSE_LOST')
+            if self.pending:
+                self.pending['dispatches'] += 1
+            if args.get('name') == 'late':
+                if uncertain_outcome == 'response_lost':
+                    raise RuntimeError('NATIVE_RESPONSE_LOST')
+                return {'model_token': 'live', 'ok': False, 'uncertain': True,
+                        'native_invocation_attempted': False, 'dispatch_state': 'guard_bookkeeping_unconfirmed'}
+            self.weight = args['weight']; self.setters += 1
+            return {'model_token': 'live', 'ok': True}
+    monkeypatch.setattr(server, 'Runtime', FakeRuntime)
+    mcp = server.create_server(tmp_path, 'F00')
+    camera = mcp._tool_manager.get_tool('editor_camera').fn
+    face = mcp._tool_manager.get_tool('face_preview').fn
+    asyncio.run(camera(expected_model='live'))
+    asyncio.run(face(expected_model='live'))
+    assert all(not name.startswith('attached_') for name, args in events)
+    assert asyncio.run(face(expected_model='live', name='ile'))['ok'] is False
+    assert not instances[0].uncertain and instances[0].pending is None
+    assert asyncio.run(face(expected_model='live', name='Smile', weight=60))['ok'] is True
+    assert not instances[0].uncertain and instances[0].pending is None
+    if mode == 'attached':
+        instances[0].blocked = True
+        assert asyncio.run(face(expected_model='live', name='Smile', weight=40))['uncertain'] is False
+        assert instances[0].weight == 60 and instances[0].setters == 1
+        assert not instances[0].uncertain and instances[0].pending is None
+        instances[0].blocked = False
+        assert asyncio.run(face(expected_model='live', name='Smile', weight=40))['ok'] is True
+        assert instances[0].weight == 40 and instances[0].setters == 2
+    if uncertain_outcome.startswith('response_lost'):
+        with pytest.raises(RuntimeError, match='NATIVE_RESPONSE_LOST'):
+            asyncio.run(face(expected_model='live', name='late'))
+    else:
+        assert asyncio.run(face(expected_model='live', name='late'))['uncertain'] is True
+    assert instances[0].uncertain
+    assert (instances[0].pending is not None) == (mode == 'attached')
