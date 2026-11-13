@@ -88,6 +88,7 @@ async def check(source: Path, out: Path, variant: str = 'F00') -> dict:
         guard_session = dev.attach(pid)
         guard_code = ('const PROBE=' + json.dumps(bridge._probe_config(fixture)) + ';\n' +
                       (ROOT / 'agent/native_traps.js').read_text(encoding='utf8') + '\n' +
+                      (ROOT / 'agent/registry_guard.js').read_text(encoding='utf8') + '\n' +
                       (ROOT / 'agent/profile_guard.js').read_text(encoding='utf8'))
         guard = guard_session.create_script(guard_code)
         guard.load()

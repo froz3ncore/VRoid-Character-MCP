@@ -36,6 +36,15 @@ globalThis.vroid = (() => {
     const captureFraming = createCaptureFraming({ core, text });
     const attachedState = createAttachedState({main: mainViewModel, text, state});
 
+    function assignManagedReference(object, field, value) {
+        // Raw .field().value writes omit Unity's incremental GC write barrier.
+        const hold = retain(value);
+        try {
+            new NativeFunction(Il2Cpp.module.getExportByName('il2cpp_field_set_value_object'),
+                'void', ['pointer','pointer','pointer'])(object.handle, object.field(field).handle, value.handle);
+        } finally { hold.free(); }
+    }
+
     // ---------------------------------------------------------------- session
     function mainViewModel() {
         const reference = state.refs['VRoid.Studio.MainViewModel'];
@@ -376,6 +385,13 @@ globalThis.vroid = (() => {
 
     function withShoeTemplates(m, visit) {
         const editor = m.root.method('get_ClothingEditor').invoke();
+        if (!editor.class.methods.some(method => method.name === 'ResetTemplates' && method.parameters.length === 0)) {
+            const catalog = m.root.field('_customItemRegistry').value.field('_assetCatalog').value;
+            const json = catalog.method('ToJson', 1).invoke(false);
+            const hold = retain(json);
+            try { return visit(null, shoeTemplatesFromCatalog(JSON.parse(json.content))); }
+            finally { hold.free(); }
+        }
         const clothing = selector(m, 'clothing');
         const previous = clothing.method('get_SelectedCategory').invoke();
         const category = categories(m, 'clothing')
@@ -420,6 +436,10 @@ globalThis.vroid = (() => {
         const selected = withShoeTemplates(m, (editor, rows) => {
             const row = rows.find(template => template.id === args.template_id);
             if (!row) throw Error('UNKNOWN_SHOE_TEMPLATE');
+            if (!editor) {
+                ordinary.operations.replace_part({expected_model: m.token, part_id: row.id});
+                return {id: row.id, label: row.label};
+            }
             const index = Memory.alloc(4);
             index.writeS32(row.index);
             invokeManaged(editor, 'set_SelectedTemplateIndex', [index]);
@@ -541,7 +561,7 @@ globalThis.vroid = (() => {
         } finally {
             // An attached save is a copy; keep the real window's original
             // association and dirty state even if SaveSync throws.
-            m.file.field('path').value = ATTACHED ? previousPath : Il2Cpp.string('');
+            assignManagedReference(m.file, 'path', ATTACHED ? previousPath : Il2Cpp.string(''));
             if (ATTACHED && wasUnsaved) handler.method('set_IsUnSaved').invoke(true);
             handler.method('UpdateWindowTitle').invoke();
             if (previousPathHold) previousPathHold.free();
@@ -604,7 +624,7 @@ globalThis.vroid = (() => {
         if (!ATTACHED || !args.expected_model) throw Error('ATTACHED_MODEL_REQUIRED');
         const m=modelContext(args.expected_model);
         if(attachedState.snapshot().command_revision!==args.command_revision)throw Error('CHARACTER_CHANGED_AFTER_SAVE');
-        m.file.field('path').value=Il2Cpp.string(args.path);
+        assignManagedReference(m.file, 'path', Il2Cpp.string(args.path));
         const handler=m.main.method('get_ActionHandler').invoke();
         handler.method('set_IsUnSaved').invoke(false);handler.method('UpdateWindowTitle').invoke();
         if(text(m.file.field('path').value)!==args.path)throw Error('FILE_ASSOCIATION_READBACK_FAILED');

@@ -13,7 +13,7 @@
 
 .PARAMETER Native
     Also run tools/check_native_domains.py against -Lab. That starts VRoid
-    Studio, so the lab must be free and its crash key absent.
+    Studio, so the lab must be free. Protocol registry lookups are isolated.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\run_checks.ps1

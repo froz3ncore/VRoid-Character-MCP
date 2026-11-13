@@ -43,9 +43,9 @@ visual quality, saving or the full E2E workflow.
 | `dependency.frida`, `dependency.mcp`, `dependency.imports` | 用同一个解释器重新安装 `requirements.txt`，确认客户端没有指向另一个 Python。Install requirements with the client's interpreter. |
 | `dependency.bridge` | 在仓库根目录运行 `npm ci`。Run `npm ci` in the repository. |
 | `environment.asyncio` | 在允许本机回环连接的普通终端重跑。受限环境可能卡在 Python 事件循环创建阶段，超时本身不证明项目有错。Retry in a normal terminal with local loopback permitted. |
-| `paths.physical`, `application.build` | 使用完整、受支持的 VRoid 2.14.0 安装，新建独立 lab；不要绕过哈希白名单。Use a complete supported installation and create a new lab. |
+| `paths.physical`, `application.build` | 使用完整、受支持的 VRoid 2.14.0／2.16.0 安装，新建独立 lab；不要绕过哈希白名单。Use a complete supported installation and create a new lab. |
 | `lab.ownership` | 使用另一个 lab，或从拥有它的客户端正常关闭服务；不要删除锁文件、按进程名终止全部 VRoid。Use another lab or close the owning client normally. |
-| `registry.closet` | 先按下文备份，再明确执行恢复；读取权限错误也会阻止启动。Back up first; unreadable registry state also blocks startup. |
+| `registry.closet` | 已有协议关联可保留；副本在进程内隔离此项。读取权限错误需单独处理。Existing associations are preserved; copies use isolated protocol lookups. |
 
 The [official VRoid page](https://vroid.com/en/studio) provides a **Past versions**
 entry. Match the supported binary hashes in
@@ -57,22 +57,19 @@ Historical evidence labs without `app/` should retain their saves and logs.
 官网有 **Past versions** 入口；版本号相同也需要通过二进制哈希检查。不要在已有
 保存和证据的 lab 里混换程序。缺少 `app/` 的历史验证目录应保留原记录，用新目录准备副本。
 
-## Known crash registry key / 已知崩溃注册表键
+## Protocol registry isolation / 协议注册表隔离
 
-The affected key is `HKCU\SOFTWARE\Classes\vroid.closet`. If diagnostics report
-it present, stop the affected copy and review the change before explicitly
-running this recovery command. It exports a backup to the lab's `crash-guard/`
-before attempting removal. A failure to back up prevents removal. If registry
-access is denied, retain the error and use a terminal with the required access.
+Earlier builds reproduced an XRoid crash while the real `vroid.closet` protocol
+key was visible. Copies now route its ANSI/Unicode registry lookups and writes
+to `HKCU\Software\VRoidFaceMCP\<lab hash>\Protocol`, including lookups through
+HKCR or an already-open parent handle. The installed VRoid URL association is
+preserved. The host confirms guard installation before resuming a new copy;
+`COPY_REGISTRY_ISOLATION_UNAVAILABLE` refuses startup. Attached mode uses the
+target window's own profile and does not install this guard.
 
-仅当诊断报告该键存在时，先停止受影响副本，再明确执行以下恢复命令。程序先导出到
-lab 的 `crash-guard/`，备份失败不会删除。权限不足时保留错误并在具备权限的终端处理。
-诊断本身即使检测到 `VROID_MCP_CLEAR_CLOSET_KEY=1`，也不会触发删除。
-
-```powershell
-& .\.venv\Scripts\python.exe -m vroid_mcp.closet_guard --lab "D:\VRoid-Character-Lab" --clear
-& .\.venv\Scripts\python.exe .\tools\doctor.py --lab "D:\VRoid-Character-Lab"
-```
+旧版曾在能读到真实 `vroid.closet` 协议键时复现 XRoid 崩溃。当前副本在进程内
+重映射此项，不再要求删除系统关联，也不会按 `VROID_MCP_CLEAR_CLOSET_KEY` 自动清理。
+`closet_guard --clear` 仅保留为旧版的显式恢复入口，当前启动流程不调用它。
 
 ## Continuous editing / 连续编辑
 

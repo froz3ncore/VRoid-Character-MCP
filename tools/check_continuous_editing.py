@@ -29,6 +29,7 @@ import vrm_inspect
 async def run(lab, out, variant, cycles):
     lab, out = lab.resolve(), out.resolve()
     out.mkdir(parents=True, exist_ok=False)
+    (lab / 'saves').mkdir(exist_ok=True)
     scratch = out / 'temp'; scratch.mkdir()
     os.environ['TEMP'] = os.environ['TMP'] = str(scratch)
     report = {'variant': variant, 'cycles': cycles, 'checks': {}}

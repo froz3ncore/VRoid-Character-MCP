@@ -48,6 +48,7 @@ AGENT_MODULES = (
     'body_reference.js',
     'preset_previews.js',
     'ordinary_extensions.js',
+    'shoe_templates.js',
     'attached_state.js',
     'operations.js',
 )
@@ -56,6 +57,7 @@ GUARD_MODULE = 'profile_guard.js'
 # A dense geometry capture serializes tens of megabytes; edits stay bounded.
 SLOW_OPERATIONS = {'capture_wear_reference': 120}
 DEFAULT_TIMEOUT_SECONDS = 30
+COPY_STARTUP_TIMEOUT_SECONDS = 120
 
 PROFILE_FOLDERS = (
     'Documents',
@@ -90,6 +92,7 @@ def script_text(config: dict | None, bridge_js: pathlib.Path, attached: bool = F
              (PROJECT / 'agent' / 'native_traps.js').read_text(encoding='utf-8')]
     if not attached:
         parts.extend(['const PROBE=' + json.dumps(config) + ';',
+                      (PROJECT / 'agent' / 'registry_guard.js').read_text(encoding='utf-8'),
                       (PROJECT / 'agent' / GUARD_MODULE).read_text(encoding='utf-8')])
     parts.append(bridge_js.read_text(encoding='utf-8'))
     parts.extend((PROJECT / 'agent' / name).read_text(encoding='utf-8') for name in AGENT_MODULES)
@@ -143,9 +146,9 @@ def _detached(subject, reason, *unused) -> None:
 
 def start(subject) -> None:
     _check_copy(subject)
-    # Refuse before taking the lock: a process that cannot run would die mid-way
-    # and leave the save state unknown.
-    subject.crash_guard = closet_guard.enforce(subject.lab)
+    # The per-process registry guard is confirmed after injection, before the
+    # new copy is resumed. Existing system protocol associations stay intact.
+    subject.crash_guard = {'closet_key': 'process_isolated', 'key': closet_guard.KEY}
     subject.file_lock = lab_lock.acquire(subject.lab)
     subject.lab_owner = os.getpid()
     prepare_run_directory(subject)
@@ -162,6 +165,8 @@ def start(subject) -> None:
         subject.script.on('message',
                           lambda message, data: record(subject, {'event': 'agent', 'message': message}))
         subject.script.load()
+        if subject.script.exports_sync.health().get('copy_protocol_isolated') is not True:
+            raise RuntimeError('COPY_REGISTRY_ISOLATION_UNAVAILABLE: refusing to resume VRoid')
         subject.device.resume(subject.pid)
         record(subject, {'event': 'spawned-copy', 'pid': subject.pid, 'exe': str(subject.exe)})
     except BaseException:
@@ -302,14 +307,24 @@ async def call(subject, operation: str, args: dict | None = None) -> Any:
 
 async def initialize(subject, variant: str = 'F00', model_file: pathlib.Path | None = None) -> dict:
     async with subject.lock:
-        deadline = time.monotonic() + 40
+        deadline = time.monotonic() + COPY_STARTUP_TIMEOUT_SECONDS
         while time.monotonic() < deadline:
             health = await asyncio.to_thread(subject.script.exports_sync.health)
             if health['error']:
                 raise RuntimeError(health['error'])
             if health['ready']:
                 subject.native_png_decoder_ready = bool(health.get('native_png_decoder_ready'))
-                status_result = await call(subject, 'status')
+                try:
+                    status_result = await call(subject, 'status')
+                except frida.RPCException as error:
+                    # Hooks can be ready before Unity starts draining its frame
+                    # queue. Only retry this read, explicitly never dispatched.
+                    if not any(marker in str(error) for marker in (
+                            'MAIN_THREAD_TIMEOUT: not executed', 'BRIDGE_NOT_READY')):
+                        raise
+                    record(subject, {'event': 'initial-status-wait', 'reason': str(error)})
+                    await asyncio.sleep(.2)
+                    continue
                 if not status_result.get('reason', '').startswith('Error: NOT_READY'):
                     break
             await asyncio.sleep(.2)

@@ -173,7 +173,7 @@ def build_report(*, lab: Path | None = None, source: Path | None = None,
         label = SUPPORTED_ASSEMBLIES.get(value)
         add('application.build', 'pass' if label else 'blocked',
             label or 'Unknown application build; native calls remain blocked',
-            'Use a supported VRoid 2.14.0 installation and prepare a new lab; '
+            'Use a supported VRoid 2.14.0/2.16.0 installation and prepare a new lab; '
             'do not bypass the hash allowlist.', sha256=value,
             supported=[{'sha256': h, 'label': text} for h, text in SUPPORTED_ASSEMBLIES.items()])
     check('application.build', installation,
@@ -181,10 +181,10 @@ def build_report(*, lab: Path | None = None, source: Path | None = None,
           'Historical evidence labs may have had app/ removed; keep their records intact.')
 
     registry = inspect_registry()
-    add('registry.closet', 'pass' if registry['state'] == 'absent' else 'blocked',
-        'Inspect the known crash-triggering registry key',
-        'If present, review RECOVERY.md before explicitly backing up and clearing this key. '
-        'If unreadable, resolve registry read access first.', **registry)
+    add('registry.closet', 'pass' if registry['state'] in {'absent', 'present'} else 'blocked',
+        'Copy-mode protocol lookups are redirected into the lab registry hive',
+        'If unreadable, resolve registry read access first. The launcher preserves system protocol associations.',
+        **registry)
     if lab is not None and physical:
         def ownership():
             if not selected.is_dir():

@@ -1,20 +1,11 @@
-"""Refuse to launch VRoid Studio while the crash-triggering registry key exists.
+"""Legacy opt-in cleanup of the historically crash-triggering protocol key.
 
-`HKCU\\SOFTWARE\\Classes\\vroid.closet` makes xroid (`.xroid`) loading crash
-deterministically in the validated build, and the crash reporter recreates the
-key after each crash.  Previously the key was checked by hand before a native
-run; a forgotten check means a process that dies mid-way and an uncertain save.
+Current copy-mode startup uses agent/registry_guard.js to isolate protocol
+lookups and preserves the real installation's URL association. It does not
+call enforce(), clear(), or honor the legacy auto-clear environment variable.
 
-The guard reads the key before launch:
-
-* absent  -> nothing happens;
-* present -> the run stops with ``VROID_CLOSET_CRASH_KEY`` and an explicit
-  recovery command instead of launching a doomed process;
-* present and ``VROID_MCP_CLEAR_CLOSET_KEY=1`` (or ``--clear``) -> the key is
-  exported to a timestamped ``.reg`` file inside the lab, removed, and the
-  removal is re-read before the launch continues.
-
-Nothing here touches other registry locations or policy settings.
+The CLI and enforce() remain available for explicitly requested legacy
+recovery. Removal always requires a successful backup first.
 """
 
 from __future__ import annotations

@@ -184,9 +184,14 @@ character persistence. The separate F00 lifecycle replay passed 18 checks. Earli
 long-running GC stress, real user profiles and independent-user acceptance remain
 unverified. Documentation-only changes do not constitute additional native evidence.
 
-Current offline regression reports 564 passed / 1 skipped on Python 3.10 and 3.12,
-ten JS behavior suites and a 340-file source manifest. Five file-workflow tools
+Current offline regression reports 571 passed / 1 skipped on Python 3.10 and 3.12,
+twelve JS behavior suites and a 347-file source manifest. Five file-workflow tools
 expanded the set from 94 to 99; four layer tools now bring it to 103, preserving
 all 99 earlier input schemas. The
 current full toolset hash is
 `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
+
+The 2026-11-13 signed standalone 2.16.0 runs passed 27 checks each for F00/M00.
+These add bounded allocation pressure/full GC after file association to the
+existing editing, dialog, interruption and file workflows. See [the compatibility
+record](REGRESSION.md) for initial failed diagnostics and the remaining limits.

@@ -16,6 +16,10 @@ def test_previous_212_build_is_rejected():
         supported_build('475334B2C9BD76A53754EEEEEEDB523CBB95DC832033A61ED8041B7F3BF4C1FF')
 
 
+def test_verified_216_standalone_is_accepted():
+    assert '2.16.0' in supported_build('c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2')
+
+
 def test_unknown_file_is_rejected(tmp_path):
     assembly = tmp_path / 'GameAssembly.dll'
     assembly.write_bytes(b'unknown binary')

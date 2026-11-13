@@ -60,6 +60,15 @@ def test_unknown_build_is_reported_with_hash_and_does_not_bypass_allowlist(insta
     assert 'application.build' in report['blocked_checks']
 
 
+def test_existing_protocol_association_no_longer_requires_system_deletion(installation, monkeypatch):
+    source, repo = installation
+    monkeypatch.setattr(doctor, 'inspect_registry', lambda: {'state': 'present'})
+    monkeypatch.setattr(doctor.closet_guard, 'clear', lambda *a: pytest.fail('No registry writes'))
+    report = doctor.build_report(source=source, repo=repo)
+    assert report['ok']
+    assert row(report, 'registry.closet')['status'] == 'pass'
+
+
 def test_failures_are_aggregated_instead_of_hiding_later_checks(installation, monkeypatch):
     source, repo = installation
     (source / 'UnityPlayer.dll').unlink()

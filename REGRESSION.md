@@ -1,5 +1,50 @@
 # Visual regression and bounded coverage / 视觉回归与覆盖范围
 
+## VRoid 2.16 compatibility / 2.16 兼容验收
+
+The 2026-11-13 Windows standalone package has a valid pixiv signature and
+`GameAssembly.dll` SHA-256
+`c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2`.
+Unity remains 6000.0.62f1. This exact fingerprint is accepted alongside the
+previously verified 2.14 fingerprints; a version label alone is insufficient.
+The installer was extracted into a fresh test directory, without replacing the
+installed application or changing its protocol association.
+
+On 2.16, controlled F00/M00 attachment runs each passed 27 checks, including
+optional managed allocation pressure and two full collections after Save As.
+Both variants completed 20 body-to-texture entries, same-process Dress-up,
+XRoid/VRM export, exact renderer-to-VRM RGBA comparison and cold persistence.
+A fresh 2.14 F00 copy also completed 12 entries and the same export/persistence
+sequence while the real system protocol association remained present.
+
+2.16 F00/M00 shoe tests separately verified all 69 IDs against 2.14, a single
+addition to a test model without shoes, preservation of other groups, native
+Undo/Redo and cold persistence. Enumeration uses the native asset catalog,
+because 2.16 removed the old clothing editor's template methods. It does not
+substitute the ten items from the separate texture-template dialog.
+
+Reproduce these sequences with NEW output directories and exclusive labs:
+
+```powershell
+python tools/check_continuous_editing.py --lab <prepared-lab> --out <new-output> --variant F00 --cycles 5
+python tools/check_attached_editing.py --source <installation> --out <new-output> --variant F00 --gc-pressure --xwear <test-outfit.xwear>
+python tools/check_shoe_templates.py --lab <prepared-lab> --out <new-output> --variant F00
+```
+
+Repeat with `--variant M00`. The attachment tool creates its own guarded window;
+it does not select an existing user's window. These are bounded fixtures, not
+independent real-profile acceptance or long-session memory certification.
+
+Earlier diagnostic runs remain failures: one F00 fixture exited during layer
+import without a confirmed native fault stack; a subsequent run completed all
+attached checks but failed at the first cold-start status read. Startup now
+waits for undispatched status reads, and the final instrumented F00/M00 runs
+passed. The earlier process exit is not claimed to have a proven root cause.
+
+2.16 的隔离副本和连接窗口已分别验证男女角色。GC 检查仅覆盖另存后的有限分配与
+两次完整回收，不代表长时间运行无泄漏。系统协议关联保持原样，旧版 2.14 回归也
+使用新隔离策略。诊断中的一次进程退出没有确定原生栈，保留为已知未定位记录。
+
 ## Native repeatability / 原生静态复采
 
 Use an exclusive prepared lab and a saved `.vroid` inside its `saves/` folder.

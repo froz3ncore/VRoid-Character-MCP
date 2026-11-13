@@ -260,24 +260,9 @@ for (const call of knownFolderCalls) {
 // VRoid keeps its settings under one hive. Giving this process its own key
 // means the real installation keeps its own preferences untouched.
 const advapi32 = Module.load('advapi32.dll');
-const vroidHive = /^software\\pixiv\\vroid studio(?:\\|$)/i;
-const registryOpenApis = ['RegCreateKeyExW', 'RegOpenKeyExW'];
-const registryAddresses = new Set();
-for (const name of registryOpenApis) for (const module of [advapi32, fileApi]) {
-    const address = module.findExportByName(name);
-    if (!address || registryAddresses.has(address.toString())) continue;
-    registryAddresses.add(address.toString());
-    keptHooks.push(Interceptor.attach(address, {
-        onEnter(args) {
-            if (args[1].isNull()) return;
-            const before = args[1].readUtf16String();
-            if (!vroidHive.test(before)) return;
-            const after = before.replace(/^software\\pixiv\\vroid studio/i, probe.registryKey);
-            report('isolated-registry', after);
-            replaceArgument(this, args, 1, after);
-        }
-    }));
-}
+keptHooks.push(...installCopyRegistryGuard({modules: [advapi32, fileApi],
+    registryKey: probe.registryKey, report, replaceArgument}));
+globalThis.copyProtocolIsolated = true;
 
 // Compatibility surface for modules that are not rewritten yet. `wear.js`
 // remaps the XRoid save cache itself and addresses the old guard helpers by
@@ -293,4 +278,5 @@ if (toComparable(Process.mainModule.path) !== toComparable(probe.exe)
     throw new Error('This agent attaches only to the disposable VRoid copy it was started for');
 }
 
-send({ kind: 'isolation-ready', pid: Process.id, executable: Process.mainModule.path });
+send({ kind: 'isolation-ready', pid: Process.id, executable: Process.mainModule.path,
+       protocol_registry_isolated: true });

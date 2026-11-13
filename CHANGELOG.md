@@ -1,10 +1,31 @@
 # Changelog
 
-## 0.5.0.dev0 — 2026-10-28 (development snapshot)
+## 0.5.0.dev0 — 2026-11-13 (development snapshot)
 
 Python package/runtime: `0.5.0.dev0`; npm agent/lockfile: `0.5.0-dev.0`.
 The source snapshot exposes **103 tools**. No new stable release or release tag
 is created. Local validation and independent external-user acceptance are separate.
+
+### VRoid Studio 2.16 compatibility
+
+- Added the pixiv-signed Windows standalone 2.16.0 `GameAssembly.dll` fingerprint;
+  Unity remains 6000.0.62f1. Existing 2.14 fingerprints remain accepted; unknown
+  builds are still refused. The 103-tool input schemas are unchanged.
+- Copies now isolate settings and `vroid.closet` registry access per lab,
+  including HKCR/parent handles and ANSI/Unicode APIs. The launcher confirms
+  installation before resuming its process. System protocol associations are
+  preserved; startup no longer requests their deletion or auto-clears them.
+- File association and save-copy restoration use the native managed-reference
+  setter with a GC write barrier. The attachment fixture adds optional allocation
+  pressure and full GC; this is not a long-session memory certification.
+- Initial readiness waits up to 120 seconds. Only status reads explicitly
+  rejected before execution are retried; model creation and file opening are
+  submitted once. A fresh continuous-editing lab creates its output folder.
+- 2.16 removed the clothing editor's old template methods. Shoe enumeration
+  now reads its native catalog when that UI is absent, preserving the exact
+  69 built-in IDs. Addition uses the native part loader after the existing
+  no-shoes guard. The legacy 2.14 UI path remains. The dedicated
+  `tools/check_shoe_templates.py` checks actual addition, history and cold persistence.
 
 ### Existing-window editing and recovery
 
@@ -78,8 +99,8 @@ is created. Local validation and independent external-user acceptance are separa
 
 ### Validation and remaining scope
 
-- Latest code suite: **564 passed / 1 skipped on Python 3.10 and 3.12**, ten JS behavior
-  suites, 340-file source manifest, provenance and the 103-tool input hash
+- Latest code suite: **571 passed / 1 skipped on Python 3.10 and 3.12**, twelve JS behavior
+  suites, 347-file source manifest, provenance and the 103-tool input hash
   `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`.
   Both interpreters were checked for this snapshot; earlier counts remain historical.
 - Native evidence dated 2026-10-28: five domains passed; F00/M00 each completed

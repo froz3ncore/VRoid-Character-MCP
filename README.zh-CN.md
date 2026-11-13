@@ -4,7 +4,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
 
-Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · stdio · MIT
+Windows · VRoid Studio 2.14.0 / 2.16.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · stdio · MIT
+
+2026-11-13 已验证签名独立安装版 2.16.0：男女角色连接专项各 27 项通过，包含
+有限 GC 压力；各 20 次连续编辑入口及换装／导出／冷重开通过。副本会隔离协议
+注册表访问，保留已安装 VRoid 的系统关联。诊断失败与验收边界见 [兼容记录](REGRESSION.md)。
 
 本项目通过 Frida 调用 VRoid Studio 的原生方法，不依赖鼠标自动化或 OCR。默认使用独立配置的 VRoid 副本，也可以显式连接已打开的 VRoid。
 
@@ -69,7 +73,7 @@ Windows · VRoid Studio 2.14.0 · 0.5.0.dev0 开发版 · 103 个 MCP 工具 · 
 ## 环境要求
 
 - Windows x64。
-- VRoid Studio **2.14.0 / Unity 6000.0.62f1**。启动时校验 `GameAssembly.dll` 哈希，其他构建会被拒绝。
+- VRoid Studio **2.14.0 或 2.16.0 / Unity 6000.0.62f1**。启动时校验 `supported_builds.py` 中的精确 `GameAssembly.dll` 哈希，未经验证的构建仍会被拒绝。
 - Python **3.10 或更高版本**、Git、Node.js 与 npm。
 - 一个支持本地 **stdio MCP** 的客户端，以及足够复制一份 VRoid 安装的磁盘空间。
 
@@ -208,7 +212,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_checks.ps1 `
 
 检查输出 `checks.json` 与退出码，覆盖 Python 单元测试、工具 schema、JavaScript 语法和行为检查；`-Manifest` 增加源码清单检查。`-Provenance` 为继承实现替换的辅助检查，源码相似度数字本身不构成法律结论。
 
-当前代码验收在 Python 3.10／3.12 均为 **564 个测试通过、1 个跳过**；**10 组 JavaScript 行为检查、103 工具合同与 340 文件源码清单通过**。原有 99 工具输入 schema 保持，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
+当前代码验收在 Python 3.10／3.12 均为 **571 个测试通过、1 个跳过**；**12 组 JavaScript 行为检查、103 工具合同与 347 文件源码清单通过**。原有 99 工具输入 schema 保持，新增四个图层工具。F00／M00 图层专项各 11 项通过，含实际合成贴图变化及保存冷重开；分组未计为完成。历史版本的验收数字见 [CHANGELOG.md](CHANGELOG.md)，当前范围见 [SCOPE.md](SCOPE.md)。
 
 导出的文件可再用独立解析器检查：
 

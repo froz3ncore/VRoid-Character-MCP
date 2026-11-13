@@ -342,6 +342,7 @@ Il2Cpp.perform(function () {
 rpc.exports = {
     health() {
         return { ready: bridge.ready, error: bridge.error, pid: Process.id, frame: bridge.frame,
+                 copy_protocol_isolated: !ATTACHED && globalThis.copyProtocolIsolated === true,
                  native_png_decoder_ready: bridge.pngDecoder !== null };
     },
     call(name, args) {

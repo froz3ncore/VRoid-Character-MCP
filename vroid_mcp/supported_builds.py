@@ -8,6 +8,8 @@ SUPPORTED_ASSEMBLIES = {
         'VRoid Studio 2.14.0 (upstream verified build)',
     'ed65ebbc1e806db635566347a9022b9577f6b3d373db128ea23f0e862e005296':
         'VRoid Studio 2.14.0 (pixiv-signed standalone build)',
+    'c8daa116938b40896e3a09208bbde71604a92d5ca6d86f9ff8b89fea3c1a5ad2':
+        'VRoid Studio 2.16.0 (pixiv-signed standalone build)',
 }
 
 

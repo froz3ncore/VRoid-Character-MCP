@@ -7,8 +7,8 @@ character session, and closes everything again.
 
     python tools/check_native_domains.py --lab <prepared lab> --json out.json
 
-It never writes to the model, never saves, and refuses to start when the
-`vroid.closet` crash key is present or another server owns the lab.
+It never saves the generated test model, and refuses to start when another
+server owns the lab. Copy-mode startup isolates protocol registry lookups.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ sys.path.insert(0, str(PROJECT / 'tools'))
 from mcp import ClientSession, StdioServerParameters  # noqa: E402
 from mcp.client.stdio import stdio_client  # noqa: E402
 
-from vroid_mcp import closet_guard, lab_lock  # noqa: E402
+from vroid_mcp import lab_lock  # noqa: E402
 import vrm_inspect  # noqa: E402
 
 ALL_DOMAINS = ['face-body', 'clothing-wear', 'texture-makeup', 'hair', 'vrm']
@@ -107,10 +107,6 @@ async def run(lab: pathlib.Path, domains: list[str], report_path: pathlib.Path |
     exe = lab / 'app' / 'VRoidStudio.exe'
     if not exe.is_file():
         report.update(status='blocked', reason=f'no VRoid Studio copy at {exe}', checks=[])
-        return _finish(report, report_path, 2)
-    if closet_guard.present():
-        report.update(status='blocked', reason='VROID_CLOSET_CRASH_KEY',
-                      recovery='python -m vroid_mcp.closet_guard --clear --lab ' + str(lab))
         return _finish(report, report_path, 2)
     current = lab_lock.probe(lab)
     if current:

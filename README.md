@@ -93,8 +93,8 @@ See [existing sessions and ordinary export](ATTACHED_SESSION.md).
 ## Requirements
 
 - Windows.
-- VRoid Studio **2.14.0** (Unity 6000.0.62f1). Other builds are rejected: the
-  native bindings are version-specific.
+- VRoid Studio **2.14.0 or 2.16.0** (Unity 6000.0.62f1), matching an exact
+  `GameAssembly.dll` hash in `supported_builds.py`. Unverified builds remain rejected.
 - Python 3.10+, Git, Node.js and npm (for the Frida bridge dependency and JavaScript checks).
 
 ## Install
@@ -199,8 +199,8 @@ own report is not the evidence.
 
 ## Known limitations
 
-Latest code checks: **564 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
-**ten JS suites**, **103 tools** and a 340-file source manifest. The earlier 99
+Latest code checks: **571 Python tests passed / 1 skipped** on Python 3.10 and 3.12,
+**twelve JS suites**, **103 tools** and a 347-file source manifest. The earlier 99
 input schemas are unchanged; four raster-layer tools were added. F00 and M00
 each passed 11 dedicated layer checks, including cold persistence and actual
 renderer composition changes. The grouping boundary is documented separately.
@@ -209,6 +209,12 @@ file-workflow checks each for F00/M00, plus the separate 18-check F00 attachment
 lifecycle run. Earlier five-domain and continuous body/texture/Dress-up checks
 through export retain their own evidence. Version/documentation changes do not
 constitute a new native run. See [acceptance scope](SCOPE.md).
+
+Signed standalone 2.16.0 has additional native evidence dated 2026-11-13:
+F00/M00 each passed 27 attachment checks with bounded GC pressure and 20
+continuous body-to-texture entries through Dress-up/export/cold persistence.
+Copy mode preserves the installed protocol association. The [compatibility
+record](REGRESSION.md) includes failed diagnostics and remaining limits.
 
 The earlier public sample and 10-case F00 matrix remain historical evidence;
 their 30 saved/cold views matched exact RGBA. A three-view technical baseline
@@ -259,7 +265,8 @@ that finds inherited lines moved into new modules.
 | `vroid_mcp/tools_*.py` | tool surface by domain |
 | `vroid_mcp/texture_tools.py` | texture, layer and makeup tools |
 | `vroid_mcp/runtime.py` | process lifecycle, native calls, artifacts |
-| `vroid_mcp/closet_guard.py` | refuses to launch while the crash registry key exists |
+| `agent/registry_guard.js` | per-copy settings and protocol registry routing |
+| `vroid_mcp/closet_guard.py` | legacy, explicitly requested registry cleanup only |
 | `vroid_mcp/lab_lock.py` | one owning process per lab, with its PID |
 | `vroid_mcp/runtime_handle.py` | indirection so a restarted session reaches every tool |
 | `agent/profile_guard.js` | profile remapping and outside-write refusal |

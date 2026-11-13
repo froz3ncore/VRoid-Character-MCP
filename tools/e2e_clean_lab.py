@@ -14,7 +14,7 @@ written into the repository.
     python tools/e2e_clean_lab.py --source <VRoid install> --lab <new lab> --xwear <outfit.xwear>
 
 Exit codes: 0 all steps passed, 1 a step failed, 2 the run could not start
-(lab exists, crash key present, lab owned by another server, missing input).
+(lab exists, lab owned by another server, missing input).
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ sys.path.insert(0, str(PROJECT / 'tools'))
 from mcp import ClientSession, StdioServerParameters  # noqa: E402
 from mcp.client.stdio import stdio_client  # noqa: E402
 
-from vroid_mcp import closet_guard, lab_lock  # noqa: E402
+from vroid_mcp import lab_lock  # noqa: E402
 from vroid_mcp.bounded_paint import decode_rgba_png  # noqa: E402
 import vrm_inspect  # noqa: E402
 
@@ -522,10 +522,6 @@ def main() -> int:
                           'lab': str(lab), 'vrm': report.get('vrm')}, ensure_ascii=False))
         return code
 
-    if closet_guard.present():
-        report['reason'] = 'VROID_CLOSET_CRASH_KEY present; remove it before an end-to-end run'
-        steps.record('preflight', {'reason': report['reason']}, 'fail')
-        return finish(2)
     if lab.exists():
         report['reason'] = f'lab already exists: {lab}'
         steps.record('preflight', {'reason': report['reason']}, 'fail')

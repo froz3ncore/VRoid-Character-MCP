@@ -35,6 +35,13 @@ rpc.exports.fixture = (name,args={}) => schedule(() => {
  rememberSingleton('VRoid.Studio.MainViewModel',main);
  if(name==='new_model')cls('UnityEngine.CoreModule','UnityEngine.Application').method('set_runInBackground').invoke(true);
  const progress=main.method('get_ProgressProviderViewModel').invoke();
+ if(name==='gc_pressure') {
+  for(let i=0;i<12000;i++)Il2Cpp.string('test-only temporary allocation '+i+' '+args.path);
+  const gc=Il2Cpp.corlib.class('System.GC');
+  gc.method('Collect',0).invoke();gc.method('Collect',0).invoke();
+  const file=main.field('_mainModel').value.field('currentFile').value;
+  return {path:file.field('path').value.content,unsaved:main.method('get_ActionHandler').invoke().method('get_IsUnSaved').invoke()};
+ }
  if(name==='progress_start') {globalThis.progressNode=progress.method('Start').invoke(Il2Cpp.string('Attachment test'),false);globalThis.progressHold=retain(progressNode);return true;}
  if(name==='progress_finish') {progress.method('Finish').invoke(progressNode);progressHold.free();return true;}
  if(name==='dialog_show') {main.method('<WantsToQuitHandler>g__ShowUnSavedDialog|61_1').invoke();return true;}
@@ -120,7 +127,7 @@ print('selected' if result else 'cancelled',flush=True)
 '''
 
 
-async def check(source: Path, out: Path, variant: str, xwear: Path | None = None):
+async def check(source: Path, out: Path, variant: str, xwear: Path | None = None, gc_pressure: bool = False):
     if out.exists():
         raise FileExistsError('Use a NEW output directory')
     prepare_lab.check_directories(source.resolve(), out.resolve())
@@ -160,7 +167,18 @@ async def check(source: Path, out: Path, variant: str, xwear: Path | None = None
                         cwd=str(fixture.exe.parent), env=bridge._environment(fixture), stdio='pipe')
         guard_session = dev.attach(pid)
         guard = guard_session.create_script('const PROBE=' + json.dumps(bridge._probe_config(fixture)) + ';\n' +
-            (ROOT/'agent/native_traps.js').read_text() + '\n' + (ROOT/'agent/profile_guard.js').read_text())
+            '''let recordedExceptions=0; Process.setExceptionHandler(e=>{
+             if(e.type==='access-violation' && recordedExceptions++<12)
+              send({event:'fixture-native-exception',address:e.address.toString(),memory:e.memory,
+                    trace:Thread.backtrace(e.context,Backtracer.ACCURATE).map(p=>{
+                     const m=Process.findModuleByAddress(p);return m?m.name+'+'+p.sub(m.base):p.toString();})});
+             return false;});\n''' +
+            (ROOT/'agent/native_traps.js').read_text() + '\n' +
+            (ROOT/'agent/registry_guard.js').read_text() + '\n' + (ROOT/'agent/profile_guard.js').read_text())
+        def record_guard(message, data):
+            with (out/'fixture-guard.jsonl').open('a',encoding='utf8') as output:
+                output.write(json.dumps(message)+'\n')
+        guard.on('message',record_guard)
         guard.load()
         dev.resume(pid)
         await asyncio.sleep(10)
@@ -222,6 +240,10 @@ async def check(source: Path, out: Path, variant: str, xwear: Path | None = None
                     associated=await call('save_character_as',{'expected_model':token,'path':str(external/'new-character.vroid')})
                     assert associated['associated'] and Path(associated['path']).is_file()
                     assert (await call('get_status'))['attached_state']['file_path']==associated['path']
+                    if gc_pressure:
+                        collected=await fixture_call('gc_pressure',{'path':associated['path']})
+                        assert collected['path']==associated['path'] and not collected['unsaved'],collected
+                        passed('save_as_association_survives_allocation_and_full_gc',collected)
                     absolute_opened=await call('open_character',{'expected_model':token,'filename':associated['path'],'discard_unsaved':True})
                     token=absolute_opened['model_token']
                     assert absolute_opened['attached_state']['file_path']==associated['path']
@@ -512,5 +534,6 @@ if __name__=='__main__':
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--variant',choices=['F00','M00'],default='F00')
     parser.add_argument('--xwear', type=Path)
+    parser.add_argument('--gc-pressure', action='store_true', help='force full managed GC after file association')
     args=parser.parse_args()
-    asyncio.run(check(args.source,args.out,args.variant,args.xwear))
+    asyncio.run(check(args.source,args.out,args.variant,args.xwear,args.gc_pressure))

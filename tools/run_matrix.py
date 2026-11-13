@@ -17,7 +17,7 @@ import time
 import uuid
 
 import e2e_clean_lab as e2e
-from vroid_mcp import closet_guard, lab_lock
+from vroid_mcp import lab_lock
 from vroid_mcp.supported_builds import validate_assembly
 
 
@@ -55,8 +55,6 @@ def main():
             parser.error('An existing different XWear has the same name; nothing was replaced')
     try:
         validate_assembly(lab / 'app/GameAssembly.dll')
-        if closet_guard.present():
-            raise RuntimeError('Known crash registry key exists; follow RECOVERY.md')
         handle = lab_lock.acquire(lab)
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
