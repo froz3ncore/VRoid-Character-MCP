@@ -41,6 +41,14 @@ const queries={GetHairGroupListQuery:()=>[group()],GetHairGroupChildrenQuery:()=
     GetBrushHairStrandParameterSetQuery:()=>obj({get_HairMaterialReference:()=>material}),
     GetGuideOriginTransformQuery:()=>box(guide)};
 const helpers={hairCategoryBindings:()=>[{category:'HairFront',types:['front-type']}],
+    copyPoint:b=>{
+        const original=b.unbox(),copy=point();
+        for(const field of ['<Point>k__BackingField','<Normal>k__BackingField','<Uv>k__BackingField']){
+            const keys=field==='<Uv>k__BackingField'?['x','y']:['x','y','z'];
+            for(const key of keys)copy.field(field).value.field(key).value=original.field(field).value.field(key).value;
+        }
+        copy.field('unknown').value=original.field('unknown').value;return copy;
+    },
     seq:x=>x,boxArgument:(_,v)=>v,readPoint:b=>{
         const v=b.unbox();return {point:['x','y','z'].map(k=>v.field('<Point>k__BackingField').value.field(k).value),
             normal:['x','y','z'].map(k=>v.field('<Normal>k__BackingField').value.field(k).value),
@@ -60,10 +68,12 @@ const a={expected_model:'fresh',category:'HairFront',scope:'t/g'},s=adapter.begi
 assert.throws(()=>adapter.procedural(s,'HairFront','t/g'),/UNVERIFIED_BUILD/,
     'descriptor digest gate must run before looking up or creating a build-specific property');
 let snap=adapter.snapshot(s,'HairFront','t/g');
+const priorPoint=cp;
 assert.equal(snap.type,'brush');assert.deepEqual(snap.material,{type:0,id:'mat'});
 assert.deepEqual(snap.strands[0].material,{type:0,id:'mat'});
 assert.deepEqual(snap.strands[0].points[0].normal,[.1,.2,.3]);assert(pins>0);
 adapter.move(s,'t/g','t/g/gl/s',0,{...snap.strands[0].points[0],point:[5,6,7]});
+assert.equal(priorPoint.field('<Point>k__BackingField').value.field('x').value,2,'query/history input must stay immutable');
 assert.equal(commands[0].name,'MoveBrushHairStrandControlPointCommand');
 assert.equal(cp.field('unknown').value,987);assert.equal(cp.field('<Normal>k__BackingField').value.field('x').value,.1);
 assert.deepEqual(adapter.snapshot(s,'HairFront','t/g').strands[0].points[0].point,[5,6,7]);

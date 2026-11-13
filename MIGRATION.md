@@ -1,5 +1,10 @@
 # mcjo79 capability migration and provenance
 
+Local review update, 2026-11-13: [partial native acceptance and fixes for PR #1](docs/native-evidence/2026-11-13-pr1-acceptance.md).
+The original offline-only entries below are historical evidence. Registered
+custom application, successful situation-thumbnail publication and the new
+menu/cancellation cases retain explicit native acceptance gates.
+
 Inventory opened 2026-11-06 and reconciled 2026-11-07. Source: [mcjo79/vroid-mcp](https://github.com/mcjo79/vroid-mcp)
 at `0dc7d5eb3cf27f7f943713960cac1b65f479a876`; target baseline:
 `b02b108ab4a8b4333ecf206a199a7a0403aa7ffe`. Work is on

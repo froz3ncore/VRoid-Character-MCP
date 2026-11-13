@@ -33,3 +33,31 @@ const unknown=queued(null,undefined);
 assert.deepEqual(unknown.calls,[]);assert.match(unknown.error,/UNVERIFIED/);
 assert.deepEqual(queued('2.16.0',undefined).calls,[]);
 console.log('Runtime version checked on Unity thread before queued dispatch');
+
+// Copy bootstrap runs before the first Unity frame. Application.version is
+// unsafe then; both copy and attached jobs must still verify before dispatch.
+{
+    let bootstrap;
+    const calls=[];
+    const context=vm.createContext({VROID_PRODUCT_VERSION:'2.16.0',VROID_ASSEMBLY_SHA256:'signed',ATTACHED:false,Map,
+        clearTimeout(){},rpc:{},send(){},Process:{id:1,getCurrentThreadId:()=>5},
+        Interceptor:{attach:()=>({})},nativeBuildProfile:()=>({session:false}),
+        installNativePngDecoder:()=>({}),
+        Il2Cpp:{unityVersion:'6000.0.62f1',perform:fn=>{bootstrap=fn;return Promise.resolve();},currentThread:{id:5}}});
+    vm.runInContext(source,context);
+    context.createHandleKeeper=()=>()=>({free(){}});
+    context.retainEditorSingletons=()=>{};
+    context.holdRunInBackground=()=>{};
+    context.countModelUpdates=()=>{};
+    context.nativeClass=()=>({method:()=>({virtualAddress:1}),tryMethod:()=>({invoke(){
+        calls.push('early-version');throw Error('ENGINE_APPLICATION_NOT_INITIALIZED');}})});
+    assert.doesNotThrow(()=>bootstrap());
+    assert.deepEqual(calls,[]);
+    const bridge=vm.runInContext('bridge',context);
+    assert.equal(bridge.ready,true);
+    context.nativeClass=()=>({tryMethod:()=>({invoke(){calls.push('version');return {content:'2.16.0'};}})});
+    bridge.backlog.push({expiresAt:Date.now()+60000,work(){calls.push('dispatch');},resolve(){},reject(e){throw e;}});
+    context.drainJob();
+    assert.deepEqual(calls,['version','dispatch']);
+}
+console.log('Copy bootstrap defers product getter until the first dispatched frame');

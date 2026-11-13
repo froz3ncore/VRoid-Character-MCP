@@ -341,7 +341,9 @@ Il2Cpp.perform(function () {
         throw new Error('UNTESTED_UNITY_VERSION: ' + Il2Cpp.unityVersion);
     }
     bridge.mainThread = ATTACHED ? unityWindowThread() : Process.getCurrentThreadId();
-    if (!ATTACHED) verifyProductVersion();
+    // il2cpp_init has completed here, but Unity's Application singleton may
+    // not exist yet. drainJob verifies the product on the first real frame,
+    // before any queued read, edit, or attachment adoption is dispatched.
     keep = createHandleKeeper();
     if (!ATTACHED) bridge.pngDecoder = installNativePngDecoder({cls: nativeClass, retain,
         frame: () => bridge.frame, mainThread: () => bridge.mainThread});

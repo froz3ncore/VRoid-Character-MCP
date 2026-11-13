@@ -13,7 +13,7 @@ const photo = object(12,'photo',{get_IsActive:() => false});
 const root = object(1,edit,{}, {obsoleteLegacyPhotoBoothViewModel:() => photo});
 const enumValue = n => ({field:() => ({value:n})});
 const menuScreen = object(2,home,{get_StartScreenMode:() => ({...enumValue(menuMode),
-    class:{field:() => ({value:enumValue(1)})}}), get_MainViewModel:() => main});
+    class:{field:() => ({value:enumValue(1)}),fields:['InitialAgreements','ModelSelection','XWearStartScreen'].map((name,value)=>({name,isStatic:true,value}))}}), get_MainViewModel:() => main});
 const navigation = object(3,'navigation',{get_ActiveScreen:() => active});
 const bus = object(4,'bus',{get_ScreenNavigation:() => navigation});
 const model = object(5,'model',{}, {currentFile:() => file});
@@ -57,9 +57,15 @@ assert.deepEqual(calls,['<WantsToQuitHandler>g__Quit|61_0','<BackToModelSelect>g
 active = menuScreen;
 assert.equal(session.view().menu_token,null);  // currentFile still owns the previous model
 file = object(0,'null');
+menuMode = 0;
+assert.equal(session.view().start_screen_mode,'InitialAgreements');
+assert.equal(session.view().menu_ready,false);
+assert.equal(session.view().menu_token,null);
 menuMode = 2;
 assert.equal(session.view().menu_token,null);
 menuMode = 1;
+assert.equal(session.view().start_screen_mode,'ModelSelection');
+assert.equal(session.view().menu_ready,true);
 const generation = session.view().menu_token;
 revision++;
 assert.notEqual(session.view().menu_token,generation);

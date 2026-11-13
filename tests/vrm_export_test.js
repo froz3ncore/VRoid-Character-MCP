@@ -12,7 +12,7 @@ const file = 'agent/vrm_export.js';
 assert.equal(fs.existsSync(file), true, 'native export settings adapter required');
 vm.runInContext(fs.readFileSync(file, 'utf8'), context);
 const nil = {handle: {isNull: () => true}};
-let calls=[], frees=0, completed=false, fault=false, cancel=false, result=true;
+let calls=[], frees=0, enumHolds=0, enumFrees=0, completed=false, fault=false, cancel=false, result=true;
 const pointer = {isNull: () => false};
 function object(values={}, fields={}) {
     const o={handle:pointer, fields, values};
@@ -26,17 +26,18 @@ function object(values={}, fields={}) {
     }});
     return o;
 }
-const enumValue={method:name=>({invoke:()=>{assert.equal(name,'ToString');return 'None';}})};
+const enumValue={method(){throw Error('Unboxed System.Enum receiver');},
+    box:()=>({enumBox:true,handle:{isNull:()=>false},method:name=>({invoke:()=>{assert.equal(name,'ToString');return 'None';}})})};
 const list = (name,value) => object({Count:2, Item:object({TranslatedDisplayName:name, [value]:value==='MaterialReductionMode'?enumValue:3})});
 const mesh=object({MeshErasure:true,HairCrossSection:false,HairSmoothnessRate:0,HairReductionStrength:2,
     FaceReductionStrength:0,BodyReductionStrength:0,ClothingReductionStrength:0});
 const bones=object({HairReductionStrength:7});
-const settings=object({MeshReduction:mesh,IsEnableHairCombination:true,MaterialReductionModeIndex:0,
+const settings=object({MeshReduction:mesh,hairBoneReduction:bones,IsEnableHairCombination:true,MaterialReductionModeIndex:0,
     VRM0MetaData:nil,VRM10MetaData:nil,
     AtlasResolutionIndex:0,TextureCompressionModeIndex:0,
     MaterialReductionModeItems:list('Default','MaterialReductionMode'),AtlasResolutionItems:list('4096','AtlasResolution'),
     TextureCompressionModeItems:list('Original','TextureCompressionMode')},
-    {hairBoneReduction:{value:bones}, textureCompressionModeIndex:{value:0}});
+    {textureCompressionModeIndex:{value:0}});
 Object.defineProperty(settings.fields.textureCompressionModeIndex,'value',{
     get:()=>settings.values.TextureCompressionModeIndex,set:v=>{settings.values.TextureCompressionModeIndex=v;}});
 const task=object({IsCompleted:()=>completed,IsFaulted:()=>fault,IsCanceled:()=>cancel,Result:()=>result,
@@ -57,7 +58,7 @@ const api=context.createVrmExportApi({model: token=>{assert.equal(token,'live');
         if(n.startsWith('set_')) {assert.equal(args[0].kind,o.method(n).parameters[0].type.name,'setter marshals its actual native parameter type');return o.method(n).invoke(args[0].kind==='System.Boolean'?!!args[0].value:args[0].value);}
         if(n.startsWith('OnVRM')) {calls.push(n); if(throws)throw Error('after dispatch'); return;}
         throw Error(n);
-    },retain:()=>({free(){frees++;}}),metadata:()=>object()});
+    },retain:o=>o?.enumBox?(enumHolds++,{free(){enumFrees++;}}):({free(){frees++;}}),metadata:()=>object()});
 const ops=api.operations, args={expected_model:'live'};
 model.root.fields.obsoleteLegacyPhotoBoothViewModel.value=nil;
 assert.equal(ops.vrm_export_preview(args).ready,false,'missing booth is preparation state');
@@ -113,6 +114,7 @@ assert.equal(frees,8);
 completed=true;fault=true;
 assert.equal(api.pendingWork().length,0);
 api.releaseWork();assert.equal(frees,12);
+assert.ok(enumHolds>0);assert.equal(enumHolds,enumFrees,'temporary boxed enum roots are always released');
 
 // Exercise the existing metadata builder too: settings migration must not
 // replace stored permissions with source defaults while adding model_version.

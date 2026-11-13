@@ -42,7 +42,7 @@ function fixture(){
         GetBrushHairGroupParameterSetQuery:()=>o({get_HairMaterialReference:()=>mat}),GetBrushHairStrandParameterSetQuery:()=>o({get_HairMaterialReference:()=>mat}),
         GetGuideOriginTransformQuery:()=>box(guide)};
     const adapter=createHairGroupNative({model:()=>m,text:x=>x,groupHelpers:{prop:(x,k)=>x.method('get_'+k).invoke(),sequence:x=>x},
-        helpers:{hairCategoryBindings:()=>[{category:'HairFront',types:['front-type']}],hairDesignEditor:()=>{editor++;throw Error('must not select visible editor');},hairNodeList:()=>[],seq:x=>x,boxArgument:(_,x)=>x,readPoint:read},
+        helpers:{hairCategoryBindings:()=>[{category:'HairFront',types:['front-type']}],hairDesignEditor:()=>{editor++;throw Error('must not select visible editor');},hairNodeList:()=>[],seq:x=>x,boxArgument:(_,x)=>x,readPoint:read,copyPoint:b=>cp(read(b).point)},
         inventory:()=>{inventory++;return {membership_complete:true,groups:['owner','sibling-owner','other-active'].map(id=>({id,type:'owner-type',resource_name:'original',revision:'r1',active:true}))};},
         retain:()=>{pins++;peak=Math.max(peak,pins);return {free(){pins--;}};},cls:(_,n)=>({alloc:()=>{const r=o();r.name=n.split('.').pop();return r;}}),
         invokeManaged(x,n,a=[]){if(n==='.ctor'){x.args=a;return;}if(n==='Execute')return query[x.name](x.args);return x.method(n).invoke(...a);},state:{frame:9}});

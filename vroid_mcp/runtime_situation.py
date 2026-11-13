@@ -33,7 +33,7 @@ def _identity(group):
 _KEEP={'BaseHair','BodySkin','WholeBody','Arm','Chest','Hand','Head','Leg','Neck','Shoulder','Torso','Waist',
        'FaceSkin','Eye','Eyes','Iris','Eyeball','Eyebrow','Eyelash','Eyeline','Eyelid','EyeHighlight','EyeWhite',
        'Mouth','MouthLine','Nose','Ear','Ears','Cheek','Highlight','Shadow','Lip','NoseLighting','FacePaint',
-       'FaceSet','EyeSet','EyeballSet','Body'}
+       'FaceSet','EyeSet','EyeballSet','Body','FaceShape','EyeSurrounding','FixedPreset'}
 _STRIP={'AllHair','HairFront','HairBack','HairTied','HairSideburns','HairHanege','HairAhoge','HairSet',
         'Tops','Bottoms','Onepiece','Shoes','Socks','InnerTop','InnerBottom','ClothingSet',
         'ArmAccessory','NeckAccessory','AccessoryArm','AccessoryNeck','Attachment','Hat','AnimalEar','Tail','Glasses'}

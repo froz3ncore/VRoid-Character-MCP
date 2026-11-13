@@ -57,8 +57,20 @@ assert.equal(number, .25);
 assert.equal(written.applied[0].after, .25);
 console.log('Composed parameter adapter: colour enumeration and typed write passed');
 hairCategories=['HairFront','HairBack'].map((part,i)=>object({get_TranslationKey:()=> 'Native.'+part},
-    {_categoryModel:object({}, {transferableTypes:list('exact-native-type-'+i)})}));
+    {_categoryModel:object({}, {transferableGroupType:'native-group-type-'+i})}));
+const hairLeaves=list(...[0,1].map(i=>object({get_GroupId:()=> 'owner-'+i,get_Type:()=> 'exact-native-type-'+i})),
+    object({get_GroupId:()=> 'unrelated',get_Type:()=> 'body-type'}));
+context.context=object({GetActiveLeafTransferables:()=>object({get_Values:()=>hairLeaves}),
+    GetActiveTransferableGroupInfo:id=>object({get_Type:()=> id==='unrelated'?'body-group':'native-group-type-'+id.slice(-1)})});
 const selectedBefore=selections;
 assert.deepEqual(api.hairGroupHelpers.hairCategoryBindings(context),[
     {category:'HairFront',types:['exact-native-type-0']},{category:'HairBack',types:['exact-native-type-1']}]);
 assert.equal(selections,selectedBefore,'read-only category binding must not select an editor');
+hairCategories.push(object({get_TranslationKey:()=> 'Native.HairAhoge'},
+    {_categoryModel:object({}, {transferableGroupType:'absent-native-group'})}));
+assert.deepEqual(api.hairGroupHelpers.hairCategoryBindings(context).at(-1),{category:'HairAhoge',types:[]});
+const nativeHair={class:{field:()=>({value:['TransferableType.N00.HairFront','TransferableType.N00.HairAhoge']})}};
+const nativeCategory=object({}, {_categoryModel:object({}, {transferableGroupType:'TransferableGroupType.N00.Level1.HairAhoge'})});
+assert.equal(api.hairGroupHelpers.hairCategoryNativeType(nativeHair,nativeCategory,'HairAhoge',[]),'TransferableType.N00.HairAhoge');
+assert.throws(()=>api.hairGroupHelpers.hairCategoryNativeType(nativeHair,nativeCategory,'HairBack',[]),/AMBIGUOUS/);
+assert.throws(()=>api.hairGroupHelpers.hairCategoryNativeType(nativeHair,nativeCategory,'HairAhoge',['a','b']),/AMBIGUOUS/);

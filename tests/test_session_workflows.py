@@ -6,6 +6,19 @@ import pytest
 from vroid_mcp import server
 
 
+def test_return_menu_initial_agreements_is_completed_without_selection_token(tmp_path):
+    from vroid_mcp.runtime import Runtime
+    runtime=Runtime(tmp_path)
+    observed=dict(active_screen='VRoid.Studio.StartScreen.ViewModel',model_open=False,
+                  model_ready=False,menu_token=None,menu_ready=False,start_screen_mode='InitialAgreements')
+    async def call(op):
+        assert op=='status'
+        return observed
+    runtime._call=call
+    assert asyncio.run(runtime._await_session('return_to_main_menu',{},{}))==observed
+    assert not runtime.uncertain
+
+
 def test_batch_uses_registered_handler_validation_and_offline_receipts(tmp_path):
     async def run():
         mcp = server.create_server(tmp_path, 'F00')

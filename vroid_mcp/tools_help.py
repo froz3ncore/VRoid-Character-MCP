@@ -8,8 +8,8 @@ GUIDES = {
         'Use get_status to inspect the active model and toolset. Pass its model_token as expected_model.',
         '用 get_status 查看当前模型和工具版本。将 model_token 作为 expected_model 传给编辑工具。'),
     'session': (
-        'Save first. return_to_main_menu accepts the current model token. Use its menu_token with create_from_menu or open_from_menu. exit_vroid waits for graceful exit. restart_session explicitly starts a new copy.',
-        '先保存模型。return_to_main_menu 返回 menu_token，随后用 create_from_menu 新建或 open_from_menu 打开模型。exit_vroid 等待进程退出，restart_session 可显式启动新副本。'),
+        'Save first. return_to_main_menu accepts the current model token. When menu_ready is true, use its menu_token with create_from_menu or open_from_menu. A fresh profile can show InitialAgreements instead; finish its initial setup in VRoid before requesting another status. exit_vroid waits for graceful exit. restart_session explicitly starts a new copy.',
+        '先保存模型。return_to_main_menu 接收当前模型令牌；menu_ready 为真时，才能用 menu_token 新建或打开模型。新配置可能进入首次协议页面，请在 VRoid 完成初始设置后重新查看状态。exit_vroid 等待进程退出，restart_session 可显式启动新副本。'),
     'batch': (
         'run_batch executes ordered calls without rollback. Read each result and stopped_at before continuing. Never replay an uncertain edit.',
         'run_batch 按顺序执行且不回滚。检查每项结果与 stopped_at，遇到不确定状态时先检查模型，避免重复执行。'),

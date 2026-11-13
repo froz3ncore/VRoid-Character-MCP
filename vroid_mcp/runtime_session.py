@@ -47,7 +47,8 @@ def verified_window(pid):
 
 
 UNKNOWN_MODEL_FIELDS = dict.fromkeys(('active_screen', 'edit_root_active', 'model_open', 'file_path', 'dirty',
-                                      'model_type', 'model_variant', 'is_editing', 'can_undo', 'can_redo', 'menu_token'))
+                                      'model_type', 'model_variant', 'is_editing', 'can_undo', 'can_redo', 'menu_token',
+                                      'menu_ready', 'start_screen_mode'))
 DEADLINE = 30
 
 
@@ -158,7 +159,9 @@ class SessionTools:
         while time.monotonic() < deadline:
             status = await self._call('status')
             if op == 'return_to_main_menu':
-                if (status.get('menu_token') and status.get('model_open') is False
+                # A fresh profile can land on InitialAgreements. The return has
+                # completed, but no ModelSelection token may be issued there.
+                if (status.get('model_open') is False
                         and not status.get('model_ready') and status.get('active_screen') == 'VRoid.Studio.StartScreen.ViewModel'):
                     return status
             elif status.get('model_ready') and status.get('edit_root_active') is True:

@@ -487,9 +487,9 @@ globalThis.createParameterApi = H => {
         const selected = selectHairPart(m, category);
         const hair = m.root.method('get_HairEditor').invoke();
         const hairModel = hair.method('get_Model').invoke();
-        const types = [...selected.field('_categoryModel').value.field('transferableTypes').value];
-        if (types.length !== 1) throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
-        invokeManaged(hairModel, 'SetTransferableType', [types[0].handle]);
+        const types = hairCategoryBindings(m).find(binding => binding.category === category)?.types || [];
+        const nativeType=hairCategoryNativeType(hair,selected,category,types);
+        invokeManaged(hairModel, 'SetTransferableType', [Il2Cpp.string(nativeType).handle]);
         let design = hair.method('get_DesignEditor').invoke();
         if (design.handle.isNull()) {
             design = cached(m, 'hair-design', () => {
@@ -508,6 +508,19 @@ globalThis.createParameterApi = H => {
         }
         invokeManaged(design, 'UpdateLists');
         return design;
+    }
+
+    function hairCategoryNativeType(hair,selected,category,activeTypes) {
+        if(activeTypes.length===1)return activeTypes[0];
+        if(activeTypes.length>1)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        // Empty parts have no active leaf. Resolve their type from the native
+        // editor's own static part inventory, while checking the selected group.
+        const group=text(selected.field('_categoryModel').value.field('transferableGroupType').value);
+        if(group!=='TransferableGroupType.N00.Level1.'+category)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        const known=[...hair.class.field('s_allHairTransferableTypesExceptBaseHair').value].map(text);
+        const matches=known.filter(type=>type==='TransferableType.N00.'+category);
+        if(matches.length!==1)throw Error('HAIR_CATEGORY_TYPE_AMBIGUOUS');
+        return matches[0];
     }
 
     function hairNodeId(node) {
@@ -912,9 +925,22 @@ globalThis.createParameterApi = H => {
     }
 
     function hairCategoryBindings(m) {
+        const ownerTypes = new Map(), leafTypes = new Map();
+        const leaves = m.context.method('GetActiveLeafTransferables').invoke().method('get_Values').invoke();
+        for (const leaf of seq(leaves)) {
+            const owner = leaf.method('get_GroupId').invoke(), ownerId = text(owner);
+            if (!ownerTypes.has(ownerId)) {
+                const info = m.context.method('GetActiveTransferableGroupInfo').invoke(owner);
+                if (info.handle.isNull()) throw Error('HAIR_CATEGORY_OWNER_UNAVAILABLE');
+                ownerTypes.set(ownerId, text(info.method('get_Type').invoke()));
+            }
+            const groupType = ownerTypes.get(ownerId);
+            if (!leafTypes.has(groupType)) leafTypes.set(groupType, new Set());
+            leafTypes.get(groupType).add(text(leaf.method('get_Type').invoke()));
+        }
         return categories(m, 'hair').map(category => ({
             category: lastSegment(text(category.method('get_TranslationKey').invoke())),
-            types: seq(category.field('_categoryModel').value.field('transferableTypes').value).map(text),
+            types: [...(leafTypes.get(text(category.field('_categoryModel').value.field('transferableGroupType').value)) || [])],
         })).filter(binding => HAIR_PARTS.includes(binding.category));
     }
 
@@ -938,6 +964,14 @@ globalThis.createParameterApi = H => {
             normal: vector('<Normal>k__BackingField'),
             uv: ['x', 'y'].map(channel => uv.field(channel).value),
         };
+    }
+
+    function copyPoint(boxed) {
+        const value=boxed.unbox(),size=value.type.class.valueTypeSize;
+        if(!Number.isInteger(size)||size<32||size>256)throw Error('UNVERIFIED_CONTROL_POINT_LAYOUT');
+        const memory=Memory.alloc(size);
+        Memory.copy(memory,value.handle,size);
+        return new Il2Cpp.ValueType(memory,value.type);
     }
 
     function buildPoint(point, normal, uv) {
@@ -1069,7 +1103,7 @@ globalThis.createParameterApi = H => {
     }
 
     return {
-        hairGroupHelpers: {hairDesignEditor, hairNodeList, existingHairGroupProperty, hairCategoryBindings, seq, boxArgument, readPoint},
+        hairGroupHelpers: {hairDesignEditor, hairNodeList, existingHairGroupProperty, hairCategoryBindings, hairCategoryNativeType, seq, boxArgument, readPoint, copyPoint},
         operations: {
             list_parameters: listDomain,
             set_parameters: writeDomain,

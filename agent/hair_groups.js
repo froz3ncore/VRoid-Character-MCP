@@ -187,7 +187,9 @@ globalThis.createHairGroupNative = H => {
             if(!cp||cp.group!==id)throw Error('STALE_HAIR_POINT_SNAPSHOT');
             owned(s,cp.descriptor,cp.owner);
             return temporary(s,()=>{
-                const value=cp.boxed.unbox(),v=value.field('<Point>k__BackingField').value;
+                // The query may expose a box retained by existing history. Give
+                // the new command its own full value, including opaque fields.
+                const value=helpers.copyPoint(cp.boxed),v=value.field('<Point>k__BackingField').value;
                 ['x','y','z'].forEach((k,i)=>{v.field(k).value=Math.fround(point.point[i]);});
                 const command=pin(s,cls('VRoidCore','VRoidCore.Editing.History.Command.MoveBrushHairStrandControlPointCommand').alloc());
                 invokeManaged(command,'.ctor',[cp.path.handle,boxArgument('int',index),value.handle]);

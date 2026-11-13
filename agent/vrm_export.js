@@ -29,14 +29,20 @@ function createVrmExportApi({model, text, invokeManaged, retain, metadata}) {
         const {m,b}=expect(args),s=settings(b),mesh=get(s,'MeshReduction'),values={},choices={};
         for(const [key,name] of Object.entries(meshNames))values[key]=get(mesh,name);
         for(const [key,name] of Object.entries(settingNames))values[key]=get(s,name);
-        const bones=s.field('hairBoneReduction').value;
+        const bones=get(s,'hairBoneReduction');
         values.hair_bones=present(bones)?get(bones,'HairReductionStrength'):null;
         for(const [key,[name,value]] of Object.entries(choiceNames)) {
             const list=get(s,name),items=[];
             if(present(list))for(let index=0;index<get(list,'Count');index++){
                 const item=list.method('get_Item').invoke(index),native=get(item,value);
-                const serialized=native && typeof native.method==='function'
-                    ? text(native.method('ToString').invoke()) : String(native);
+                // Enum getters return unboxed value types through the bridge.
+                // System.Enum.ToString requires a managed boxed receiver.
+                const boxed=native && typeof native.box==='function'?native.box():native;
+                const hold=boxed!==native?retain(boxed):null;
+                let serialized;
+                try { serialized=boxed && typeof boxed.method==='function'
+                    ? text(boxed.method('ToString').invoke()) : String(boxed); }
+                finally { if(hold)hold.free(); }
                 items.push({index,name:text(get(item,'TranslatedDisplayName')),value:serialized});
             }
             choices[key]=items;
@@ -75,7 +81,7 @@ function createVrmExportApi({model, text, invokeManaged, retain, metadata}) {
         if(args.stage==='mesh')for(const [key,name] of Object.entries(meshNames))if(key in options)set(get(s,'MeshReduction'),name,options[key]);
         if(args.stage==='material') {
             if('hair_bones' in options) {
-                const bones=s.field('hairBoneReduction').value;
+                const bones=get(s,'hairBoneReduction');
                 if(present(bones))set(bones,'HairReductionStrength',options.hair_bones);
             }
             for(const key of ['combine_hair','material_mode'])if(key in options)set(s,settingNames[key],options[key]);

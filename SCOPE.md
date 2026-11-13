@@ -1,5 +1,7 @@
 # SCOPE — 工具层范围与验收状态（0.5.0.dev0）
 
+2026-11-13 PR #1 已做[部分本地实机验收并修复原生绑定问题](docs/native-evidence/2026-11-13-pr1-acceptance.md)：签名独立版 2.14／2.16、F00／M00 附着各 27 项、部分新增编辑和冷重开通过。自定义物品应用、情境缩略图成功发布、完成初始设置后的菜单流程及新增中断路径仍有验收门槛；不能将 145 个工具都视为已实机通过。PR 尚未合并。
+
 本分支在上游 **0.5.0.dev0 开发快照**（npm 为 `0.5.0-dev.0`）上迁移 mcjo79 的能力，没有创建新的稳定版或发布标签。代码采用 MIT；第三方许可与来源独立保留。此 fork 的新增功能、限制和验证状态见[迁移对照表](MIGRATION.md)；当前提供 [145 个 MCP 工具](tools/TOOLS.md)，其中包含基线的全部 103 个接口，以及服装模板列表与叠加。`tools/list` 返回当前服务实际提供的工具和参数。
 
 2026-10-20 的 0.4.1 独立实现有 86 个工具。上游此后依次增加到 92、94、99 个；添加 `rename_texture_layer`、`delete_texture_layer`、`reorder_texture_layers`、`set_texture_layer_blend` 后，达到迁移前的 103 个。当时保留了原有 99 个工具的输入 schema，基线哈希为 `sha256:3b47ec7ac16f35281107105113d22416f19bf94e5afacfe6bd80f4f379537e5d`。历史记录见 CHANGELOG.md／REWRITE.md。

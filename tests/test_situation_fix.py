@@ -14,6 +14,16 @@ from test_preset_previews import png
 from vroid_mcp.preset_catalog import PresetCatalog
 
 
+@pytest.mark.parametrize('level,slot', [(1,'FaceShape'),(1,'FixedPreset'),(2,'EyeSurrounding')])
+def test_native_required_face_slots_are_retained_with_exact_namespace(level,slot):
+    from vroid_mcp.runtime_situation import _slot_policy
+    row=group('native-required',slot,False)
+    row['type']=f'TransferableGroupType.N00.Level{level}.{slot}'
+    assert _slot_policy(row)=='keep'
+    row['type']='foreign.'+row['type']
+    with pytest.raises(ValueError,match='UNKNOWN_SLOT_POLICY'):_slot_policy(row)
+
+
 @pytest.mark.parametrize('at',['remove_group','screenshot'])
 def test_snapshot_generation_is_pinned_before_destructive_work_and_released(tmp_path,at):
     if os.name!='nt':pytest.skip('Windows sharing')

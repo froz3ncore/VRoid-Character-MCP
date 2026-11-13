@@ -29,15 +29,20 @@ def paired_control(rows, negative, positive, group):
 
 async def solve(runtime, expected, height, weight, variant):
     args = {'expected_model': expected}
+    status = await runtime._call('status', args)
+    if status.get('model_token') != expected:
+        raise ValueError('STALE_MODEL')
+    if status.get('model_variant') != variant:
+        raise ValueError('SILHOUETTE_VARIANT_MISMATCH')
     body = await runtime._call('list_body_params', args)
     if body.get('model_token') != expected:
         raise ValueError('STALE_MODEL')
     rows = body['parameters']
     gender = {'F00': 'Female', 'M00': 'Male'}[variant]
-    # Exact gender-specific editable pair is the variant evidence. Both halves
-    # must exist and be editable on this actual model; no Female fallback.
+    # Both gender controls can be editable on either fixture. Confirm the native
+    # model variant above, then bind the observed negative/positive roles.
     scale = paired_control(rows, 'Level2WholeBody_WholeBodyScaleShrink', 'Level2WholeBody_WholeBodyScaleMag', 'WholeBody')
-    figure = paired_control(rows, 'Level2WholeBody_FigureSlender' + gender, 'Level2WholeBody_FigureHeight' + gender, 'WholeBody')
+    figure = paired_control(rows, 'Level2WholeBody_FigureHeight' + gender, 'Level2WholeBody_FigureSlender' + gender, 'WholeBody')
     waist = paired_control(rows, 'Level2Waist_WaistScaleShrink', 'Level2Waist_WaistScaleMag', 'Waist')
     selected = [scale, figure, waist]
     if len({row['id'] for row in selected}) != 3 or any(not finite(row.get('value')) for row in selected):
@@ -88,7 +93,7 @@ async def solve(runtime, expected, height, weight, variant):
                 return dict(ok=True, model_token=expected, target_cm=height, measured_cm=measured,
                     samples=samples, written=written, readback=[row for row in actual['parameters']
                     if row['id'] in {r['id'] for r in selected}], variant=variant,
-                    variant_evidence='exact editable gender-specific native paired binding',
+                    variant_evidence='native model variant and exact gender-specific negative/positive binding',
                     weight_is_heuristic=weight is not None, bmi=bmi, waist_coefficient=coefficient,
                     weight_convention='source BMI waist heuristic; not measured body mass',
                     measurement='VRoid native GetBodyHeight (live)', settled=True)

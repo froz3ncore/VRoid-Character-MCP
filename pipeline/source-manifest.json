@@ -1,8 +1,8 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Native binaries, model assets and generated renders stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 497,
- "total_bytes": 3505409,
+ "file_count": 498,
+ "total_bytes": 3528366,
  "tool_count": 145,
  "toolset_hash": "sha256:a20221b7ac83b6a2895d913ae3f5e9def862c4ecf4ad1ffc70c181db52485f94",
  "files": [
@@ -28,8 +28,8 @@
   },
   {
    "path": "CHANGELOG.md",
-   "bytes": 20504,
-   "sha256": "584f8c70cacfe6995e50696073759e05af8651349d2144042277111e4f81ac87"
+   "bytes": 20752,
+   "sha256": "725efa85b498a5035b520fc6f9e0f1ba3d3adcf9d0040c7d51ebc651dca9ad11"
   },
   {
    "path": "LICENSE",
@@ -38,13 +38,13 @@
   },
   {
    "path": "LICENSING.md",
-   "bytes": 5415,
-   "sha256": "db1824abea3941b831aa397bbd2dba69d895b73f6ff6d9ba3926179b503be9a8"
+   "bytes": 5581,
+   "sha256": "1822425b1dd99d442faae703330e6dca73f3ae7b5f3e6e685e1fbbce65cc98b1"
   },
   {
    "path": "MIGRATION.md",
-   "bytes": 61217,
-   "sha256": "df08e8b8af65166488ce5450b04005a4689aedb7c79727c3680ab23d423343ae"
+   "bytes": 61567,
+   "sha256": "297f1d8e8981c5106713655565146ae858f681bb393d03a9b1b267395bca8ff3"
   },
   {
    "path": "NOTICE",
@@ -88,8 +88,8 @@
   },
   {
    "path": "SCOPE.md",
-   "bytes": 8214,
-   "sha256": "7a34ed68cb5c5b4bfd7527d23073bfaaf791ca117542fe23a748e7078ebc2c67"
+   "bytes": 8644,
+   "sha256": "f4ab267b9a59f1b25b38797585c7a8ae4da0b613cb9b88957980e1d2969cfe6d"
   },
   {
    "path": "TEXTURE_LAYERS.md",
@@ -178,8 +178,8 @@
   },
   {
    "path": "agent/hair_groups.js",
-   "bytes": 27996,
-   "sha256": "86e941b0045ea7897b474e14247bfb69df017067953ea3becb8d8dd88f6e642b"
+   "bytes": 28168,
+   "sha256": "96754a6c52cecda0ad4a00793f4361ba30c2a2fb7c8ea45ea2cfabefcf9510a4"
   },
   {
    "path": "agent/hair_procedural.js",
@@ -193,8 +193,8 @@
   },
   {
    "path": "agent/main_thread.js",
-   "bytes": 17767,
-   "sha256": "86b62f13ef5fb735c8d044275cc54dd08a099f133e5ac801b83a11e11c92401b"
+   "bytes": 17953,
+   "sha256": "441334d198f140b632f89441fe79c07dc7b6c6f1fd0dc6b6698a272a7fcefe20"
   },
   {
    "path": "agent/native_png_decoder.js",
@@ -223,8 +223,8 @@
   },
   {
    "path": "agent/parameters.js",
-   "bytes": 81919,
-   "sha256": "9d323630e3bf1dc020188f6869efb354e6c7eb9a690530183c9352390ba43104"
+   "bytes": 84085,
+   "sha256": "dc941f7b4ebd30765ec77fff75e07e04c6ccd5ad4172a308972ccd5d6a074574"
   },
   {
    "path": "agent/photo_capture.js",
@@ -248,8 +248,8 @@
   },
   {
    "path": "agent/session_workflows.js",
-   "bytes": 7920,
-   "sha256": "1a933adc73c4ec5e87450159e31bbcfc8647470704f83d7c619e1c1b8209a9d8"
+   "bytes": 8266,
+   "sha256": "36309e02b1af07d16c724387423597f4511ebe4b13dbc3aeab60fcd55c283d0c"
   },
   {
    "path": "agent/shoe_templates.js",
@@ -263,13 +263,13 @@
   },
   {
    "path": "agent/texture_native.js",
-   "bytes": 7072,
-   "sha256": "17d8b6ab3d726258cbc8c50d97a39c1d627af9ae77af19204ecc5c1acaec5b0a"
+   "bytes": 7694,
+   "sha256": "f1806070b9f04a71f7b79229373106b5dcfd0545eafc3c481095d11427c98746"
   },
   {
    "path": "agent/texture_pixels.js",
-   "bytes": 2046,
-   "sha256": "3b8ed2c416e620cb9032a725dd7eadf083ee0647651260b410797a944cb1b497"
+   "bytes": 2135,
+   "sha256": "70056da2b4a1439da431b897c21b938e819ef2f6b1de1c744345ee47acaa1f5b"
   },
   {
    "path": "agent/textures.js",
@@ -278,8 +278,8 @@
   },
   {
    "path": "agent/vrm_export.js",
-   "bytes": 9742,
-   "sha256": "0088bbc21662ea0d7c7a9a7df4e71165454688ba308469dae4fd78ce71f0188a"
+   "bytes": 10111,
+   "sha256": "78c47d15db7fac40b8c8e73a92e1658ffda20d4a4878237a06b59aed5ae88138"
   },
   {
    "path": "agent/wear.js",
@@ -302,9 +302,14 @@
    "sha256": "2a8fc810e04d5f75cd004d31165aec2ac0bafcce57d9fcae014daa13fecd63d0"
   },
   {
+   "path": "docs/native-evidence/2026-11-13-pr1-acceptance.md",
+   "bytes": 10315,
+   "sha256": "22d3073fdba90bbe67a15c48678a4cf667afd1a9a93d465bb51c270fc3d5ad98"
+  },
+  {
    "path": "docs/superpowers/native-migration-acceptance.md",
-   "bytes": 13398,
-   "sha256": "4162cd410e86a4ed36e320bd523ac93dfcac4272909a4cb0e0cc90bdefb86b82"
+   "bytes": 13484,
+   "sha256": "1469278ec51ad1aeb31a31451777e3d603631d85cdd642de16375cec4fd526ec"
   },
   {
    "path": "docs/superpowers/plans/2026-11-06-mcjo79-migration.md",
@@ -1158,8 +1163,8 @@
   },
   {
    "path": "tests/build_version_test.js",
-   "bytes": 2026,
-   "sha256": "0f11689a84845ec2c04afb78f53bba04923e400837f7e0ca9c02082fce50724e"
+   "bytes": 3614,
+   "sha256": "92dfa867d9089da606c600f1b4cf6710e7ce7896e1ea24868fc78efe7a109499"
   },
   {
    "path": "tests/capture_framing_acceptance.py",
@@ -1283,13 +1288,13 @@
   },
   {
    "path": "tests/hair_groups_native_test.js",
-   "bytes": 6876,
-   "sha256": "e184d9f608e9a89a1ccc534e1f1009dba2acc80cc580494887495b48fe84c3a8"
+   "bytes": 7489,
+   "sha256": "b3780dabd956261db5420f4ece26d37605db86716395d350ffafab5be3528b3e"
   },
   {
    "path": "tests/hair_groups_ownership_test.js",
-   "bytes": 9502,
-   "sha256": "ebdb04f42c2e2cb25cd5f0c1ece6bdbe2c5c3432ab37f4890b85413efb8a2016"
+   "bytes": 9533,
+   "sha256": "6b6ef20dfa49af945af5fb52e8211e4b44fd835358b8c287250c1a7678cd2803"
   },
   {
    "path": "tests/hair_groups_test.js",
@@ -1338,8 +1343,8 @@
   },
   {
    "path": "tests/parameter_adapter_test.js",
-   "bytes": 4034,
-   "sha256": "ce85b88eb95ad81a16bc642cb49491910df315c50e914347973d1651874c41b9"
+   "bytes": 5328,
+   "sha256": "bc2afc16cc20408195b856ce5fa33a4e08bce60d1fecefbaa323ff3fa804a1ad"
   },
   {
    "path": "tests/parameter_semantics_acceptance.py",
@@ -1383,8 +1388,8 @@
   },
   {
    "path": "tests/session_workflows_test.js",
-   "bytes": 5170,
-   "sha256": "d17055790c83cf97cb906a4efffc43c9da7090c5760a6edf46ee1a94436f13db"
+   "bytes": 5569,
+   "sha256": "0a8332317698dbc3698a3f9988bf2ddc5ac1b7d0e100cbcb78933bd2f6ab716a"
   },
   {
    "path": "tests/shoe_templates_test.js",
@@ -1518,8 +1523,8 @@
   },
   {
    "path": "tests/test_groups.py",
-   "bytes": 26452,
-   "sha256": "21f71dface09a4acc546fa6e4f1c91397d51809ec126d5a45a142ea42fd5e6d0"
+   "bytes": 27142,
+   "sha256": "7e8d8da62b35196d8569ee57bdaf50019a6c69168eb86aa9f6943c058fc84522"
   },
   {
    "path": "tests/test_hair_build_identity.py",
@@ -1623,8 +1628,8 @@
   },
   {
    "path": "tests/test_session_workflows.py",
-   "bytes": 14136,
-   "sha256": "39b89ecb39180514d16d51db6b25ef97726f3fb0f32575ed961434db2b34b487"
+   "bytes": 14711,
+   "sha256": "5c4526a29f5c8db455e5d1959c9895e00d10f4bf7a85f234ac8eee46d8f7219b"
   },
   {
    "path": "tests/test_shoe_templates.py",
@@ -1633,8 +1638,8 @@
   },
   {
    "path": "tests/test_situation_fix.py",
-   "bytes": 25598,
-   "sha256": "2ac60f9607d3a7c18300b0ae4d6761d406d02b392d87baa5cdce30add27c9d17"
+   "bytes": 26103,
+   "sha256": "3dc0111ae6ed22b10550c65823f59449cbc52e386f64a5c5e889e852c0e20e1e"
   },
   {
    "path": "tests/test_situation_gallery.py",
@@ -1763,8 +1768,8 @@
   },
   {
    "path": "tests/texture_pixels_test.js",
-   "bytes": 3167,
-   "sha256": "11aa834fb3e89201d058d612577e93ab24b54bb88ed5b073219d5f04dd7aa057"
+   "bytes": 3847,
+   "sha256": "b311d1b2e6f915ba5e3746d0844db987e2d0efc25ae1b8929b1273bdb9ff7be7"
   },
   {
    "path": "tests/textured_wear_acceptance.py",
@@ -1773,8 +1778,8 @@
   },
   {
    "path": "tests/vrm_export_test.js",
-   "bytes": 10660,
-   "sha256": "07c1e483df0bc5ffba778051673f8870f68a0d2225f11e5fdfd95395762000e7"
+   "bytes": 10942,
+   "sha256": "026e5d1c097d091a4c471cc781cad709f08bcc68313c4e081ff469add0cc68d4"
   },
   {
    "path": "tests/wear_stdio_acceptance.py",
@@ -2313,13 +2318,13 @@
   },
   {
    "path": "vroid_mcp/runtime_session.py",
-   "bytes": 8419,
-   "sha256": "8b2045bfb49b42b7b22b46c825f5297760a7758bdc205a97c8d2e807e357df44"
+   "bytes": 8621,
+   "sha256": "056ecc5cfd3f37e0e183b3cec518d328bc4c2200263feff825bfc3d588a2c51b"
   },
   {
    "path": "vroid_mcp/runtime_situation.py",
-   "bytes": 25867,
-   "sha256": "735b8e5cbec7e0cd47050dd0e7f7060eb4814943d9cd83b649df7230ca89ce8e"
+   "bytes": 25910,
+   "sha256": "a096cfb7e716d13ba46c09f0a02f9ca922e14a746907cdd089c3ed07031b414b"
   },
   {
    "path": "vroid_mcp/runtime_textures.py",
@@ -2338,8 +2343,8 @@
   },
   {
    "path": "vroid_mcp/silhouette.py",
-   "bytes": 7419,
-   "sha256": "873486e3fadf4d312a2964b1025626333ca1d68fca1baaeb0e27645d01366e08"
+   "bytes": 7679,
+   "sha256": "f2373e8b219e250c8ee25f91cd6b03e782d13544fc6400f0ad6c5e8411704593"
   },
   {
    "path": "vroid_mcp/situation_proof.py",
@@ -2423,8 +2428,8 @@
   },
   {
    "path": "vroid_mcp/tools_help.py",
-   "bytes": 3153,
-   "sha256": "2807be2d5503f5e162641b966f604e18f70fd0f4936f86c37f240b1359a9081a"
+   "bytes": 3403,
+   "sha256": "5e261baf474e0a4d07329e25031cd7e8711bb8345b2be97b3cd3efed4c315e2d"
   },
   {
    "path": "vroid_mcp/tools_ordinary.py",

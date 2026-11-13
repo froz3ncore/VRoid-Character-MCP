@@ -1,7 +1,9 @@
 # Licensing and project ancestry
 
-This [BunnyBlack fork](https://github.com/BunnyBlack/VRoid-Character-MCP) adapts
-the [froz3ncore VRoid Character MCP](https://github.com/froz3ncore/VRoid-Character-MCP).
+This is [froz3ncore VRoid Character MCP](https://github.com/froz3ncore/VRoid-Character-MCP).
+The community capability migration incorporates MIT-licensed work from the
+[BunnyBlack fork](https://github.com/BunnyBlack/VRoid-Character-MCP), originally
+adapted from mcjo79, and from shamsievartyom. Pinned sources and notices follow below.
 
 ## Status: reimplementation complete
 

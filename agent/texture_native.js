@@ -59,10 +59,17 @@ globalThis.createNativeTextureExtensions=H=>{
    if(!inventory.membership_complete||!inventory.groups.some(g=>g.id===r.key&&g.active===true))throw Error('ACTIVE_GROUP_MEMBERSHIP_REQUIRED');}
   const rows=layerRows(m,r).filter(row=>JSON.stringify(row.data.image)===args.image_id),row=rows.find(row=>row.data.layer_id===args.layer_id);
   if(!row)throw Error('EXACT_IMAGE_IDENTITY_REQUIRED');return {region_id:r.key,row,rows};
- },snapshot:rasterSnapshot,requireFlat:(m,row)=>{
+ },retainRow:row=>retain(row.path),snapshot:rasterSnapshot,requireFlat:(m,row)=>{
   const image=row.path.method('get_EditableImagePath').invoke(),root=m.context.method('get_ActiveModel').invoke().method('GetEditableImage').invoke(image).method('get_RootLayerGroup').invoke();
   if(seq(root.method('get_Children').invoke()).some(child=>String(child.method('get_LayerTreeType').invoke())!=='RasterLayer'))throw Error('NATIVE_LAYER_GROUP_UNSUPPORTED');
- },decodeRgba:value=>{const bytes=base64Bytes(value);return new Uint8Array(bytes.elements.handle.readByteArray(bytes.length));},
+ },decodeRgba:(value,width,height)=>{
+  const bytes=base64Bytes(value);
+  if(bytes.length!==width*height*4)throw Error('PNG_DIMENSION_MISMATCH');
+  // Python's decoded PNG rows start at the top. ComposeTiles and the native
+  // PNG decoder's flip=true route use bottom-up rows. Compare in native order.
+  const source=new Uint8Array(bytes.elements.handle.readByteArray(bytes.length));
+  return textureNativeRows(source,width,height);
+ },
  decode:value=>{
   const bytes=base64Bytes(value),yes=Memory.alloc(1);yes.writeU8(1);const w=scalar('int',0),h=scalar('int',0);
   const decoded=invokeStatic(cls('VRoidCore','VRoidCore.Common.PNGUtil'),'LoadPNGToRGBABytes',[bytes.handle,yes,w,h]),hold=retain(decoded);
@@ -77,8 +84,15 @@ globalThis.createNativeTextureExtensions=H=>{
    for(let i=0;i<rgba.length;i++)floats[i]=rgba[i]/255;pixels.elements.handle.writeByteArray(floats.buffer);
    const size=Memory.alloc(8);size.writeS32(width);size.add(4).writeS32(height);
    const command=cls('VRoidCore','VRoidCore.Editing.History.Command.LoadImageToEditableImageRasterLayerCommand').alloc();commandHold=retain(command);
-   invokeManaged(command,'.ctor',[row.path.handle,size,pixels.handle]);invokeManaged(m.context,'ExecuteSyncCommand',[command.handle]);
+   const path=row.path.class.isValueType?row.path.unbox():row.path;
+   invokeManaged(command,'.ctor',[path.handle,size,pixels.handle]);invokeManaged(m.context,'ExecuteSyncCommand',[command.handle]);
   }finally{if(commandHold)commandHold.free();pixelsHold.free();}
  },frame:()=>state.frame});
  return {materialApi,rasterApi,rasterSnapshot};
 };
+
+function textureNativeRows(source,width,height){
+ const stride=width*4,out=new Uint8Array(source.length);
+ for(let y=0;y<height;y++)out.set(source.subarray(y*stride,(y+1)*stride),(height-1-y)*stride);
+ return out;
+}

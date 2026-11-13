@@ -1,6 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 vm.runInThisContext(fs.readFileSync('agent/texture_layers.js','utf8'));
 vm.runInThisContext(fs.readFileSync('agent/texture_pixels.js','utf8'));
+vm.runInThisContext(fs.readFileSync('agent/texture_native.js','utf8'));
+// PNG decode in Python is top-down; native ComposeTiles uses the opposite rows.
+const rows=Uint8Array.from([1,2,3,4,5,6,7,8]);
+assert.deepEqual([...textureNativeRows(rows,1,2)],[5,6,7,8,1,2,3,4]);
+assert.deepEqual([...textureNativeRows(textureNativeRows(rows,1,2),1,2)],[...rows]);
 function setup(){
  let bytes=[1,2,3,4],metadata={layer_id:'["t","i","n"]',Name:'Kept',Opacity:.5,Visibility:false,CompositionMode:'Normal'},commands=[],undo=[],redo=[];
  const image={transferable_id:'t',image_id:'i'},row={data:{...metadata,image}},model={token:'m'};
@@ -14,6 +19,13 @@ function setup(){
  return {api,args,commands,change:()=>bytes[0]++,rename:()=>row.data.Name='Changed',row,get bytes(){return bytes;},
   undo(){commands.push('UndoAsync');redo.push([...bytes]);bytes=undo.pop();},
   redo(){commands.push('RedoAsync');undo.push([...bytes]);bytes=redo.pop();}};
+}
+{
+ const fixture=setup();let retained=0;
+ const api=createRasterReplacementApi({...fixture.api.driver,retainRow:()=>{
+  retained++;return {free(){retained--;}};
+ },decode:()=>{assert.equal(retained,1);throw Error('decode failed');}});
+ assert.throws(()=>api.replace(fixture.args),/decode failed/);assert.equal(retained,0);
 }
 let s=setup();s.change();assert.throws(()=>s.api.replace(s.args),/STALE_LAYER_CONTENT/);assert.equal(s.commands.length,0);
 s=setup();s.rename();assert.throws(()=>s.api.replace(s.args),/STALE_LAYER_STACK/);assert.equal(s.commands.length,0);

@@ -16,10 +16,12 @@ function createSessionWorkflows({main, model, ui, retain, sessionTag, invalidate
         const s = ui();
         const active = screen.handle.isNull() ? null : screen.class.type.name;
         const blocked = !active || s.dialog || s.notification || s.progress_locked || s.popup_blocked;
-        let window = null;
+        let window = null, startMode = null;
         if (active === home && !blocked && file.handle.isNull() && nativeProfile()?.session &&
                 screen.method('get_MainViewModel').invoke().handle.equals(vm.handle)) {
             const mode = screen.method('get_StartScreenMode').invoke();
+            const value=mode.field('value__').value, type=mode.class || mode.type.class;
+            startMode=type.fields?.find(f=>f.isStatic && (typeof f.value==='number'?f.value:f.value.field('value__').value)===value)?.name || String(value);
             const selection = (mode.class || mode.type.class).field('ModelSelection').value;
             if (mode.field('value__').value === selection.field('value__').value) window = windowIdentity();
         }
@@ -30,10 +32,10 @@ function createSessionWorkflows({main, model, ui, retain, sessionTag, invalidate
             invalidateModel();
             menu = {window, screen, rev, pin:retain(screen), token:sessionTag + ':menu:' + ++generation};
         }
-        return {vm, screen, file, s, active, blocked};
+        return {vm, screen, file, s, active, blocked, startMode};
     }
     function view() {
-        const {file, s, active, screen} = inspect();
+        const {file, s, active, screen, startMode} = inspect();
         let rootActive = false;
         if (active === edit) {
             try { rootActive = model().root.handle.equals(screen.handle); }
@@ -41,7 +43,8 @@ function createSessionWorkflows({main, model, ui, retain, sessionTag, invalidate
         }
         return {active_screen:active, model_open:!file.handle.isNull(), file_path:s.file_path,
             edit_root_active:rootActive,
-            dirty:file.handle.isNull() ? null : s.unsaved, menu_token:menu?.token || null};
+            dirty:file.handle.isNull() ? null : s.unsaved, menu_token:menu?.token || null,
+            menu_ready:!!menu, start_screen_mode:startMode};
     }
     function verify(name, args, dispatching) {
         if (!nativeProfile()?.session) throw Error('UNVERIFIED_SESSION_CALLBACKS');

@@ -145,13 +145,14 @@ def test_silhouette_uses_exact_pair_and_live_feedback(tmp_path):
     controls = {'scale': .2, 'figure': 0., 'waist': -.1}
     rows = [binding(id, **{'semantic_bindings': [{'key': key} for key in keys]}) for id, keys in [
         ('scale', ['Level2WholeBody_WholeBodyScaleShrink', 'Level2WholeBody_WholeBodyScaleMag']),
-        ('figure', ['Level2WholeBody_FigureSlenderFemale', 'Level2WholeBody_FigureHeightFemale']),
+        ('figure', ['Level2WholeBody_FigureHeightFemale', 'Level2WholeBody_FigureSlenderFemale']),
         ('waist', ['Level2Waist_WaistScaleShrink', 'Level2Waist_WaistScaleMag'])]]
     for row in rows: row.update(value=controls[row['id']], binding_keys=[row['id']])
     for row in rows:
         row.update(type='CombinedBoneTransformParameterViewModel', semantic_kind='combined',
             semantic_group='TransferableGroupType.N00.Level1.' + ('Waist' if row['id'] == 'waist' else 'WholeBody'))
     async def call(op, args):
+        if op == 'status': return {'model_token':'live','model_variant':'F00'}
         if op == 'list_body_params': return {'model_token': 'live', 'parameters': rows}
         if op == 'get_height': return {'live_centimeters': 160 + 20*controls['figure']}
         if op == 'set_body_params':
@@ -221,13 +222,14 @@ def test_silhouette_restores_after_nonconvergence_and_reports_failed_restoration
         rows = []
         for id, keys, group in [
             ('scale',['Level2WholeBody_WholeBodyScaleShrink','Level2WholeBody_WholeBodyScaleMag'],'WholeBody'),
-            ('figure',['Level2WholeBody_FigureSlenderFemale','Level2WholeBody_FigureHeightFemale'],'WholeBody'),
+            ('figure',['Level2WholeBody_FigureHeightFemale','Level2WholeBody_FigureSlenderFemale'],'WholeBody'),
             ('waist',['Level2Waist_WaistScaleShrink','Level2Waist_WaistScaleMag'],'Waist')]:
             rows.append(dict(id=id,value=controls[id],min=-1,max=1,editable=True,
                 type='CombinedBoneTransformParameterViewModel',semantic_kind='combined',
                 semantic_group='TransferableGroupType.N00.Level1.'+group,
                 semantic_bindings=[{'key':key} for key in keys]))
         async def call(op,args):
+            if op == 'status': return dict(model_token='live',model_variant='F00')
             if op == 'list_body_params': return dict(model_token='live',parameters=rows)
             if op == 'get_height': return dict(live_centimeters=160)
             if op == 'set_body_params':
@@ -248,6 +250,17 @@ def test_silhouette_refuses_binding_in_unrelated_group(tmp_path):
     row = dict(semantic_bindings=[{'key':'negative'},{'key':'positive'}],editable=True,min=-1,max=1,
                semantic_group='unrelated',semantic_kind='combined',type='CombinedBoneTransformParameterViewModel')
     with pytest.raises(ValueError): paired_control([row],'negative','positive','WholeBody')
+
+
+@pytest.mark.parametrize('observed', ['M00', None])
+def test_silhouette_refuses_wrong_or_unknown_native_variant_before_write(tmp_path, observed):
+    runtime=subject(tmp_path)
+    async def call(op,args):
+        assert op=='status'
+        return dict(model_token='live',model_variant=observed)
+    runtime._call=call
+    with pytest.raises(ValueError,match='VARIANT_MISMATCH'):
+        asyncio.run(runtime.set_body_size('live',170,variant='F00'))
 
 
 def test_preset_search_owned_default_and_explicit_preserve_delegation(tmp_path):
@@ -320,7 +333,7 @@ def test_silhouette_partial_command_settles_before_restoration(tmp_path):
     runtime=subject(tmp_path)
     rows=[]
     for id,keys,group in [('scale',['WholeBodyScaleShrink','WholeBodyScaleMag'],'WholeBody'),
-        ('figure',['FigureSlenderFemale','FigureHeightFemale'],'WholeBody'),
+        ('figure',['FigureHeightFemale','FigureSlenderFemale'],'WholeBody'),
         ('waist',['WaistScaleShrink','WaistScaleMag'],'Waist')]:
         rows.append(dict(id=id,value=0.,min=-1,max=1,editable=True,type='CombinedBoneTransformParameterViewModel',
             semantic_kind='combined',semantic_group='TransferableGroupType.N00.Level1.'+group,
@@ -330,6 +343,7 @@ def test_silhouette_partial_command_settles_before_restoration(tmp_path):
         events.append(('settle',args))
         return {'model_token':'live'}
     async def call(op,args):
+        if op=='status': return dict(model_token='live',model_variant='F00')
         if op=='list_body_params': return dict(model_token='live',parameters=rows)
         if op=='set_body_params':
             if len(args['changes'])==2:
