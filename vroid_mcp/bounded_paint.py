@@ -73,8 +73,9 @@ def describe_mask(width,height,mask):
     components.sort(key=lambda c:c['pixels'],reverse=True)
     return {'pixels':sum(c['pixels'] for c in components),'component_count':len(components),'components':components[:64],'coordinate_system':'Normalized canvas x-right/y-down, origin top-left. These are not world coordinates or Unity UV.'}
 
-def validate_marks(marks):
-    if not isinstance(marks,list) or not 1<=len(marks)<=32:raise ValueError('Use 1..32 marks')
+def validate_marks(marks, limit=32):
+    if not isinstance(limit,int) or not 1<=limit<=400:raise ValueError('Invalid mark limit')
+    if not isinstance(marks,list) or not 1<=len(marks)<=limit:raise ValueError(f'Use 1..{limit} marks')
     normalized=[]
     def number(x,lo,hi):
         if isinstance(x,bool) or not isinstance(x,(int,float)) or not math.isfinite(x) or not lo<=x<=hi:raise ValueError('Mark parameter is outside its finite validated range')
@@ -92,9 +93,9 @@ def validate_marks(marks):
             'rotation_deg':number(mark.get('rotation_deg',0),-180,180),'hardness':number(mark.get('hardness',0),0,1),'color':[number(v,0,1) for v in color],'mirror_x':mirror})
     return normalized
 
-def render_marks(width,height,mask,marks):
+def render_marks(width,height,mask,marks,limit=32):
     if not 1<=width<=4096 or not 1<=height<=4096 or width*height>MAX_PIXELS or len(mask)!=width*height:raise ValueError('Invalid measured mask dimensions')
-    marks=validate_marks(marks);plans=[];work=0;dabs_total=0
+    marks=validate_marks(marks,limit);plans=[];work=0;dabs_total=0
     for mark in marks:
         radius=mark['radius']*min(width,height);rx=radius*mark['aspect'];ry=radius;angle=math.radians(mark['rotation_deg']);cs=math.cos(angle);sn=math.sin(angle)
         ex=abs(rx*cs)+abs(ry*sn)+1;ey=abs(rx*sn)+abs(ry*cs)+1;points=[(p[0]*width,p[1]*height) for p in mark['points']];dabs=[points[0]]

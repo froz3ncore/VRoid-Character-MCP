@@ -14,7 +14,7 @@ managed API 操作角色參數、貼圖與局部妝造、髮束、換裝組裝�
 此 fork 的 [mcjo79 遷移對照表](MIGRATION.md)逐項列出 53 個來源工具的對應功能、測試與限制。既有原生測試是上游基線的歷史紀錄；遷移功能的實機操作、儲存後重開、匯出及畫面效果，仍須在相容的獨立副本中按[實機驗收清單](docs/superpowers/native-migration-acceptance.md)分別驗證。
 角色美術是另一條工作線。範圍見 [SCOPE.md](SCOPE.md)。
 
-目前提供 [145 個工具](tools/TOOLS.md)，保留遷移前的 103 個介面，並增加服裝模板列表與疊加。`get_help` 接受 `{"topic":"migration","language":"zh"}`，可離線查閱對照表。從 `return_to_main_menu` 取得 `menu_token`，以 `expected_menu` 傳給 `create_from_menu` 或 `open_from_menu` 即可在同一程序繼續操作。
+目前提供 [157 個工具](tools/TOOLS.md)，保留遷移前的 103 個介面，並增加服裝模板、身體彩繪、雀斑、痣和足甲上色。範圍見 [BODY_PAINT.md](BODY_PAINT.md)。`get_help` 接受 `{"topic":"migration","language":"zh"}`，可離線查閱對照表。從 `return_to_main_menu` 取得 `menu_token`，以 `expected_menu` 傳給 `create_from_menu` 或 `open_from_menu` 即可在同一程序繼續操作。
 
 連線後可向 `get_preset_framing` 傳入 `{"category":"Clothing/Tops"}` 查看上衣的預設取景，不會啟動 VRoid。`search_preset_cache` 查詢本機目錄，首次在相容副本執行 `sync_preset_cache` 前，搜尋結果可能為空。同槽服裝可用 `list_clothing_templates` 與 `add_clothing_template` 由內向外疊層。
 

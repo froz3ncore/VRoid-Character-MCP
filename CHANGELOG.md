@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — body paint
+
+- Added BodySkin UV masks, clipped marks, PNG decals, seeded freckles, moles, and a Foot-only toenail inspection/color path. Shared UV is reported and is not treated as independent left/right edits. Toenails that are not isolated caps are refused instead of guessed. Fingernails stay on `export_nail_uv_map`. New pixels are one native layer; the model is not saved and caller PNGs are not rewritten. Live VRoid acceptance is documented in BODY_PAINT.md and was not run for this change.
+
 ## Unreleased — community fork capabilities
 
 - Adopted the mcjo79 capability migration from BunnyBlack `feat/mcjo79-capability-migration` (`c19aeff`). [MIGRATION.md](MIGRATION.md) maps the 53 source operations. New areas include group and garment controls, native texture and hair edits, camera capture, VRM export options, a lab-local preset catalog, guarded session transitions and `run_batch`. The Python/Frida architecture is unchanged; the source BepInEx/Harmony/HTTP runtime is not included.

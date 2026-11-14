@@ -5,6 +5,7 @@ from pydantic import Field
 from .texture_input import read_texture_input
 from .texture_targets import register_texture_targets
 from .makeup_tools import register_makeup_tools
+from .body_paint_tools import register_body_paint_tools
 from .texture_layer_state import describe_layers,register_layer_state_tools
 from .texture_layer_management import register_layer_management_tools
 
@@ -14,6 +15,7 @@ Color = Annotated[list[Channel], Field(min_length=3, max_length=4)]
 def register_texture_tools(ready_tool,runtime,lab,read,edit):
     register_texture_targets(ready_tool,runtime,lab,read)
     register_makeup_tools(ready_tool,runtime,lab,read,edit)
+    register_body_paint_tools(ready_tool,runtime,lab,read,edit)
     register_layer_state_tools(ready_tool,runtime,read,edit)
     register_layer_management_tools(ready_tool,runtime,read,edit)
     @ready_tool(annotations=read)
