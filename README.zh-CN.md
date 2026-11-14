@@ -18,7 +18,7 @@ Windows · VRoid Studio 2.14.0 / 已签名独立版 2.16.0 · 0.5.0.dev0 开发�
 
 当前为 **0.5.0.dev0 开发快照**（npm 对应 `0.5.0-dev.0`），未发布新的稳定版。此 fork 的 [mcjo79 迁移对照表](MIGRATION.md)逐项列出 53 个源工具的去向、已验证的行为和限制。下文的原生测试是上游基线的历史记录；迁移功能的实机操作、保存重开、导出和画面效果须在兼容的独立副本中按[实机验收清单](docs/superpowers/native-migration-acceptance.md)分别验证。
 
-当前提供 [145 个工具](tools/TOOLS.md)，保留迁移前的 103 个接口，并增加服装模板列表与叠加。`get_help` 接收 `{"topic":"migration","language":"zh"}`，可离线查阅对照表。`return_to_main_menu` 返回的 `menu_token` 可作为 `expected_menu` 传给 `create_from_menu` 或 `open_from_menu`，在同一进程继续操作。
+当前提供 [157 个工具](tools/TOOLS.md)，保留迁移前的 103 个接口，并增加服装模板、身体彩绘、雀斑、痣和足甲上色。身体彩绘的范围和本地验收见 [BODY_PAINT.md](BODY_PAINT.md)。`get_help` 接收 `{"topic":"migration","language":"zh"}`，可离线查阅对照表。`return_to_main_menu` 返回的 `menu_token` 可作为 `expected_menu` 传给 `create_from_menu` 或 `open_from_menu`，在同一进程继续操作。
 
 连接 MCP 后，可以先用 `get_preset_framing` 传入 `{"category":"Clothing/Tops"}` 查看上衣的默认取景，无需启动 VRoid。`search_preset_cache` 查的是本地目录，第一次在兼容副本中执行 `sync_preset_cache` 前查不到条目是正常的。同槽服装可用 `list_clothing_templates` 和 `add_clothing_template` 从内向外叠层；`capture_review` 的 `include_images=false` 只返回本地路径。
 
@@ -68,7 +68,9 @@ Windows · VRoid Studio 2.14.0 / 已签名独立版 2.16.0 · 0.5.0.dev0 开发�
 | 颜色 | 调整眼睛、皮肤、眉睫与全局发色；逐束可见发色仍有限制 |
 | 贴图与图层 | 列出真实部位、渲染器和图层；打开对应画板；导出 PNG、UV 与表面数据；导入 PNG 为新图层；显隐、透明度、重命名、删除、排序及 26 种原生混合模式 |
 | 局部妆容 | 在腮红、唇缘、眼皮、眉毛和眼下皮肤遮罩内预览并绘制软硬印章、连续笔触；保留原图层 |
-| 美甲 | 根据手指骨骼与实际甲面生成十指 UV 遮罩，再进行局部贴图绘制与近景检查 |
+| 身体彩绘 | 在 BodySkin 的 UV 三角形遮罩内画笔触或贴 PNG；报告共享 UV，不把共享像素当成可独立编辑的左右侧 |
+| 雀斑与痣 | 在脸颊或身体遮罩内按种子散布雀斑，或放置可预览的点状痣；不用整张脸皮去画眼睛和嘴 |
+| 美甲 | 十指手甲仍只用 `export_nail_uv_map`。足甲另查 Foot 上孤立的趾骨甲面；分不出来就拒绝，不用手甲工具冒充 |
 | 换装 | 打开装配、导入 XWear、调整贴合参数、检查真实三维关系、保存 XRoid、导出 VRM 1.0 |
 | 预览与检查 | 多角度截图、前后对照、表情与姿势预览、动作采样；提供受限的只读原生 API 内省 |
 

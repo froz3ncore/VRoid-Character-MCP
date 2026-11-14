@@ -8,7 +8,7 @@ parameters, textures and local makeup, hair authoring, Dress-up assembly and
 VRM export — with no mouse automation, no OCR and no screen scraping.
 
 Status: **0.5.0.dev0 development snapshot** (npm: `0.5.0-dev.0`), with no new stable release or tag.
-This tree exposes [145 tools](tools/TOOLS.md), including all 103 baseline interfaces, the mcjo79 migration, and clothing-template tools. The [migration matrix](MIGRATION.md) maps each of the 53 source tools to its public entry points.
+This tree exposes [157 tools](tools/TOOLS.md), including all 103 baseline interfaces, the mcjo79 migration, clothing-template tools, and body paint, freckles, moles and toenail color. See [BODY_PAINT.md](BODY_PAINT.md). The [migration matrix](MIGRATION.md) maps each of the 53 source tools to its public entry points.
 It distinguishes implemented operations, offline tests and remaining limits. Earlier native runs cover the upstream baseline;
 the migrated operations still need [native, save/reopen, export and visual checks](docs/superpowers/native-migration-acceptance.md) on a physical lab copy under an eligible Windows test profile.
 Character art and sitting-skirt fit remain separate work. See [SCOPE.md](SCOPE.md).

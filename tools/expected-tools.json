@@ -1,7 +1,7 @@
 {
  "schema": "vroid-toolset-v1",
- "tool_count": 145,
- "toolset_hash": "sha256:a20221b7ac83b6a2895d913ae3f5e9def862c4ecf4ad1ffc70c181db52485f94",
+ "tool_count": 157,
+ "toolset_hash": "sha256:1b915b574b30020415d1ae99ed58b2190b92fc96f19be11025a48a1e30f5d77c",
  "tools": {
   "acknowledge_attached_state": {
    "parameters": [
@@ -361,6 +361,16 @@
     "expected_model"
    ]
   },
+  "export_body_paint_mask": {
+   "parameters": [
+    "expected_model",
+    "region_id"
+   ],
+   "required": [
+    "expected_model",
+    "region_id"
+   ]
+  },
   "export_makeup_region_mask": {
    "parameters": [
     "alpha_threshold",
@@ -591,6 +601,14 @@
    ]
   },
   "inspect_texture_renderers": {
+   "parameters": [
+    "expected_model"
+   ],
+   "required": [
+    "expected_model"
+   ]
+  },
+  "inspect_toenail_targets": {
    "parameters": [
     "expected_model"
    ],
@@ -923,6 +941,63 @@
     "filename"
    ]
   },
+  "paint_body_decal": {
+   "parameters": [
+    "center",
+    "expected_mask_sha256",
+    "expected_model",
+    "filename",
+    "layer_name",
+    "mask_id",
+    "opacity",
+    "png_sha256",
+    "rotation_deg",
+    "scale"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "filename",
+    "mask_id",
+    "png_sha256"
+   ]
+  },
+  "paint_body_marks": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "layer_name",
+    "marks",
+    "mask_id",
+    "opacity"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ]
+  },
+  "paint_freckles": {
+   "parameters": [
+    "color",
+    "count",
+    "expected_mask_sha256",
+    "expected_model",
+    "layer_name",
+    "mask_id",
+    "min_spacing",
+    "opacity",
+    "radius",
+    "seed"
+   ],
+   "required": [
+    "color",
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id"
+   ]
+  },
   "paint_makeup_marks": {
    "parameters": [
     "expected_mask_sha256",
@@ -937,6 +1012,40 @@
     "expected_model",
     "marks",
     "mask_id"
+   ]
+  },
+  "paint_moles": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "layer_name",
+    "mask_id",
+    "moles",
+    "opacity"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id",
+    "moles"
+   ]
+  },
+  "paint_toenail_color": {
+   "parameters": [
+    "expected_map_sha256",
+    "expected_model",
+    "layer_name",
+    "map_id",
+    "nails",
+    "opacity",
+    "region_id"
+   ],
+   "required": [
+    "expected_map_sha256",
+    "expected_model",
+    "map_id",
+    "nails",
+    "region_id"
    ]
   },
   "pick_texture_uv": {
@@ -976,6 +1085,39 @@
     "key"
    ]
   },
+  "preview_body_decal": {
+   "parameters": [
+    "center",
+    "expected_mask_sha256",
+    "expected_model",
+    "filename",
+    "mask_id",
+    "png_sha256",
+    "rotation_deg",
+    "scale"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "filename",
+    "mask_id",
+    "png_sha256"
+   ]
+  },
+  "preview_body_marks": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "marks",
+    "mask_id"
+   ]
+  },
   "preview_expression": {
    "parameters": [
     "expected_model",
@@ -983,6 +1125,24 @@
    ],
    "required": [
     "expected_model"
+   ]
+  },
+  "preview_freckles": {
+   "parameters": [
+    "color",
+    "count",
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id",
+    "min_spacing",
+    "radius",
+    "seed"
+   ],
+   "required": [
+    "color",
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id"
    ]
   },
   "preview_makeup_marks": {
@@ -999,6 +1159,20 @@
     "mask_id"
    ]
   },
+  "preview_moles": {
+   "parameters": [
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id",
+    "moles"
+   ],
+   "required": [
+    "expected_mask_sha256",
+    "expected_model",
+    "mask_id",
+    "moles"
+   ]
+  },
   "preview_presets": {
    "parameters": [
     "area",
@@ -1009,6 +1183,22 @@
     "area",
     "expected_model",
     "preset_ids"
+   ]
+  },
+  "preview_toenail_color": {
+   "parameters": [
+    "expected_map_sha256",
+    "expected_model",
+    "map_id",
+    "nails",
+    "region_id"
+   ],
+   "required": [
+    "expected_map_sha256",
+    "expected_model",
+    "map_id",
+    "nails",
+    "region_id"
    ]
   },
   "recolor_texture_layer": {

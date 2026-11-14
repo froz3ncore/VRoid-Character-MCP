@@ -30,7 +30,7 @@ def register_texture_targets(ready_tool,runtime,lab,read):
 
     @ready_tool(annotations=read)
     async def export_nail_uv_map(expected_model: str) -> dict:
-        """Discover ten paired distal-bone nail caps from actual Hand geometry; export 10 per-finger masks plus a colored diagnostic overlay. Ambiguous topology or UV sharing is rejected. Visual verification is required."""
+        """Discover ten paired distal-bone nail caps from actual Hand geometry; export 10 per-finger masks plus a colored diagnostic overlay. This is not a toenail tool. Ambiguous topology or UV sharing is rejected. Visual verification is required."""
         record,reference,bindings=await geometry(expected_model);mapping=discover_nails(reference,bindings);masks=raster_nails(mapping)
         folder=lab.resolve()/'reviews'/('nail-map-'+uuid.uuid4().hex);folder.mkdir(parents=True,exist_ok=False)
         width=mapping['texture']['width'];height=mapping['texture']['height'];diagnostic=bytearray(width*height*4);files=[]
