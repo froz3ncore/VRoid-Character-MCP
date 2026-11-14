@@ -40,7 +40,7 @@ def _candidates() -> list[pathlib.Path]:
     for name in ('launch.py', 'prepare_lab.py', 'pyproject.toml', 'package.json', 'SCOPE.md',
                  'CHANGELOG.md', 'README.md', 'README.zh-CN.md', 'README.zh-TW.md', 'LICENSE', 'NOTICE',
                  'LICENSING.md', 'MIGRATION.md', 'UPSTREAM.json', 'BLENDER_SETUP.zh-CN.md', 'RECOVERY.md', 'REWRITE.md',
-                 'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md', 'ATTACHED_SESSION.md', 'TEXTURE_LAYERS.md'):
+                 'PUBLIC_SAMPLE.md', 'REGRESSION.md', 'BETA_TESTING.md', 'ATTACHED_SESSION.md', 'TEXTURE_LAYERS.md', 'BODY_PAINT.md'):
         path = PROJECT / name
         if path.is_file():
             files.append(path)

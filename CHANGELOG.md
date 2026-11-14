@@ -2,7 +2,8 @@
 
 ## Unreleased — body paint
 
-- Added BodySkin UV masks, clipped marks, PNG decals, seeded freckles, moles, and a Foot-only toenail inspection/color path. Shared UV is reported and is not treated as independent left/right edits. Toenails that are not isolated caps are refused instead of guessed. Fingernails stay on `export_nail_uv_map`. New pixels are one native layer; the model is not saved and caller PNGs are not rewritten. Live VRoid acceptance is documented in BODY_PAINT.md and was not run for this change.
+- Added BodySkin UV masks, clipped marks, PNG decals, seeded freckles, moles, and a Foot-only toenail inspection/color path. Shared UV is reported and is not treated as independent left/right edits. Toenails that are not isolated caps are refused instead of guessed. Fingernails stay on `export_nail_uv_map`. New pixels are one native layer; the model is not saved and caller PNGs are not rewritten. See BODY_PAINT.md for the flow and acceptance boundaries.
+- Fixed new-layer image/command lifetimes during native RGBA allocation and normalized boxed value-type path arguments. Decals now validate opaque pixels outside the canvas before publishing. Toenail painting requires measured Foot-to-canvas geometry/skin/UV correspondence, rejects shared skin pixels, and rechecks the binding before import. [Follow-up evidence](docs/native-evidence/2026-11-14-body-paint-fixes.md) separates isolated native persistence checks from offline targeting tests.
 
 ## Unreleased — community fork capabilities
 

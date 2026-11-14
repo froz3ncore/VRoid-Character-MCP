@@ -1,8 +1,8 @@
 {
  "schema": "vroid-source-manifest-v2",
  "note": "Replaces the per-round 17 / 19 / 153 file snapshots; verify a checkout with --check. Native binaries, model assets and generated renders stay local. SHA-256 and byte counts normalize CRLF to LF.",
- "file_count": 503,
- "total_bytes": 3632394,
+ "file_count": 506,
+ "total_bytes": 3656808,
  "tool_count": 157,
  "toolset_hash": "sha256:1b915b574b30020415d1ae99ed58b2190b92fc96f19be11025a48a1e30f5d77c",
  "files": [
@@ -27,9 +27,14 @@
    "sha256": "b35d09bf3301826de85e8ba27f45280cf4bd94897b1916682096d41db4549104"
   },
   {
+   "path": "BODY_PAINT.md",
+   "bytes": 4006,
+   "sha256": "a1dd81b9e209ad57d9fb97d400a2cc681d5a5780a79de4c626ff6b15e683b9bd"
+  },
+  {
    "path": "CHANGELOG.md",
-   "bytes": 21781,
-   "sha256": "de9185ba66147e50815556675b260be64f74cfb5c336aa830c1e250be6dc85ad"
+   "bytes": 22245,
+   "sha256": "5e261a228468cb10d522dfea0df4bc6ca52af96aa306d5bba5ec66c8f83fc93f"
   },
   {
    "path": "LICENSE",
@@ -273,8 +278,8 @@
   },
   {
    "path": "agent/textures.js",
-   "bytes": 39702,
-   "sha256": "16719f5d104d7234264e3a6964df6a81535324875f697ad30468e662ac893044"
+   "bytes": 40177,
+   "sha256": "bee3b649aeee58f6a5d77d8c2d4c1bd9129ec9d25b8ed72ddc642933b523d827"
   },
   {
    "path": "agent/vrm_export.js",
@@ -305,6 +310,11 @@
    "path": "docs/native-evidence/2026-11-13-pr1-acceptance.md",
    "bytes": 10483,
    "sha256": "fcfef13e209dbc64756bb05d3b260d01e1a3d28cd167dfdbcc98b92afe04b9eb"
+  },
+  {
+   "path": "docs/native-evidence/2026-11-14-body-paint-fixes.md",
+   "bytes": 3534,
+   "sha256": "c9b3420407db1c376c49ad2f7345a5501a2b04e04745be18eb0b897ee2afb013"
   },
   {
    "path": "docs/native-evidence/2026-11-14-pr1-completion.md",
@@ -1443,8 +1453,8 @@
   },
   {
    "path": "tests/test_body_paint.py",
-   "bytes": 10267,
-   "sha256": "02b8e6da0dec5bb4d5812ad9180d4c74da07562f88464f44079829cb886eeee0"
+   "bytes": 16017,
+   "sha256": "adb942a2ceffc6275cb50990af53d3b38c5229ca901d8c9989e6cab120649435"
   },
   {
    "path": "tests/test_body_reference.py",
@@ -1772,6 +1782,11 @@
    "sha256": "5ebf5b4200457b3c4ed3d14ecac273d237a000a2fcd633b0073bab433a8a9ad1"
   },
   {
+   "path": "tests/texture_import_test.js",
+   "bytes": 3942,
+   "sha256": "6c4768429ca2255536034524d70f733f7127e40cae2ff2d0dd44a21fe807ebbf"
+  },
+  {
    "path": "tests/texture_layers_test.js",
    "bytes": 3005,
    "sha256": "25a30ae2eb3ed0b9b2803f52ceaae2910c4a2ea4371213c67d90afb75cbfbb01"
@@ -1893,8 +1908,8 @@
   },
   {
    "path": "tools/source_manifest.py",
-   "bytes": 6252,
-   "sha256": "7e0a2ed82fea90b5f41554c14076cd48bddbfcbac5c645bb0e502477aa58b1e9"
+   "bytes": 6269,
+   "sha256": "8716c3c8c00e0c38cb5a89ca3eaec6f45bd008a03ecfe5e085e19324a301d44c"
   },
   {
    "path": "tools/tool_manifest.py",
@@ -1928,13 +1943,13 @@
   },
   {
    "path": "vroid_mcp/body_paint.py",
-   "bytes": 18184,
-   "sha256": "b0596fdf918d42382052533bf074ab25d1985b7ed4d2717a0d9fafd5acad0954"
+   "bytes": 23273,
+   "sha256": "2113169e870bb4fb8d71e081ce3fe24788f3ce3fba1b6021fecc055268e13b0a"
   },
   {
    "path": "vroid_mcp/body_paint_tools.py",
-   "bytes": 25831,
-   "sha256": "48579cbaf1fd1565de0ee37a8a4756b6eb2d622fce19b5e8c95fdc6c473b8a03"
+   "bytes": 26968,
+   "sha256": "9fdadde2b9445edf8fd8e1d7a9512ffc227cbed640caea40f07cc5e0c7859afe"
   },
   {
    "path": "vroid_mcp/body_reference.py",

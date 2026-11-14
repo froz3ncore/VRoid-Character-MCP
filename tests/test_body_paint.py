@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from vroid_mcp.body_paint import composite_decal, discover_toenails, freckle_marks, mole_marks, raster_body_mask
+from vroid_mcp.body_paint import bind_toenail_canvas, composite_decal, discover_toenails, freckle_marks, mole_marks, raster_body_mask
 from vroid_mcp.body_paint_tools import register_body_paint_tools
 from vroid_mcp.bounded_paint import decode_rgba_png
 from vroid_mcp.texture_mapping import png_rgba
@@ -62,6 +62,20 @@ def test_freckles_repeat_for_the_same_seed_and_stay_inside_the_mask():
             assert rgba[index * 4 + 3] == 0
 
 
+@pytest.mark.parametrize('center,angle', [([0, .5], 0), ([1, .5], 0), ([.5, 0], 0), ([.5, 1], 0), ([0, .5], 45)])
+def test_decal_rejects_opaque_pixels_outside_canvas(center, angle):
+    with pytest.raises(ValueError, match='outside the body UV coverage'):
+        composite_decal(16, 16, bytes([255]) * 256,
+                        png_rgba(4, 4, bytes([1, 2, 3, 255]) * 16), center, .5, angle)
+
+
+def test_decal_allows_transparent_padding_outside_canvas():
+    source = bytearray(4 * 4 * 4)
+    source[8:12] = bytes([1, 2, 3, 200])
+    _, stats = composite_decal(16, 16, bytes([255]) * 256, png_rgba(4, 4, source), [0, .5], .5, 0)
+    assert stats['written_pixels'] == 4 and stats['clipped_pixels'] == 0
+
+
 def test_mole_outside_the_mask_is_rejected():
     mask = bytearray(16 * 16)
     mask[8 * 16 + 8] = 255
@@ -110,6 +124,59 @@ def test_shared_toenail_uv_is_not_independent():
     mesh['uv0'][8:16] = copy.deepcopy(mesh['uv0'][:8])
     found = discover_toenails(reference, bindings)
     assert found['separable'] is False and 'UV' in found['reason']
+
+
+def toe_surface(reference):
+    mesh = copy.deepcopy(reference['meshes'][0])
+    mesh['image'] = image()
+    mesh['bone_ids'] = [{'name': n['name']} for n in reference['nodes']]
+    mesh['submeshes'] = [{'triangles': mesh.pop('triangles')}]
+    return {'model_token': 'model', 'meshes': [mesh]}
+
+
+@pytest.mark.parametrize('mismatch', ['image', 'uv', 'bone', 'shared', 'ambiguous', 'model'])
+def test_toenail_binding_rejects_unproven_canvas_correspondence(mismatch):
+    reference, bindings = toe_scene()
+    found = discover_toenails(reference, bindings)
+    surface = toe_surface(reference)
+    images = [image()]
+    mesh = surface['meshes'][0]
+    if mismatch == 'image':
+        mesh['image'] = {'transferable_id': 'foreign', 'image_id': 'skin'}
+    elif mismatch == 'uv':
+        mesh['uv0'][0][0] += .01
+    elif mismatch == 'bone':
+        mesh['bone_ids'][0]['name'] = 'J_Bip_L_Hand'
+    elif mismatch == 'shared':
+        foreign = copy.deepcopy(mesh)
+        foreign['positions'] = [[x + 1, y, z] for x, y, z in mesh['positions']]
+        surface['meshes'].append(foreign)
+    elif mismatch == 'ambiguous':
+        foreign = copy.deepcopy(mesh)
+        foreign['image'] = {'transferable_id': 'second', 'image_id': 'skin'}
+        surface['meshes'].append(foreign)
+        images.append(foreign['image'])
+    else:
+        surface['model_token'] = 'other-model'
+    with pytest.raises(ValueError):
+        bind_toenail_canvas(reference, surface, images, found)
+
+
+def test_toenail_binding_refuses_renderer_skin_sharing_nail_uv():
+    reference, bindings = toe_scene()
+    surface = toe_surface(reference)
+    mesh = reference['meshes'][0]
+    start = len(mesh['positions'])
+    mesh['positions'] += [[x + 1, y, z] for x, y, z in mesh['positions'][:4]]
+    mesh['uv0'] += copy.deepcopy(mesh['uv0'][:4])
+    reference['nodes'].append({'id': 2, 'name': 'J_Bip_L_Foot'})
+    mesh['bone_nodes'].append(2)
+    mesh['weights'] += [{'indices': [2, 0, 0, 0], 'weights': [1, 0, 0, 0]} for _ in range(4)]
+    mesh['triangles'] += [start + i for i in [0, 1, 2, 0, 2, 3]]
+    found = discover_toenails(reference, bindings)
+    assert found['separable'] is True
+    with pytest.raises(ValueError, match='unshared cap pixels'):
+        bind_toenail_canvas(reference, surface, [image()], found)
 
 
 class Native:
@@ -168,6 +235,21 @@ def tools(tmp_path):
     return native, registered
 
 
+def test_body_preview_creates_a_missing_saves_directory(tmp_path):
+    async def scenario():
+        native, api = tools(tmp_path)
+        (tmp_path / 'saves').rmdir()
+        mask = await api['export_body_paint_mask']('model', 'body')
+        preview = await api['preview_body_marks'](
+            expected_model='model', mask_id=mask['mask_id'], expected_mask_sha256=mask['manifest_sha256'],
+            marks=[{'kind': 'stamp', 'points': [[0.1, 0.1]], 'radius': 0.2, 'hardness': 1,
+                    'color': [1, 0, 0, 1], 'mirror_x': False}])
+        written = tmp_path / 'saves' / preview['filename']
+        assert written.is_file() and written.read_bytes()
+        assert native.writes == []
+    asyncio.run(scenario())
+
+
 def test_body_paint_preview_matches_apply_and_leaves_the_source_png(tmp_path):
     async def scenario():
         native, api = tools(tmp_path)
@@ -209,9 +291,48 @@ def test_toenail_paint_refuses_until_caps_are_separable(tmp_path):
         assert report['separable'] is True and report['individual_toes_separable'] is False
         native.region = {'region_id': 'foot', 'native_type': 'Native.BodySkin', 'part': 'BodySkin'}
         native.layer = png_rgba(40, 40, bytes([0, 0, 0, 255]) * (40 * 40))
+        native.surface = toe_surface(native.reference)
         preview = await api['preview_toenail_color']('model', 'foot', report['map_id'], report['manifest_sha256'],
                                                      [{'id': 'L_toes', 'color': [0.8, 0.1, 0.2, 1]}])
         _, _, pixels = decode_rgba_png((tmp_path / 'saves' / preview['filename']).read_bytes())
         assert any(pixels[i + 3] for i in range(0, len(pixels), 4))
         assert sum(pixels[i + 3] > 0 for i in range(0, len(pixels), 4)) == next(item['pixels'] for item in report['targets'] if item['id'] == 'L_toes')
+        await api['paint_toenail_color']('model', 'foot', report['map_id'], report['manifest_sha256'],
+                                      [{'id': 'L_toes', 'color': [0.8, 0.1, 0.2, 1]}], 'toes', 1)
+        assert len(native.writes) == 1 and json.loads(native.writes[0]['image_id']) == image()
+    asyncio.run(scenario())
+
+
+def test_toenail_same_size_unrelated_canvas_never_imports(tmp_path):
+    async def scenario():
+        native, api = tools(tmp_path)
+        report = await api['inspect_toenail_targets']('model')
+        native.layer = png_rgba(40, 40, bytes([0, 0, 0, 255]) * 1600)
+        with pytest.raises(ValueError):
+            await api['paint_toenail_color']('model', 'body', report['map_id'], report['manifest_sha256'],
+                                          [{'id': 'L_toes', 'color': [1, 0, 0, 1]}], 'toes', 1)
+        assert native.writes == []
+    asyncio.run(scenario())
+
+
+def test_toenail_canvas_is_rechecked_immediately_before_import(tmp_path):
+    async def scenario():
+        native, api = tools(tmp_path)
+        report = await api['inspect_toenail_targets']('model')
+        native.surface = toe_surface(native.reference)
+        native.layer = png_rgba(40, 40, bytes([0, 0, 0, 255]) * 1600)
+        call = native.parameter_call
+        exports = 0
+        async def changed(operation, args, mutating=False):
+            nonlocal exports
+            if operation == 'export_texture_surface':
+                exports += 1
+                if exports == 2:
+                    native.surface['meshes'][0]['uv0'][0][0] += .01
+            return await call(operation, args, mutating)
+        native.parameter_call = changed
+        with pytest.raises(ValueError):
+            await api['paint_toenail_color']('model', 'body', report['map_id'], report['manifest_sha256'],
+                                          [{'id': 'L_toes', 'color': [1, 0, 0, 1]}], 'toes', 1)
+        assert exports == 2 and native.writes == []
     asyncio.run(scenario())

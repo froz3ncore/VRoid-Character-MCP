@@ -302,6 +302,11 @@ globalThis.createTextureApi=H=>{
   },
   import_texture_layer(args){const m=identity(args),r=region(m,args.region_id),images=imagePaths(m,r),image=images.find(p=>pathKey(p)===args.image_id);
    if(!image)throw Error('UNKNOWN_EDITABLE_IMAGE');
+   // Enumeration may return a boxed EditableImagePath. Keep its owner alive
+   // across PNG/Color allocations, and pass struct data (not the box header).
+   const imageOwner=image instanceof Il2Cpp.ValueType?image.box():image,imageHold=retain(imageOwner);
+   let commandHold=null;
+   try{
    const screen=m.main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
    if(screen.class.type.name!=='VRoid.Studio.TextureEditorScreen.ViewModel')throw Error('OPEN_MATCHING_TEXTURE_EDITOR_FIRST');
    const editor=screen.method('get_TextureEditor').invoke();if(stringProp(editor,'CurrentTransferableGroupType')!==stringProp(r.value,'TypeId'))throw Error('TEXTURE_EDITOR_REGION_MISMATCH');
@@ -321,7 +326,9 @@ globalThis.createTextureApi=H=>{
     const sizeClass=cls('VRoidCore','VRoidCore.Draw.TiledBitmap.BitmapSize'),memory=Memory.alloc(8);memory.writeS32(width);memory.add(4).writeS32(height);
     const size=new Il2Cpp.ValueType(memory,sizeClass.type);
     const command=cls('VRoidCore','VRoidCore.Editing.History.Command.LoadImageAsNewRasterLayerCommand').alloc();
-    invokeManaged(command,'.ctor',[image.handle,size.handle,pixels.handle]);invokeManaged(m.context,'ExecuteSyncCommand',[command.handle]);
+    commandHold=retain(command);
+    const imageValue=imageOwner.class.isValueType?imageOwner.unbox():imageOwner;
+    invokeManaged(command,'.ctor',[imageValue.handle,size.handle,pixels.handle]);invokeManaged(m.context,'ExecuteSyncCommand',[command.handle]);
     const added=layerRows(m,r).filter(x=>!before.includes(x.data.layer_id));if(added.length!==1)throw Error('UNCERTAIN_LAYER_IMPORT: inspect before further writes');
     const row=added[0],handler=cls('VRoid.Studio','VRoid.Studio.TextureEditor.ActionHandler');
     const nameCmd=handler.method('CreateModifyNameCommand').invoke(row.path,Il2Cpp.string(args.layer_name));invokeManaged(m.context,'ExecuteSyncCommand',[nameCmd.handle]);
@@ -335,6 +342,7 @@ globalThis.createTextureApi=H=>{
     if(after.Name!==args.layer_name||Math.abs(after.Opacity-args.opacity)>1e-6)throw Error('LAYER_METADATA_READBACK_MISMATCH');
     return {model_token:m.token,region_id:r.key,layer:after,width,height,history_command_count:3+moves,promoted_to_top:true,layer_move_commands:moves,frame:state.frame};
    }finally{if(pixelsHold)pixelsHold.free();decodedHold.free();}
+   }finally{if(commandHold)commandHold.free();imageHold.free();}
   },
   close_texture_editor(args){const m=identity(args),screen=m.main.method('get_GlobalBus').invoke().method('get_ScreenNavigation').invoke().method('get_ActiveScreen').invoke();
    if(screen.class.type.name!=='VRoid.Studio.TextureEditorScreen.ViewModel')throw Error('TEXTURE_EDITOR_NOT_ACTIVE');

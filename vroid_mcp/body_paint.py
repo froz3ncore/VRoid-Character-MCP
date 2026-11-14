@@ -4,8 +4,9 @@ Painting reuses bounded_paint.render_marks. This module only measures where
 pixels may land and rejects placements that leave the measured mask.
 """
 import hashlib, json, math, random, re
+from collections import Counter
 from .bounded_paint import decode_rgba_png, render_marks
-from .texture_mapping import add, cross, length, point, sub, unit
+from .texture_mapping import add, cross, length, point, raster_nails, sub, unit
 
 MAX_PIXELS = 4194304
 MAX_WORK = 8000000
@@ -109,12 +110,13 @@ def _fit_decal(width, height, mask, source, center, scale, rotation_deg):
     sin = math.sin(angle)
     out = bytearray(width * height * 4)
     opaque = clipped = written = 0
-    # Scan the destination bounding box of the rotated source.
-    half = math.hypot(dest_w, uniform * sh) / 2 + 1
-    x0 = max(0, math.floor(dest_cx - half))
-    x1 = min(width, math.ceil(dest_cx + half))
-    y0 = max(0, math.floor(dest_cy - half))
-    y1 = min(height, math.ceil(dest_cy + half))
+    # Scan the full projected rectangle, including pixels outside the canvas.
+    # Clamping first would silently discard opaque pixels before validation.
+    dest_h = uniform * sh
+    half_x = (abs(cos) * dest_w + abs(sin) * dest_h) / 2
+    half_y = (abs(sin) * dest_w + abs(cos) * dest_h) / 2
+    x0, x1 = math.floor(dest_cx - half_x), math.ceil(dest_cx + half_x)
+    y0, y1 = math.floor(dest_cy - half_y), math.ceil(dest_cy + half_y)
     if (x1 - x0) * (y1 - y0) > MAX_WORK:
         raise ValueError('Decal placement exceeds the bounded pixel-work limit')
     for y in range(y0, y1):
@@ -132,7 +134,7 @@ def _fit_decal(width, height, mask, source, center, scale, rotation_deg):
             if sample[3] == 0:
                 continue
             opaque += 1
-            if not mask[y * width + x]:
+            if not (0 <= x < width and 0 <= y < height) or not mask[y * width + x]:
                 clipped += 1
                 continue
             out[(y * width + x) * 4:(y * width + x) * 4 + 4] = sample
@@ -330,7 +332,9 @@ def discover_toenails(reference, bindings):
         masks = raster_nails({'texture': texture, 'nails': [{'id': t['id'], 'islands': t['islands']} for t in targets]})
     except ValueError as error:
         return {**refusal, 'reason': 'TOENAIL_UV_NOT_INDEPENDENT', 'detail': str(error)}
-    digest = hashlib.sha256(json.dumps({'positions': mesh.get('positions'), 'uv': uv, 'triangles': raw, 'bones': bones},
+    digest = hashlib.sha256(json.dumps({'positions': mesh.get('positions'), 'world_matrix': mesh['world_matrix'],
+                                       'uv': uv, 'triangles': raw, 'bones': bones, 'weights': weights,
+                                       'texture': {key: texture[key] for key in ('width', 'height', 'offset', 'scale')}},
                                        sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     nails = [{'id': t['id'], 'islands': t['islands']} for t in targets]
     return {'separable': True, 'individual_toes_separable': individual, 'shared_uv': False,
@@ -355,3 +359,94 @@ def _paired(parts, positions):
     if hausdorff > min(0.002, 0.2 * max(a['diameter_m'], b['diameter_m'])):
         return None
     return parts
+
+
+def bind_toenail_canvas(reference, surface, images, found):
+    """Prove a direct Foot-to-canvas mapping; refuse atlases or posed mismatches.
+
+    Size/material identity alone cannot prove an editable UV address. Require
+    each cap triangle's positions, UVs and named skin weights to agree, and
+    reject other canvas surfaces sharing any target pixel.
+    """
+    if reference.get('model_token') != surface.get('model_token') or not found['separable']:
+        raise ValueError('Foot/canvas model identity mismatch')
+    foot = next(m for m in reference['meshes'] if m['name'] == 'Foot')
+    nodes = {n['id']: n['name'] for n in reference['nodes']}
+    foot_bones = [nodes[i] for i in foot['bone_nodes']]
+    positions = [point(foot['world_matrix'], p) for p in foot['positions']]
+
+    def bone_name(row):
+        if row.get('name'):
+            return row['name']
+        fields = row.get('fields', [])
+        values = [f['value'] for f in fields if f['name'] == '<Value>k__BackingField']
+        if row.get('native_type') == 'VRoidCore.Common.Types.ResolvedBoneId' and values == [row.get('identity')]:
+            return values[0]
+        raise ValueError('Unverified canvas bone identity')
+
+    def vertex(mesh, bones, points, index):
+        weight = mesh['weights'][index]
+        skin = tuple(sorted((bones[b], round(w, 6)) for b, w in zip(weight['indices'], weight['weights']) if w > 1e-6))
+        values = [*points[index], *mesh['uv0'][index]]
+        if len(values) != 5 or any(not math.isfinite(v) for v in values):
+            raise ValueError('Invalid canvas vertex')
+        return tuple(round(v, 6) for v in values), skin
+
+    def signature(mesh, bones, points, tri):
+        return tuple(sorted(vertex(mesh, bones, points, i) for i in tri))
+
+    wanted = Counter(signature(foot, foot_bones, positions, tri)
+                     for nail in found['nails'] for island in nail['islands'] for tri in island['triangles'])
+    width, height = found['texture']['width'], found['texture']['height']
+    masks = raster_nails({'texture': found['texture'], 'nails': found['nails']})
+    target_pixels = set().union(*masks.values())
+    cap_indices = Counter(tuple(sorted(tri)) for nail in found['nails']
+                          for island in nail['islands'] for tri in island['triangles'])
+    source_other = []
+    for start in range(0, len(foot['triangles']), 3):
+        tri = foot['triangles'][start:start + 3]
+        key = tuple(sorted(tri))
+        if cap_indices[key] > 0:
+            cap_indices[key] -= 1
+        else:
+            source_other.append([foot['uv0'][i] for i in tri])
+    matches = []
+    work = 0
+    for image in images:
+        meshes = [m for m in surface.get('meshes', []) if m.get('image') == image]
+        remaining = wanted.copy()
+        other_triangles = source_other[:]
+        try:
+            for mesh in meshes:
+                bones = [bone_name(b) for b in mesh['bone_ids']]
+                indices = [i for submesh in mesh['submeshes'] for i in submesh['triangles']]
+                if len(indices) % 3:
+                    raise ValueError('Invalid canvas triangle stream')
+                for start in range(0, len(indices), 3):
+                    tri = indices[start:start + 3]
+                    key = signature(mesh, bones, mesh['positions'], tri)
+                    if remaining[key] > 0:
+                        remaining[key] -= 1
+                    else:
+                        other_triangles.append([mesh['uv0'][i] for i in tri])
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+        if any(remaining.values()):
+            continue
+        shared = False
+        for tri in other_triangles:
+            tex = [(u * width, (1 - v) * height) for u, v in tri]
+            x0, x1 = max(0, math.floor(min(p[0] for p in tex))), min(width, math.ceil(max(p[0] for p in tex)))
+            y0, y1 = max(0, math.floor(min(p[1] for p in tex))), min(height, math.ceil(max(p[1] for p in tex)))
+            work += max(0, x1 - x0) * max(0, y1 - y0)
+            if work > MAX_WORK:
+                raise ValueError('Foot/canvas correspondence exceeds the bounded work limit')
+            if any(y * width + x in target_pixels and _barycentric(*tex, x + .5, y + .5) is not None
+                   for y in range(y0, y1) for x in range(x0, x1)):
+                shared = True
+                break
+        if not shared:
+            matches.append(image)
+    if len(matches) != 1:
+        raise ValueError('Foot UV correspondence requires one exact canvas image with unshared cap pixels; matching texture size is insufficient')
+    return matches[0]

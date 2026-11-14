@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .body_paint import composite_decal, discover_toenails, freckle_marks, mole_marks, raster_body_mask
+from .body_paint import bind_toenail_canvas, composite_decal, discover_toenails, freckle_marks, mole_marks, raster_body_mask
 from .bounded_paint import decode_rgba_png, render_marks
 from .makeup_tools import CanvasMark, canonical, digest, geometry_digest, load_mask
 from .texture_input import read_texture_input
@@ -62,7 +62,11 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
     def publish(kind, manifest, png, extra):
         identifier = uuid.uuid4().hex
         filename = f'{kind}-{identifier}.png'
-        (lab.resolve() / 'saves' / filename).write_bytes(png)
+        saves = (lab.resolve() / 'saves').resolve()
+        if saves.parent != lab.resolve():
+            raise ValueError('Paint previews must stay inside the lab saves directory')
+        saves.mkdir(parents=True, exist_ok=True)
+        (saves / filename).write_bytes(png)
         folder = artifact(kind, identifier)
         folder.mkdir(parents=True, exist_ok=False)
         (folder / 'overlay.png').write_bytes(png)
@@ -79,7 +83,11 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
             raise ValueError('Invalid layer opacity or name')
         data, width, height = read_texture_input(lab, preview['filename'], preview['png_sha256'], layer_name)
         if manifest.get('schema') == 'vroid-toenail-color-v1':
-            await current_canvas(preview['model_token'], manifest['region_id'])
+            _, canvas = await current_canvas(preview['model_token'], manifest['region_id'])
+            _, reference, found = await fresh_toenails(preview['model_token'])
+            image, surface = await bound_toenail_canvas(preview['model_token'], manifest['region_id'], canvas, reference, found)
+            if image != manifest['image'] or found['geometry_sha256'] != manifest['geometry_sha256'] or geometry_digest(surface) != manifest['canvas_geometry_sha256']:
+                raise ValueError('Foot/canvas binding changed before import')
         else:
             await verify_mask(manifest, preview['model_token'])
         imported = await runtime.parameter_call('import_texture_layer', {
@@ -291,12 +299,26 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
         reference = json.loads(Path(record['path']).read_text(encoding='utf8'))
         bindings = await runtime.parameter_call('inspect_texture_renderers', {'expected_model': expected_model})
         found = discover_toenails(reference, bindings)
-        return record, found
+        return record, reference, found
+
+    async def bound_toenail_canvas(expected_model, region_id, canvas, reference, found):
+        surface = await runtime.parameter_call('export_texture_surface', {'expected_model': expected_model})
+        image = bind_toenail_canvas(reference, surface, [item['image'] for item in canvas['images']], found)
+        layers = await runtime.parameter_call('list_texture_layers', {'expected_model': expected_model, 'region_id': region_id})
+        layer = next((row for row in layers['layers'] if row['image'] == image), None)
+        if layer is None:
+            raise ValueError('The verified Foot canvas image has no raster layer')
+        exported = await runtime.parameter_call('export_texture_layer', {
+            'expected_model': expected_model, 'region_id': region_id, 'layer_id': layer['layer_id']})
+        width, height, _ = decode_rgba_png(base64.b64decode(exported['base64'], validate=True))
+        if (width, height) != (found['texture']['width'], found['texture']['height']):
+            raise ValueError('Foot and editable canvas texture sizes differ')
+        return image, surface
 
     @ready_tool(annotations=read)
     async def inspect_toenail_targets(expected_model: str) -> dict:
         """Measure isolated Foot caps weighted only to toe bones. This does not call the ten-finger nail tool. If the toes are not a separable cap, the result says why and contains no guessed pixels."""
-        record, found = await fresh_toenails(expected_model)
+        record, _, found = await fresh_toenails(expected_model)
         public = {key: value for key, value in found.items() if key != 'nails'}
         public.update(model_token=expected_model, reference_path=record['path'], hand_nail_tool='export_nail_uv_map')
         if not found['separable']:
@@ -318,7 +340,7 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
         manifest, raw, _ = read_manifest('toenail-map', map_id)
         if digest(raw) != expected_sha or manifest.get('model_token') != expected_model:
             raise ValueError('Stale toenail map')
-        _, found = await fresh_toenails(expected_model)
+        _, reference, found = await fresh_toenails(expected_model)
         if not found['separable'] or found['geometry_sha256'] != manifest['geometry_sha256']:
             raise ValueError('Foot geometry changed or toenails are no longer separable')
         chosen = [item.model_dump() if isinstance(item, ToenailColor) else item for item in colors]
@@ -329,20 +351,7 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
         if region['part'] not in ('BodySkin', 'Foot') and not str(region.get('native_type', '')).endswith('Foot'):
             raise ValueError('Open the foot texture canvas. export_nail_uv_map remains the hand-only tool.')
         width, height = found['texture']['width'], found['texture']['height']
-        matching = []
-        layers = await runtime.parameter_call('list_texture_layers', {'expected_model': expected_model, 'region_id': region_id})
-        for image in [item['image'] for item in canvas['images']]:
-            layer = next((row for row in layers['layers'] if row['image'] == image), None)
-            if layer is None:
-                continue
-            exported = await runtime.parameter_call('export_texture_layer', {
-                'expected_model': expected_model, 'region_id': region_id, 'layer_id': layer['layer_id']})
-            png = base64.b64decode(exported.pop('base64'), validate=True)
-            image_width, image_height, _ = decode_rgba_png(png)
-            if (image_width, image_height) == (width, height):
-                matching.append(image)
-        if len(matching) != 1:
-            raise ValueError('The open canvas has no unique image of the measured foot texture size')
+        matched_image, surface = await bound_toenail_canvas(expected_model, region_id, canvas, reference, found)
         masks = raster_nails({'texture': {'width': width, 'height': height}, 'nails': found['nails']})
         raw_pixels = bytearray(width * height * 4)
         for item in chosen:
@@ -354,7 +363,8 @@ def register_body_paint_tools(ready_tool, runtime, lab, read, edit):
                 raw_pixels[pixel * 4:pixel * 4 + 4] = pixel_color
         png = png_rgba(width, height, raw_pixels)
         receipt = {'schema': 'vroid-toenail-color-v1', 'model_token': expected_model, 'region_id': region_id,
-                   'native_type': region['native_type'], 'part': region['part'], 'image': matching[0],
+                    'native_type': region['native_type'], 'part': region['part'], 'image': matched_image,
+                    'geometry_sha256': found['geometry_sha256'], 'canvas_geometry_sha256': geometry_digest(surface),
                    'width': width, 'height': height, 'anatomical_sides_independent': found['anatomical_sides_independent'],
                    'individual_toes_separable': found['individual_toes_separable'], 'shared_uv_pixels': 0}
         preview = publish('toenail-color', receipt, png, {'nails': ids})

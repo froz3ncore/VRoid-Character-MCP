@@ -4,8 +4,10 @@ These tools extend the existing mask and new-layer path. They do not replace
 `export_makeup_region_mask` / `paint_makeup_marks` (cheek, mouth line, eyelid,
 eyebrow, under-eye) or `export_nail_uv_map` (ten fingernails on the Hand mesh).
 
-Nothing here was executed against a live VRoid Studio process in this change.
 Offline tests cover clipping, alpha, seeds, placement and stale rejection.
+Local native acceptance records cover body marks and decals on disposable
+F00/M00 copies. Freckle/mole previews and toenail refusal are separate checks;
+they do not establish native toenail painting or final visual acceptance.
 
 ## What already existed
 
@@ -46,13 +48,18 @@ per foot (`L_toes` / `R_toes`) and `individual_toes_separable` is false.
 If no such cap exists, the tool returns `separable: false` and a reason. It does
 not invent UV boxes or call `export_nail_uv_map`.
 
-When `separable` is true, open the canvas whose image matches the reported foot
-texture size and call `preview_toenail_color` / `paint_toenail_color` with the
-map id. Color is written only on those caps.
+When `separable` is true, open the corresponding native canvas and call
+`preview_toenail_color` / `paint_toenail_color` with the map id. A matching
+texture size is insufficient: the tools require a unique editable image whose
+cap triangle positions, UVs and named skin weights match the measured Foot,
+and reject target pixels shared with any other canvas surface. This direct
+mapping is conservative; changed poses, atlas remapping or unknown bone
+identities are refused. Geometry, image ownership and dimensions are checked
+again immediately before import. Color is written only on the verified caps.
 
 ## Local acceptance
 
-Use a new output directory and a disposable lab. This was not run here.
+Use a new output directory and a disposable lab.
 
 ```powershell
 python tools/check_native_domains.py --lab <prepared-lab> --json <new>/domains.json
@@ -61,7 +68,8 @@ python tools/check_native_domains.py --lab <prepared-lab> --json <new>/domains.j
 Then, on F00 and again on M00:
 
 1. `export_body_paint_mask` on BodySkin. Record `shared_uv_pixels`.
-2. Preview and paint a small mark and a decal. Undo once per import. `save_as`,
+2. Preview and paint a small mark and a decal. Undo the reported native
+   `history_command_count`, then redo and check the pixels. `save_as`,
    reopen, and confirm the new layer is still the only added pixels.
 3. `preview_freckles` twice with the same seed and compare `png_sha256`.
 4. `inspect_toenail_targets`. If `separable` is false, stop and keep the reason.
